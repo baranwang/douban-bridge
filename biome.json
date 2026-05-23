@@ -6,7 +6,8 @@
     "useIgnoreFile": false
   },
   "files": {
-    "ignoreUnknown": false
+    "ignoreUnknown": false,
+    "includes": ["**", "!!.cursor", "!!.omo", "!!dist", "!!.wrangler", "!!worker-configuration.d.ts", "!!drizzle/meta"]
   },
   "formatter": {
     "enabled": true,

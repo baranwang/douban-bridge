@@ -5,10 +5,17 @@ import { getLatestYearlyRanking, isYearlyRankingId } from "@/libs/collections";
 import { getConfig } from "@/libs/config";
 import { SECONDS_PER_DAY, SECONDS_PER_WEEK } from "@/libs/constants";
 import { ImageUrlGenerator } from "@/libs/images";
+import { matchResponseCache, putResponseCache } from "@/libs/response-cache";
 import { getExtraFactory, matchResourceRoute } from "@/libs/router";
 import { generateId, isForwardUserAgent } from "@/libs/utils";
 
 type CatalogResponse = Awaited<ReturnType<Parameters<AddonBuilder["defineCatalogHandler"]>[0]>>;
+type CatalogMeta = MetaDetail &
+  Record<string, unknown> & {
+    imdb_id?: string;
+    tmdb_id?: string;
+    tmdbId?: number;
+  };
 
 export const catalogRoute = new Hono<Env>();
 
@@ -17,6 +24,12 @@ catalogRoute.get("*", async (c) => {
 
   if (!matched) {
     return c.notFound();
+  }
+
+  const uaVariant = isForwardUserAgent(c) ? "forward" : "standard";
+  const cached = await matchResponseCache(c, { namespace: "catalog", uaVariant });
+  if (cached) {
+    return cached;
   }
 
   const config = await getConfig(c.env, params.config);
@@ -49,7 +62,14 @@ catalogRoute.get("*", async (c) => {
 
   const items = collectionData.subject_collection_items;
   if (items.length === 0) {
-    return c.json({ metas: [] } satisfies CatalogResponse);
+    const response = c.json({
+      metas: [],
+      cacheMaxAge: SECONDS_PER_DAY,
+      staleRevalidate: SECONDS_PER_WEEK,
+      staleError: SECONDS_PER_WEEK,
+    } satisfies CatalogResponse);
+    putResponseCache(c, response, { namespace: "catalog", uaVariant, ttl: SECONDS_PER_DAY });
+    return response;
   }
 
   const collectionMap = new Map(items.map((item) => [item.id, item]));
@@ -80,7 +100,7 @@ catalogRoute.get("*", async (c) => {
   // 后台异步写入数据库，不阻塞响应
   c.executionCtx.waitUntil(api.persistIdMapping(newMappings, false));
 
-  const isInForward = isForwardUserAgent(c);
+  const isInForward = uaVariant === "forward";
 
   const imageUrlGenerator = new ImageUrlGenerator(config.imageProviders, {
     origin: new URL(c.req.url).origin,
@@ -98,7 +118,7 @@ catalogRoute.get("*", async (c) => {
         tmdbId,
         imdbId,
       });
-      const result: MetaDetail & { [key: string]: any } = {
+      const result: CatalogMeta = {
         id: `douban:${item.id}`,
         type: item.type === "tv" ? "series" : "movie",
         name: item.title,
@@ -127,10 +147,12 @@ catalogRoute.get("*", async (c) => {
     }),
   );
 
-  return c.json({
+  const response = c.json({
     metas,
     cacheMaxAge: SECONDS_PER_DAY,
     staleRevalidate: SECONDS_PER_WEEK,
     staleError: SECONDS_PER_WEEK,
   } satisfies CatalogResponse);
+  putResponseCache(c, response, { namespace: "catalog", uaVariant, ttl: SECONDS_PER_DAY });
+  return response;
 });

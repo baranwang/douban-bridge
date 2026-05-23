@@ -62,9 +62,8 @@ export class DoubanAPI extends BaseAPI {
     const getCacheKey = (collectionId: string) => `subject_collection_category:${collectionId}`;
     const cacheKey = getCacheKey(collectionId);
 
-    // 尝试从 KV 获取缓存
     const cached = await this.getCache<DoubanSubjectCollectionCategory>(getCacheKey(collectionId), {
-      type: CacheType.KV | CacheType.LOCAL,
+      type: CacheType.LOCAL,
     });
     if (cached) {
       console.info("⚡️ Cache Hit", cacheKey);
@@ -78,7 +77,6 @@ export class DoubanAPI extends BaseAPI {
       return null;
     }
 
-    // 查找当前 category 并预热所有子 collection 的缓存
     let category: DoubanSubjectCollectionCategory = null;
     for (const tab of tabs) {
       const isCurrent = tab?.items?.some((item) => item.current);
@@ -90,7 +88,7 @@ export class DoubanAPI extends BaseAPI {
       for (const item of tab?.items ?? []) {
         if (item.id) {
           this.setCache(getCacheKey(item.id), tab, {
-            type: CacheType.KV | CacheType.LOCAL,
+            type: CacheType.LOCAL,
             ttl: SECONDS_PER_WEEK * 4,
           });
         }
@@ -108,7 +106,7 @@ export class DoubanAPI extends BaseAPI {
         count: DoubanAPI.PAGE_SIZE,
       },
       cache: {
-        type: CacheType.KV | CacheType.LOCAL,
+        type: CacheType.LOCAL,
         key: `subject_collection:${collectionId}:${skip}`,
         ttl: SECONDS_PER_HOUR * 2,
       },
@@ -120,7 +118,7 @@ export class DoubanAPI extends BaseAPI {
     const resp = await this.request({
       url: `/subject/${subjectId}`,
       cache: {
-        type: CacheType.KV | CacheType.LOCAL,
+        type: CacheType.LOCAL,
         key: `subject_detail:${subjectId}`,
         ttl: SECONDS_PER_DAY,
       },
@@ -134,7 +132,7 @@ export class DoubanAPI extends BaseAPI {
       cache: {
         key: `subject_detail_desc:${subjectId}`,
         ttl: SECONDS_PER_DAY,
-        type: CacheType.KV | CacheType.LOCAL,
+        type: CacheType.LOCAL,
       },
     });
     const $ = cheerioLoad(resp.html);
@@ -171,7 +169,7 @@ export class DoubanAPI extends BaseAPI {
             setWhere: or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
           }),
       );
-    } catch (error) {}
+    } catch {}
     return doubanId;
   }
 
@@ -179,7 +177,7 @@ export class DoubanAPI extends BaseAPI {
     const resp = await this.request({
       url: `/${type}/modules`,
       cache: {
-        type: CacheType.KV | CacheType.LOCAL,
+        type: CacheType.LOCAL,
         key: `douban_${type}_modules`,
         ttl: SECONDS_PER_DAY,
       },

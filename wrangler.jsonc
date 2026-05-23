@@ -6,9 +6,7 @@
     "directory": "public"
   },
   "compatibility_date": "2025-11-28",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "placement": {
     "mode": "smart"
   },
@@ -58,9 +56,7 @@
     }
   ],
   "triggers": {
-    "crons": [
-      "0 * * * *"
-    ]
+    "crons": ["0 * * * *"]
   },
   "observability": {
     "logs": {

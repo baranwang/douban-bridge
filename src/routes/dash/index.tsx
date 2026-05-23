@@ -26,12 +26,14 @@ dashRoute.use(
 dashRoute.use(
   basicAuth({
     verifyUser: async (username, password, c) => {
-      const kv = (c.env as CloudflareBindings).KV;
-      const [user, pass] = await Promise.all([kv.get("DASH_USER", "text"), kv.get("DASH_PASS", "text")]);
-      if (!user || !pass) {
+      const [dashUser, dashPass] = await Promise.all([
+        c.env.KV.get("DASH_USER", "text"),
+        c.env.KV.get("DASH_PASS", "text"),
+      ]);
+      if (!dashUser || !dashPass) {
         return true;
       }
-      if (user !== username || pass !== password) {
+      if (dashUser !== username || dashPass !== password) {
         return false;
       }
       return true;

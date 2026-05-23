@@ -55,7 +55,7 @@ export class TmdbAPI extends BaseAPI {
       cache: {
         key: `tmdb:${type}:${id}:external_ids`,
         ttl: SECONDS_PER_WEEK,
-        type: CacheType.LOCAL | CacheType.KV,
+        type: CacheType.LOCAL,
       },
     });
   }
@@ -70,7 +70,7 @@ export class TmdbAPI extends BaseAPI {
       cache: {
         key: `tmdb:${type}:${id}:images:${languages.join(",")}`,
         ttl: SECONDS_PER_WEEK,
-        type: CacheType.LOCAL | CacheType.KV,
+        type: CacheType.LOCAL,
       },
     });
     return tmdbSubjectImagesSchema.parse(resp);
