@@ -20,6 +20,9 @@ export const getResponseCacheKey = (c: Context<Env>, namespace: ResponseCacheNam
 };
 
 export const matchResponseCache = async (c: Context<Env>, { namespace }: ResponseCacheOptions) => {
+  if (process.env.NODE_ENV === "development") {
+    return null;
+  }
   if (c.req.method === "GET") {
     try {
       const cached = await caches.default.match(getResponseCacheKey(c, namespace));
