@@ -7,7 +7,6 @@ import { SECONDS_PER_DAY, SECONDS_PER_WEEK } from "@/libs/constants";
 import { ImageUrlGenerator } from "@/libs/images";
 import { matchResponseCache, putResponseCache } from "@/libs/response-cache";
 import { getExtraFactory, matchResourceRoute } from "@/libs/router";
-import { generateId, isForwardUserAgent } from "@/libs/utils";
 
 type CatalogResponse = Awaited<ReturnType<Parameters<AddonBuilder["defineCatalogHandler"]>[0]>>;
 type CatalogMeta = MetaDetail &
@@ -26,8 +25,7 @@ catalogRoute.get("*", async (c) => {
     return c.notFound();
   }
 
-  const uaVariant = isForwardUserAgent(c) ? "forward" : "standard";
-  const cached = await matchResponseCache(c, { namespace: "catalog", uaVariant });
+  const cached = await matchResponseCache(c, { namespace: "catalog" });
   if (cached) {
     return cached;
   }
@@ -68,7 +66,7 @@ catalogRoute.get("*", async (c) => {
       staleRevalidate: SECONDS_PER_WEEK,
       staleError: SECONDS_PER_WEEK,
     } satisfies CatalogResponse);
-    putResponseCache(c, response, { namespace: "catalog", uaVariant, ttl: SECONDS_PER_DAY });
+    putResponseCache(c, response, { namespace: "catalog", ttl: SECONDS_PER_DAY });
     return response;
   }
 
@@ -99,8 +97,6 @@ catalogRoute.get("*", async (c) => {
 
   // 后台异步写入数据库，不阻塞响应
   c.executionCtx.waitUntil(api.persistIdMapping(newMappings, false));
-
-  const isInForward = uaVariant === "forward";
 
   const imageUrlGenerator = new ImageUrlGenerator(config.imageProviders, {
     origin: new URL(c.req.url).origin,
@@ -134,14 +130,8 @@ catalogRoute.get("*", async (c) => {
         result.imdb_id = imdbId;
       }
       if (tmdbId) {
-        if (isInForward) {
-          result.tmdb_id = `tmdb:${tmdbId}`;
-        } else {
-          result.tmdbId = tmdbId;
-        }
-      }
-      if (isInForward) {
-        result.id = generateId({ doubanId: item.id, imdbId, tmdbId });
+        result.tmdb_id = `tmdb:${tmdbId}`;
+        result.tmdbId = tmdbId;
       }
       return result;
     }),
@@ -153,6 +143,6 @@ catalogRoute.get("*", async (c) => {
     staleRevalidate: SECONDS_PER_WEEK,
     staleError: SECONDS_PER_WEEK,
   } satisfies CatalogResponse);
-  putResponseCache(c, response, { namespace: "catalog", uaVariant, ttl: SECONDS_PER_DAY });
+  putResponseCache(c, response, { namespace: "catalog", ttl: SECONDS_PER_DAY });
   return response;
 });

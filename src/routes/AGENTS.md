@@ -35,7 +35,7 @@ routes/
 - Public addon handlers usually mount both direct and `/:config` variants.
 - `catalog` and `meta` handlers must use `matchResourceRoute()` rather than ad hoc path splitting.
 - Stremio cache fields (`cacheMaxAge`, `staleRevalidate`, `staleError`) belong in route JSON responses where supported.
-- `Forward` user-agent compatibility changes ID fields; preserve `isForwardUserAgent()` branches.
+- `Forward` compatibility fields are emitted unconditionally; do not reintroduce User-Agent-specific response shapes.
 - Use `c.executionCtx.waitUntil()` for non-blocking DB/cache writes after response-critical data is ready.
 - SSR routes use `reactRenderer`; hydrated pages must include `ViteClient`, initial data, and a matching client entry.
 - `dash/` is admin-only and separate from public Stremio endpoint behavior.

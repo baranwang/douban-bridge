@@ -79,7 +79,7 @@ stremio-addon-douban/
 
 - Stremio endpoints are mounted twice: public (`/catalog`, `/meta`, etc.) and config-scoped (`/:config/catalog`, `/:config/meta`).
 - Configure UI is SSR-rendered and separately hydrated by `src/client/configure.tsx`.
-- Forward user-agent behavior changes IDs/metadata fields for compatibility with Forward.
+- Forward compatibility fields are emitted unconditionally; do not reintroduce User-Agent-specific response shapes.
 - API calls are best-effort: enrichment failures usually degrade to `null`/`[]` rather than failing the Stremio response.
 - Config URLs are brotli-compressed base64url JSON unless the path segment is a user UUID.
 

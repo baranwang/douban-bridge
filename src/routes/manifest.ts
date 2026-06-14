@@ -3,7 +3,6 @@ import { type Env, Hono } from "hono";
 import pkg from "@/../package.json" with { type: "json" };
 import { getCatalogs } from "@/libs/catalog";
 import { encodeConfig, getConfig } from "@/libs/config";
-import { isForwardUserAgent } from "@/libs/utils";
 import { idPrefixes } from "./meta";
 
 export const manifestRoute = new Hono<Env>();
@@ -17,12 +16,8 @@ manifestRoute.get("/", async (c) => {
 
   const config = await getConfig(c.env, configId);
   const catalogs = await getCatalogs(config);
-  const isInForward = isForwardUserAgent(c);
 
-  const resources: Manifest["resources"] = ["catalog"];
-  if (!isInForward) {
-    resources.push("meta");
-  }
+  const resources: Manifest["resources"] = ["catalog", "meta"];
   return c.json({
     id: `${pkg.name}.${configId}`,
     version: pkg.version,

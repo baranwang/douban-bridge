@@ -8,7 +8,6 @@ import { SECONDS_PER_DAY, SECONDS_PER_WEEK } from "@/libs/constants";
 import { ImageUrlGenerator } from "@/libs/images";
 import { matchResponseCache, putResponseCache } from "@/libs/response-cache";
 import { matchResourceRoute } from "@/libs/router";
-import { isForwardUserAgent } from "@/libs/utils";
 
 export const metaRoute = new Hono<Env>();
 
@@ -39,8 +38,7 @@ metaRoute.get("*", async (c) => {
     return c.notFound();
   }
 
-  const uaVariant = isForwardUserAgent(c) ? "forward" : "standard";
-  const cached = await matchResponseCache(c, { namespace: "meta", uaVariant });
+  const cached = await matchResponseCache(c, { namespace: "meta" });
   if (cached) {
     return cached;
   }
@@ -71,8 +69,6 @@ metaRoute.get("*", async (c) => {
     awards: data.honor_infos?.map((item) => item.title).join(" / "),
   };
   meta.behaviorHints ||= {};
-  const isInForward = uaVariant === "forward";
-
   const dbData = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, doubanId) });
   if (!dbData) {
     c.executionCtx.waitUntil(api.db.insert(doubanMapping).values({ doubanId }));
@@ -81,11 +77,8 @@ metaRoute.get("*", async (c) => {
   const { tmdbId, imdbId } = dbData || {};
 
   if (tmdbId) {
-    if (isInForward) {
-      meta.tmdb_id = `tmdb:${tmdbId}`;
-    } else {
-      meta.tmdbId = tmdbId;
-    }
+    meta.tmdb_id = `tmdb:${tmdbId}`;
+    meta.tmdbId = tmdbId;
     meta.behaviorHints.defaultVideoId = `tmdb:${tmdbId}`;
   }
   if (imdbId) {
@@ -116,6 +109,6 @@ metaRoute.get("*", async (c) => {
     staleRevalidate: SECONDS_PER_WEEK,
     staleError: SECONDS_PER_WEEK,
   } satisfies WithCache<{ meta: MetaDetail }>);
-  putResponseCache(c, response, { namespace: "meta", uaVariant, ttl: SECONDS_PER_DAY });
+  putResponseCache(c, response, { namespace: "meta", ttl: SECONDS_PER_DAY });
   return response;
 });
