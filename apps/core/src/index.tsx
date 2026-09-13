@@ -4,6 +4,7 @@ import { logger } from "hono/logger";
 import { scheduled } from "./cron";
 import { contextStorage, rateLimit } from "./libs/middleware";
 import { authMiddleware } from "./libs/session";
+import { apiKeysRoute } from "./routes/api-keys";
 import { authRoute } from "./routes/auth";
 import { catalogRoute } from "./routes/catalog";
 import { configureRoute } from "./routes/configure";
@@ -22,6 +23,7 @@ app.use(authMiddleware);
 
 app.get("/", (c) => c.redirect("/configure"));
 
+app.route("/api-keys", apiKeysRoute);
 app.route("/auth", authRoute);
 
 app.route("/manifest.json", manifestRoute);

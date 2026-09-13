@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/item";
 import { Toaster } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
-import type { User } from "@/db";
 import {
   COLLECTION_CONFIGS,
   isYearlyRankingId,
@@ -25,6 +24,7 @@ import {
   TV_YEARLY_RANKING_ID,
 } from "@/libs/collections";
 import type { Config } from "@/libs/config";
+import type { PublicUser } from "@/libs/public-user";
 import type { ConfigureRoute } from "@/routes/configure";
 import { GenreDrawer } from "../genre-drawer";
 import { ImageProviderSortable } from "../image-provider-sortable";
@@ -33,12 +33,13 @@ import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Spinner } from "../ui/spinner";
 import { YearlyRankingDrawer } from "../yearly-ranking-drawer";
+import { ApiKeySettings } from "./api-key-settings";
 import { ConfigureContext } from "./context";
 
 export interface ConfigureProps {
   config: Config;
   manifestUrl: string;
-  user?: User;
+  user?: PublicUser;
 }
 
 const client = hc<ConfigureRoute>("/configure");
@@ -165,6 +166,8 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
                   </form.Field>
                 </ItemGroup>
               </SettingSection>
+
+              <ApiKeySettings user={user} />
 
               {/* 图片提供商模块 */}
               <SettingSection

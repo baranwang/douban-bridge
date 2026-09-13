@@ -8,6 +8,7 @@ import { Link, Script, ViteClient } from "vite-ssr-components/react";
 import { Configure, type ConfigureProps } from "@/components/configure";
 import { DEFAULT_COLLECTION_IDS } from "@/libs/collections";
 import { configSchema, decodeConfig, encodeConfig, getConfig, isUserId, saveUserConfig } from "@/libs/config";
+import { toPublicUser } from "@/libs/public-user";
 
 export const configureRoute = new Hono<Env>().post("/", zValidator("json", configSchema), async (c) => {
   const config = c.req.valid("json");
@@ -94,7 +95,7 @@ configureRoute.get("/", async (c) => {
   const configureProps: ConfigureProps = {
     config,
     manifestUrl,
-    user: user ?? undefined,
+    user: user ? toPublicUser(user) : undefined,
   };
 
   return c.render(
@@ -116,7 +117,7 @@ configureRoute.get("/", async (c) => {
           id="__INITIAL_DATA__"
           type="application/json"
           // biome-ignore lint/security/noDangerouslySetInnerHtml: initialize data
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(configureProps) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(configureProps).replace(/</g, "\\u003c") }}
         />
         <div id="configure" className="flex min-h-0 flex-1 flex-col">
           <Configure {...configureProps} />

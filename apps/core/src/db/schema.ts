@@ -54,5 +54,11 @@ export const userConfigs = sqliteTable("user_configs", {
     .$onUpdateFn(() => new Date()),
 });
 
+export const apiKeys = sqliteTable("api_keys", {
+  userId: text("user_id").primaryKey(),
+  keyHash: text("key_hash").notNull().unique(),
+  createdAt: int("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type UserConfig = typeof userConfigs.$inferSelect;

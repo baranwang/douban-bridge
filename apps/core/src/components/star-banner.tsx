@@ -4,13 +4,13 @@ import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import type { User } from "@/db";
+import type { PublicUser } from "@/libs/public-user";
 import type { AuthRoute } from "@/routes/auth";
 
 const client = hc<AuthRoute>("/auth");
 
 interface StarBannerProps {
-  user?: User;
+  user?: PublicUser;
 }
 
 export const StarBanner: React.FC<StarBannerProps> = ({ user }) => {

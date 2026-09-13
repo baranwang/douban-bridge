@@ -1,4 +1,4 @@
-import type { User } from "@/db";
+import type { PublicUser } from "@/libs/public-user";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
   DropdownMenu,
@@ -9,7 +9,7 @@ import {
 } from "./ui/dropdown-menu";
 
 interface UserMenuProps {
-  user?: User;
+  user?: PublicUser;
 }
 
 export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
