@@ -19,18 +19,23 @@
       "custom_domain": true
     }
   ],
+  "dev": {
+    "port": 8787
+  },
   "d1_databases": [
     {
       "binding": "STREMIO_ADDON_DOUBAN",
       "database_name": "stremio-addon-douban",
       "database_id": "543ed1d5-3da8-4ed1-8084-25084af52953",
-      "migrations_dir": "drizzle"
+      "migrations_dir": "drizzle",
+      "remote": false
     }
   ],
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "8274189206e84436bf11f861debd918a"
+      "id": "8274189206e84436bf11f861debd918a",
+      "remote": false
     }
   ],
   "vars": {

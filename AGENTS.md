@@ -1,32 +1,38 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-05-23
-**Commit:** d8c9af9
-**Branch:** main
+**Generated:** 2026-09-13
+**Branch:** cursor/douban-bridge-cloud-first-b4c5
 
 ## OVERVIEW
 
-Stremio addon for Douban catalogs, metadata, images, and ID mapping. Cloudflare Workers app using Hono, React SSR/hydration, Tailwind v4/shadcn UI, Drizzle over D1, KV/caches.default for caching. pnpm workspace: current Worker lives in `apps/core`; shared addon identity lives in `packages/contracts`.
+Douban catalogs, metadata, images, and ID mapping for Stremio and Rex. pnpm workspace: `apps/core` (dash + D1/KV/cron + named entrypoints), `apps/stremio` (original install domain), `apps/api` (Bearer HTTP), `apps/rex-widget` (static IIFE), `packages/contracts`. Cloudflare Workers with Hono, React SSR/hydration, Tailwind v4/shadcn UI, Drizzle over D1, KV/caches.default for caching.
 
 ## STRUCTURE
 
 ```text
 stremio-addon-douban/
-+-- apps/core/                 # existing Worker (name/domain unchanged)
-|   +-- src/index.tsx         # Worker fetch + cron export; route wiring
-|   +-- src/cron.ts           # hourly ID-mapping backfill job
-|   +-- src/client/           # browser-only hydration entries
++-- apps/core/                 # Worker douban-bridge-core; dash domain
+|   +-- src/index.tsx         # default fetch + scheduled + ApiEntrypoint + StremioEntrypoint
+|   +-- src/app.tsx           # dash/web Hono app (no public catalog/meta/manifest)
+|   +-- src/cron.ts           # hourly ID-mapping backfill
+|   +-- src/client/           # browser hydration entries
 |   +-- src/components/       # React UI; see child AGENTS.md
 |   +-- src/db/               # Drizzle D1 schema/client
-|   +-- src/libs/             # config, routing, sessions, middleware, API clients
-|   +-- src/routes/           # Hono endpoints + SSR pages; see child AGENTS.md
-|   +-- drizzle/              # generated SQL migrations and snapshots
-|   +-- public/               # Worker static assets
-|   +-- wrangler.jsonc        # Cloudflare bindings/routes/cron
-|   +-- wrangler.test.jsonc   # local-only D1/KV for Node tests
-|   `-- vite.config.ts        # Cloudflare + SSR components + Tailwind build
-+-- packages/contracts/        # shared addon identity (ADDON)
-+-- scripts/test.mjs          # Node test runner for workspace packages
+|   +-- src/libs/             # config, sessions, middleware, API clients
+|   +-- src/routes/           # web, auth, api-keys, internal-api, internal-stremio
+|   +-- drizzle/              # SQL migrations
+|   +-- public/               # static assets (icon)
+|   +-- wrangler.jsonc        # D1/KV/cron/ASSETS/origins
+|   +-- wrangler.test.jsonc  # local-only D1/KV for Node tests
+|   `-- vite.config.ts
++-- apps/stremio/              # Worker stremio-addon-douban; original domain
++-- apps/api/                 # Worker douban-bridge-api; Bearer /v1 + image-proxy
++-- apps/rex-widget/          # static Widget IIFE + GitHub Release manifest
++-- packages/contracts/        # shared addon identity and HTTP schemas
++-- scripts/test.mjs          # Node test runner
++-- scripts/smoke.mjs         # local three-Worker HTTP + D1 smoke
++-- docs/deployment/douban-bridge.md
++-- docs/testing/rex-host.md
 `-- pnpm-workspace.yaml
 ```
 
@@ -34,86 +40,96 @@ stremio-addon-douban/
 
 | Task | Location | Notes |
 |------|----------|-------|
-| Worker entry/mounts | `apps/core/src/index.tsx` | middleware order and route mounts live here |
-| Cron mapping job | `apps/core/src/cron.ts` | uses AsyncLocalStorage context outside requests |
-| Stremio manifest/catalog/meta | `apps/core/src/routes/manifest.ts`, `catalog.ts`, `meta.ts` | dual public and `/:config` routes |
-| Configure page | `apps/core/src/routes/configure.tsx`, `src/client/configure.tsx`, `src/components/configure/` | SSR plus client hydration |
+| Worker entry/mounts | `apps/core/src/index.tsx`, `apps/core/src/app.tsx` | named entrypoints vs dash app |
+| Cron mapping job | `apps/core/src/cron.ts` | ALS context; only core has scheduled |
+| Stremio protocol | `apps/stremio/src/` | catalog/meta/manifest + web allowlist |
+| Internal Stremio data | `apps/core/src/routes/internal-stremio.ts` | StremioEntrypoint only |
+| Public API | `apps/api/src/index.ts`, `apps/core/src/routes/internal-api.ts` | api Worker + ApiEntrypoint |
+| Configure page | `apps/core/src/routes/configure.tsx`, `src/client/configure.tsx`, `src/components/configure/` | install URLs use `STREMIO_ORIGIN` |
 | Admin dashboard | `apps/core/src/routes/dash/` | protected SSR mini-app |
-| API integrations | `apps/core/src/libs/api/` | context-bound clients; see child AGENTS.md |
-| Config encoding/storage | `apps/core/src/libs/config.ts` | base64url brotli for public configs; D1 for user configs |
-| Addon identity | `packages/contracts/src/addon.ts` | reads root package `name/version/displayName/description` |
-| Resource path parsing | `apps/core/src/libs/router.ts` | shared Stremio `catalog/meta/stream/subtitles` matcher |
+| API integrations | `apps/core/src/libs/api/` | context-bound clients |
+| Config encoding/storage | `apps/core/src/libs/config.ts` | base64url brotli or user UUID |
+| Addon identity | `packages/contracts/src/addon.ts` | root package name/version/displayName/description |
 | Sessions/auth | `apps/core/src/libs/session.ts`, `src/routes/auth.ts` | JWT cookie plus GitHub OAuth |
-| D1 schema | `apps/core/src/db/schema.ts` | no foreign keys; app-level relationships |
-| Migrations | `apps/core/drizzle/*.sql` | generated by Drizzle; apply with Wrangler D1 command |
-| Cloudflare bindings | `apps/core/wrangler.jsonc`, `apps/core/worker-configuration.d.ts` | regenerate types with `pnpm --filter @douban-bridge/core cf-typegen` |
-| Local tests | `apps/core/test/` | Node runner + local D1 via `wrangler.test.jsonc` |
+| API keys | `apps/core/src/libs/api-key.ts`, `src/routes/api-keys.ts` | hashes only; session write |
+| D1 schema | `apps/core/src/db/schema.ts` | no foreign keys |
+| Migrations | `apps/core/drizzle/*.sql` | apply with Wrangler D1 |
+| Widget | `apps/rex-widget/src/` | cloud-first + local fallback |
+| Local tests | `apps/*/test/` | Node runner; mocks vs live Douban are separate evidence |
+| Rollout | `docs/deployment/douban-bridge.md` | ordered deploy/rollback; production not implied |
+| Rex host | `docs/testing/rex-host.md` | device steps still 未执行 |
 
 ## CODE MAP
 
 | Symbol | Type | Location | Role |
 |--------|------|----------|------|
-| `app` | Hono app | `apps/core/src/index.tsx` | global middleware and route composition |
+| `app` | Hono app | `apps/core/src/app.tsx` | dash/web only |
+| `ApiEntrypoint` / `StremioEntrypoint` | WorkerEntrypoint | `apps/core/src/index.tsx` | named fetches |
 | `scheduled` | Worker handler | `apps/core/src/cron.ts` | hourly unmapped Douban ID calibration |
-| `api` | singleton facade | `apps/core/src/libs/api/index.ts` | provider clients plus ID mapping persistence |
-| `BaseAPI` | class | `apps/core/src/libs/api/base.ts` | axios fetch adapter, cache, dedupe, context DB/KV access |
-| `configSchema` | Zod schema | `apps/core/src/libs/config.ts` | persisted and encoded config contract |
-| `ADDON` | identity | `packages/contracts/src/addon.ts` | Stremio id/name/version/description from root package |
-| `matchResourceRoute` | route helper | `apps/core/src/libs/router.ts` | parses Stremio resource URLs |
+| `api` | singleton facade | `apps/core/src/libs/api/index.ts` | providers plus ID mapping persistence |
+| `configSchema` | Zod schema | `apps/core/src/libs/config.ts` | persisted and encoded config |
+| `ADDON` | identity | `packages/contracts/src/addon.ts` | Stremio id/name/version/description |
 | `getDrizzle` | DB helper | `apps/core/src/db/index.ts` | D1-bound Drizzle client |
 | `doubanMapping` | table | `apps/core/src/db/schema.ts` | Douban to TMDB/IMDb/Trakt mapping cache |
 | `withTestContext` | test helper | `apps/core/test/context.ts` | local Wrangler D1/KV + ALS; no remote |
 
 ## CONVENTIONS
 
-- TypeScript strict mode; `@/*` resolves to `apps/core/src/*`.
-- Biome formats/lints: 2 spaces, double quotes, 120 columns, import organization, Tailwind class sorting as info.
-- Tailwind v4 config lives in `apps/core/src/style.css`; no separate Tailwind config file.
-- shadcn config: `new-york`, neutral base, CSS variables, Lucide icons, `cn()` from `@/libs/utils`.
-- Cloudflare Workers runtime uses `nodejs_compat`; D1 binding `STREMIO_ADDON_DOUBAN`, KV binding `KV`.
-- Drizzle schema source is `apps/core/src/db/schema.ts`; migrations output to `apps/core/drizzle/`.
-- Package workflow: root `pnpm build` builds `@douban-bridge/core`; `pnpm --filter @douban-bridge/core test` runs Node + local D1 tests. Do not add Vitest/Playwright.
-- Stremio addon identity comes from root `package.json` via `ADDON`, never from `@douban-bridge/core`.
-- `apps/*/dist/`, `apps/*/.wrangler/`, `worker-configuration.d.ts`, and `drizzle/meta/` are generated outputs. Do not hand-author guidance from them.
+- TypeScript strict mode; `@/*` in core resolves to `apps/core/src/*`.
+- Biome: 2 spaces, double quotes, 120 columns.
+- Tailwind v4 in `apps/core/src/style.css`.
+- Cloudflare Workers `nodejs_compat`; D1 `STREMIO_ADDON_DOUBAN` and KV `KV` only on core.
+- Drizzle schema `apps/core/src/db/schema.ts`; migrations `apps/core/drizzle/`.
+- Root `pnpm build` is core → stremio → api → rex-widget. `pnpm test` runs workspace packages that define `test`. `pnpm cf-typegen` runs all three Workers. `pnpm deploy` deploys **core only** and does not apply remote migrations.
+- Stremio addon identity comes from root `package.json` via `ADDON`.
+- Widget version is `apps/rex-widget` `0.1.0`, not root addon `1.1.0`.
+- Generated: `apps/*/dist/`, `apps/*/.wrangler/`, `worker-configuration.d.ts`, `drizzle/meta/`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
-- Do not add Drizzle foreign keys via `.references()`. SQLite/D1 table rebuilds make FK cascades risky; enforce relationships in app code.
-- Do not assume `process.env` works in deployed Workers. Prefer Cloudflare bindings from request context.
-- Do not call context-bound API clients outside request/scheduled AsyncLocalStorage.
-- Do not treat checked-in `dist/` as source of truth.
-- Do not overwrite generated migration snapshots manually.
-- Do not set `remote: true` on core D1 *development* bindings. Production `database_id` / KV id stay as-is.
+- Do not add Drizzle foreign keys via `.references()`.
+- Do not assume `process.env` in deployed Workers; use bindings.
+- Do not call context-bound API clients outside request/scheduled ALS.
+- Do not enable `remote: true` on local D1/KV or adapter service bindings.
+- Do not treat checked-in `dist/` as source of truth or as a published Widget.
+- Do not overwrite generated migration snapshots.
 - Do not hand-author `worker-configuration.d.ts`.
+- Do not deploy all Workers or apply remote D1 migrations from a single root command.
 
 ## UNIQUE STYLES
 
-- Stremio endpoints are mounted twice: public (`/catalog`, `/meta`, etc.) and config-scoped (`/:config/catalog`, `/:config/meta`).
-- Configure UI is SSR-rendered and separately hydrated by `apps/core/src/client/configure.tsx`.
-- Forward compatibility fields are emitted unconditionally; do not reintroduce User-Agent-specific response shapes.
-- API calls are best-effort: enrichment failures usually degrade to `null`/`[]` rather than failing the Stremio response.
+- Stremio endpoints are dual public and `/:config` on the **stremio** Worker.
+- Configure UI is SSR-rendered and hydrated by `apps/core/src/client/configure.tsx`; install host is `STREMIO_ORIGIN`.
+- Forward compatibility fields (`cacheMaxAge`, `staleRevalidate`, `staleError`) are emitted unconditionally.
+- API enrichment failures degrade; catalog/meta still return what they can.
 - Config URLs are brotli-compressed base64url JSON unless the path segment is a user UUID.
-- Stremio endpoints are still served by the existing core Worker; catalog/meta/manifest/router are not split out yet.
+- Widget `sk` is `globalParams` name `sk`, storage key `douban.bridge.sk`; detail links have no key.
 
 ## COMMANDS
 
 ```bash
 pnpm install
-pnpm dev
-pnpm build
 pnpm test
-pnpm --filter @douban-bridge/core test
+pnpm build
 pnpm --filter @douban-bridge/core cf-typegen
-pnpm deploy
+pnpm --filter @douban-bridge/stremio cf-typegen
+pnpm --filter @douban-bridge/api cf-typegen
+pnpm --filter @douban-bridge/core preview   # 8787, after build
+pnpm --filter @douban-bridge/stremio preview # 8788
+pnpm --filter @douban-bridge/api preview    # 8790
+node scripts/smoke.mjs
 pnpm --filter @douban-bridge/core exec drizzle-kit generate
-npx wrangler d1 migrations apply stremio-addon-douban --remote
+rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations apply stremio-addon-douban --local --persist-to ../../.wrangler/bridge-smoke
 ```
+
+Production cutover: `docs/deployment/douban-bridge.md`. Do not use root `pnpm deploy` as a three-Worker rollout.
 
 ## NOTES
 
 - `apps/core` deploy script uses `npm run build && wrangler deploy` even though the project uses pnpm.
 - No `.github/workflows` CI exists.
-- `apps/core/wrangler.jsonc` contains custom domain, D1/KV bindings, rate limits, hourly cron, and observability. Production Worker name and custom domain are unchanged.
-- D1 migrations are not part of the deploy script; apply them explicitly.
-- `a11y` linting is off in Biome; do not infer accessibility coverage from lint success.
-- Local tests use `apps/core/wrangler.test.jsonc` (no routes, cron, or real secrets). Do not copy production `.dev.vars` into the test directory.
+- D1 migrations are not part of any deploy script; apply them explicitly.
+- `a11y` linting is off in Biome.
+- Local tests use `apps/core/wrangler.test.jsonc`. Live Douban in `scripts/smoke.mjs` is not the same evidence as mocked Node tests.
+- Rex host verification in `docs/testing/rex-host.md` is 未执行; do not invent device results.
+- Widget GitHub Release `widget-v0.1.0` is a later authorized step; unpublished asset URLs 404.

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",
-    "preview": "wrangler dev --local",
+    "preview": "wrangler dev --local --port 8788 --persist-to ../../.wrangler/bridge-smoke --local-upstream localhost:8788",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "test": "node ../../scripts/test.mjs"

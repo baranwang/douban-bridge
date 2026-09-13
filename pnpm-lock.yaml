@@ -20,6 +20,9 @@ importers:
       tsx:
         specifier: ^4.23.13
         version: 4.23.13
+      wrangler:
+        specifier: ^4.100.0
+        version: 4.100.0
 
   apps/api:
     dependencies:

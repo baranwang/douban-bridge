@@ -7,16 +7,18 @@
   "version": "1.1.0",
   "scripts": {
     "dev": "pnpm --filter @douban-bridge/core dev",
-    "build": "pnpm --filter @douban-bridge/core build",
+    "build": "pnpm --filter @douban-bridge/core build && pnpm --filter @douban-bridge/stremio build && pnpm --filter @douban-bridge/api build && pnpm --filter @douban-bridge/rex-widget build",
     "preview": "pnpm --filter @douban-bridge/core preview",
     "deploy": "pnpm --filter @douban-bridge/core deploy",
-    "cf-typegen": "pnpm --filter @douban-bridge/core cf-typegen",
-    "test": "pnpm -r --if-present test"
+    "cf-typegen": "pnpm --filter @douban-bridge/core cf-typegen && pnpm --filter @douban-bridge/stremio cf-typegen && pnpm --filter @douban-bridge/api cf-typegen",
+    "test": "pnpm -r --if-present test",
+    "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@types/node": "^24.10.1",
-    "tsx": "^4.23.13"
+    "tsx": "^4.23.13",
+    "wrangler": "^4.100.0"
   },
   "pnpm": {
     "overrides": {

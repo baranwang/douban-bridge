@@ -112,6 +112,33 @@
 
 Task 1 Steps 3–6 仍为 **未执行**。宿主字段组合（`id` / `type` / `link`、`Widget.storage`、`cacheDuration: 0`、`Object.assign(globalThis, …)`）仍按规划候选实现，未经 Rex 复测锁定。
 
+## Task 10 本地 Worker 联调
+
+**Rex 宿主验证仍为未执行。** 本段只记录本机三个 Wrangler preview 与 `scripts/smoke.mjs`。不能代替 Rex 导入、Stremio 客户端安装、HTTPS OAuth 或 GitHub Release。
+
+证据分类：
+
+| 证据 | 含义 |
+| --- | --- |
+| 包内 Node 测试 | mock 数据源；不证明公网豆瓣或 workerd Service Binding |
+| `scripts/smoke.mjs` | 本地 HTTP。Bearer catalog/meta 在 preview 运行时打到真实豆瓣 |
+| Rex / 生产部署 / OAuth HTTPS / `widget-v0.1.0` Release | **未执行** |
+
+| 检查 | 状态 | exit code |
+| --- | --- | --- |
+| `rtk proxy pnpm test` | 通过 | 0 |
+| `rtk proxy pnpm build`（core → stremio → api → rex-widget） | 通过 | 0 |
+| `rtk proxy pnpm cf-typegen` | 通过；未提交因无 `.dev.vars` 而去掉 secrets 的 core 类型 | 0 |
+| `wrangler d1 migrations apply … --local --persist-to ../../.wrangler/bridge-smoke` | 失败：`0000` 为注释 dump，`0001` 需要已有 `user_configs` | 1 |
+| 三个 preview + Service Binding `[connected]` | core 8787（构建配置）、stremio 8788、api 8790 | — |
+| `node scripts/smoke.mjs`（preview 运行中） | 通过 | 0 |
+| 同上，preview 未启动 | `ECONNREFUSED` :8787 | 1 |
+| Stremio 客户端安装旧 manifest | **未执行** | — |
+| 本地 HTTP 登录 | **不宣称通过** | — |
+| Rex 导入 `widget-v0.1.0` | **未执行**；Release 未发布，404 为预期 | — |
+
+`wrangler --persist-to ../../.wrangler/bridge-smoke` 把 D1 放在 `.wrangler/bridge-smoke/v3/`。smoke 的 `getPlatformProxy` persist 使用该 `v3` 路径。对 `apps/core/wrangler.jsonc` 直接 `getPlatformProxy` 会占用 Worker 名 `douban-bridge-core`；smoke 用同 D1 id、不同 Worker 名。stremio/api preview 使用 `--local-upstream localhost:<port>`。
+
 ## 探针约定（实验输入，非生产协议）
 
 - 测试密钥：仅 `probe-a` / `probe-b`
