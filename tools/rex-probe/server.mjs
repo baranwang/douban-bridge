@@ -1,6 +1,7 @@
-import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { networkInterfaces } from "node:os";
+
 const counts = new Map();
 createServer(async (req, res) => {
   const origin = `http://${req.headers.host}`;

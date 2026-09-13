@@ -87,10 +87,14 @@ configureRoute.get("/", async (c) => {
 
   // 使用统一的 getConfig 获取配置
   const rawConfig = await getConfig(c.env, configSource);
+  const includeProviderExtras = Boolean(user?.hasStarred && configSource === user.id);
 
   const config = {
     ...rawConfig,
     catalogIds: rawConfig.catalogIds || DEFAULT_COLLECTION_IDS,
+    imageProviders: includeProviderExtras
+      ? rawConfig.imageProviders
+      : rawConfig.imageProviders.map((provider) => ({ ...provider, extra: {} })),
   };
 
   const configureProps: ConfigureProps = {

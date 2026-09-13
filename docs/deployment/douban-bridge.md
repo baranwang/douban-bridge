@@ -8,7 +8,7 @@
 
 | Worker | 资源与凭据 |
 | --- | --- |
-| core（`douban-bridge-core`，域名 `douban-bridge-dash.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、`DASH_GITHUB_CLIENT_ID` / `DASH_GITHUB_CLIENT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *` |
+| core（`douban-bridge-core`，域名 `douban-bridge-dash.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件；dash basic auth 读取 KV 键 `DASH_USER` / `DASH_PASS`）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、`DASH_GITHUB_CLIENT_ID` / `DASH_GITHUB_CLIENT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *` |
 | stremio（`stremio-addon-douban`，旧 custom domain `stremio-addon-douban.baran.wang`） | `CORE_STREMIO` → `StremioEntrypoint`、`CORE_WEB` → 默认入口、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、旧 custom domain。无 D1 / KV / cron / 上游凭据 |
 | api（`douban-bridge-api`，新 custom domain `douban-bridge-api.baran.wang`） | `CORE_API` → `ApiEntrypoint`、`PUBLIC_RATE_LIMIT`、新 api custom domain。无 D1 / KV / cron / 上游凭据 |
 
@@ -72,7 +72,7 @@ OAuth callback 与 cron 从现网 Worker / GitHub OAuth App 读取，不在此�
 
 ### 2. 增量迁移
 
-待应用 SQL 只应新增 `api_keys`（`apps/core/drizzle/0002_api_keys.sql`）。该增量兼容仍在线的旧 Worker。先 list，在测试环境应用并确认旧表未变，再应用到远端。
+待应用 SQL 只应新增 `api_keys`（`apps/core/drizzle/0002_api_keys.sql`）。该增量兼容仍在线的旧 Worker。先 `migrations list --remote`，确认只有这条新 migration 为 pending；再在已有库上应用并确认旧表未变，然后应用到远端。不要用 fresh-local `migrations apply` 当 rehearsal：`0000` 是 introspect 注释 dump，本地空库 apply 会失败，不能代表远端增量。
 
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations list stremio-addon-douban --remote
@@ -81,9 +81,9 @@ rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations apply st
 
 ### 3. 首次部署 core（禁用 cron）
 
-为 core 配置现有 D1 / KV / rate limits / ASSETS / 现有 secrets / 两个 origin。注册**新** dash GitHub OAuth App（callback `https://douban-bridge-dash.baran.wang/auth/github/callback`）并写入 `DASH_GITHUB_*`——仅在获授权后执行。
+为 core 配置现有 D1 / KV / rate limits / ASSETS / 现有 secrets / 两个 origin。把 dash 基本认证写入 KV 键 `DASH_USER` 与 `DASH_PASS`（不要把值写入仓库或本文）。`verifyUser` 在二者任一缺失时 **fail-open**（返回 true，本地空 KV 仍能打开 dash）；生产必须两键都在，否则 dash 无密码可进。注册**新** dash GitHub OAuth App（callback `https://douban-bridge-dash.baran.wang/auth/github/callback`）并写入 `DASH_GITHUB_*`——仅在获授权后执行。
 
-首次 core 部署先把 `apps/core/wrangler.jsonc` 的 `triggers.crons` 设为空（或不部署该字段），**保留旧 Worker 的唯一 cron**，避免两个写入者重叠。上传 core 后验证：默认入口拒绝 `/v1/*` 与 `/stremio/manifest`；dash HTTPS、OAuth、`/icon.png` 与 `/assets/*` 正常。
+首次 core 部署先把 `apps/core/wrangler.jsonc` 的 `triggers.crons` 设为空（或不部署该字段），**保留旧 Worker 的唯一 cron**，避免两个写入者重叠。上传 core 后验证：默认入口拒绝 `/v1/*` 与 `/stremio/manifest`；dash HTTPS、OAuth、`/icon.png` 与 `/assets/*` 正常；KV 中 `DASH_USER` 与 `DASH_PASS` 均已配置，未配置时 dash 会 fail-open。
 
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler secret bulk  # 仅当授权写入 secrets

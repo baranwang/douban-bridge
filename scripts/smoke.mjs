@@ -99,6 +99,20 @@ async function waitForApiDenied() {
   throw new Error("api Worker did not reconnect to local core");
 }
 
+const UNMAPPED_SQL =
+  "SELECT COUNT(*) AS n FROM douban_mapping WHERE tmdb_id IS NULL AND (calibrated IS NOT 1 OR calibrated IS NULL)";
+
+async function countUnmapped(db) {
+  const row = await db.prepare(UNMAPPED_SQL).first();
+  return Number(row?.n ?? 0);
+}
+
+async function deletePendingMappings(db) {
+  await db
+    .prepare("DELETE FROM douban_mapping WHERE tmdb_id IS NULL AND (calibrated IS NOT 1 OR calibrated IS NULL)")
+    .run();
+}
+
 await withLocalD1(ensureLocalSchema);
 await waitForApiDenied();
 
@@ -135,14 +149,8 @@ assert.equal(readFileSync(resolve("apps/stremio/src/index.ts"), "utf8").includes
 assert.equal(readFileSync(resolve("apps/api/src/index.ts"), "utf8").includes("scheduled"), false);
 assert.match(readFileSync(resolve("apps/core/src/index.tsx"), "utf8"), /scheduled/);
 
-const unmappedCount = await withLocalD1(async (db) => {
-  const row = await db
-    .prepare(
-      "SELECT COUNT(*) AS n FROM douban_mapping WHERE tmdb_id IS NULL AND (calibrated IS NOT 1 OR calibrated IS NULL)",
-    )
-    .first();
-  return Number(row?.n ?? 0);
-});
+await withLocalD1(deletePendingMappings);
+const unmappedCount = await withLocalD1(countUnmapped);
 assertScheduledSafe(unmappedCount);
 const scheduled = await get(`${core}/cdn-cgi/handler/scheduled`);
 assert.equal(scheduled.status, 200);
@@ -238,5 +246,6 @@ try {
       await db.prepare("DELETE FROM user_configs WHERE user_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM users WHERE id = ?").bind(userId).run();
     }
+    await deletePendingMappings(db);
   });
 }

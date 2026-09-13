@@ -12,28 +12,34 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
   const [sk, setSk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const { disabled, label } = apiKeyActionUi({ loaded, hasKey, busy });
+  const [loadFailed, setLoadFailed] = useState(false);
+  const { disabled, label, showRetry } = apiKeyActionUi({ loaded, hasKey, busy, loadFailed });
+
+  const loadStatus = useCallback(async (signal?: { cancelled: boolean }) => {
+    try {
+      const response = await fetch("/api-keys", { credentials: "same-origin" });
+      if (!response.ok) throw new Error("key request failed");
+      const data = (await response.json()) as { hasKey: boolean };
+      if (signal?.cancelled) return;
+      setHasKey(data.hasKey);
+      setLoaded(true);
+      setLoadFailed(false);
+    } catch {
+      if (signal?.cancelled) return;
+      setLoaded(false);
+      setLoadFailed(true);
+      toast.error("操作失败，请重试");
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const response = await fetch("/api-keys", { credentials: "same-origin" });
-        if (!response.ok) throw new Error("key request failed");
-        const data = (await response.json()) as { hasKey: boolean };
-        if (!cancelled) {
-          setHasKey(data.hasKey);
-          setLoaded(true);
-        }
-      } catch {
-        if (!cancelled) toast.error("操作失败，请重试");
-      }
-    })();
+    const signal = { cancelled: false };
+    void loadStatus(signal);
     return () => {
-      cancelled = true;
+      signal.cancelled = true;
     };
-  }, [user]);
+  }, [user, loadStatus]);
 
   const generate = useCallback(() => {
     if (disabled) return;
@@ -118,6 +124,19 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
           {user.hasStarred ? (
             <Button type="button" disabled={disabled} onClick={generate}>
               {label}
+            </Button>
+          ) : null}
+          {showRetry ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                void loadStatus().finally(() => setBusy(false));
+              }}
+            >
+              重试
             </Button>
           ) : null}
           {hasKey ? (

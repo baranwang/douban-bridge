@@ -306,4 +306,33 @@ describe("configure SSR public user", { concurrency: false }, () => {
       assert.equal(body.includes("githubAccessToken"), false);
     });
   });
+
+  test("anonymous UUID configure SSR does not embed image-provider api keys", async () => {
+    await withTestContext(async (env, ctx) => {
+      const planted = "PLANTED_TMDB_API_KEY_DO_NOT_LEAK";
+      const userId = await insertUser(env);
+      await getDrizzle(env)
+        .insert(userConfigs)
+        .values({
+          userId,
+          catalogIds: ["movie_top250"],
+          dynamicCollections: false,
+          imageProviders: [{ provider: "tmdb", extra: { apiKey: planted } }],
+        });
+
+      const anonymous = await fetchApiKeys(env, ctx, new Request(`${OLD_ORIGIN}/${userId}/configure`));
+      assert.equal(anonymous.status, 200);
+      const anonymousBody = await anonymous.text();
+      assert.equal(anonymousBody.includes(planted), false);
+
+      const cookie = await sessionCookie(env, userId);
+      const owner = await fetchApiKeys(
+        env,
+        ctx,
+        new Request(`${OLD_ORIGIN}/configure`, { headers: { Cookie: cookie } }),
+      );
+      assert.equal(owner.status, 200);
+      assert.equal((await owner.text()).includes(planted), true);
+    });
+  });
 });

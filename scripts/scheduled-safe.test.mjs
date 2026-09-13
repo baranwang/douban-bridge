@@ -15,3 +15,10 @@ test("refuses full-history cron above the cap", () => {
   assert.throws(() => assertScheduledSafe(6), /full-history/);
   assert.throws(() => assertScheduledSafe(100), /cap 5/);
 });
+
+test("uses the provided cap, not only the default", () => {
+  assert.doesNotThrow(() => assertScheduledSafe(0, 0));
+  assert.throws(() => assertScheduledSafe(1, 0), /full-history/);
+  assert.throws(() => assertScheduledSafe(2, 2), /skipped: 2 unmapped/);
+  assert.throws(() => assertScheduledSafe(3, 2), /full-history/);
+});
