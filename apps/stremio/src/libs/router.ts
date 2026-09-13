@@ -1,5 +1,6 @@
-import type { Context, Env } from "hono";
+import type { Context } from "hono";
 import { match, type ParamData, type Path } from "path-to-regexp";
+import type { StremioEnv } from "../env";
 
 export function matchRoute<P extends ParamData>(path: Path | Path[], pathname: string) {
   const matcher = match<P>(path);
@@ -40,7 +41,7 @@ export const matchResourceRoute = (pathname: string) => {
   ] as const;
 };
 
-export const getExtraFactory = (c: Context<Env>, extra: Record<string, string>) => {
+export const getExtraFactory = (c: Context<StremioEnv>, extra: Record<string, string>) => {
   return (key: string) => {
     return extra[key] ?? c.req.query(key);
   };

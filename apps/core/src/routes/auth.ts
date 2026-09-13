@@ -5,6 +5,7 @@ import { type Env, Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { getDrizzle, users } from "@/db";
 import { GitHubAPI } from "@/libs/api/github";
+import { getOAuthCredentials } from "@/libs/public-origins";
 import { createSession, deleteSession } from "@/libs/session";
 
 export const authRoute = new Hono<Env>()
@@ -12,10 +13,10 @@ export const authRoute = new Hono<Env>()
    * GET /auth/github - 跳转到 GitHub 授权页面
    */
   .get("/github", async (c) => {
-    // 生成随机 state 防止 CSRF
+    const origin = new URL(c.req.url).origin;
+    const { clientId, clientSecret } = getOAuthCredentials(c.env, origin);
     const state = randomBytes(16).toString("hex");
 
-    // 保存 state 到 cookie 用于验证
     setCookie(c, "oauth_state", state, {
       httpOnly: true,
       secure: true,
@@ -24,7 +25,7 @@ export const authRoute = new Hono<Env>()
       path: "/",
     });
 
-    const github = new GitHubAPI(c.env.GITHUB_CLIENT_ID, c.env.GITHUB_CLIENT_SECRET);
+    const github = new GitHubAPI(clientId, clientSecret);
     const authUrl = github.getAuthUrl(state);
     return c.redirect(authUrl);
   })
@@ -33,6 +34,8 @@ export const authRoute = new Hono<Env>()
    * GET /auth/github/callback - 处理 OAuth 回调
    */
   .get("/github/callback", async (c) => {
+    const origin = new URL(c.req.url).origin;
+    const { clientId, clientSecret } = getOAuthCredentials(c.env, origin);
     const code = c.req.query("code");
     const state = c.req.query("state");
     const savedState = getCookie(c, "oauth_state");
@@ -47,7 +50,7 @@ export const authRoute = new Hono<Env>()
     }
 
     try {
-      const github = new GitHubAPI(c.env.GITHUB_CLIENT_ID, c.env.GITHUB_CLIENT_SECRET);
+      const github = new GitHubAPI(clientId, clientSecret);
 
       // 交换 access token
       const accessToken = await github.exchangeCodeForToken(code);

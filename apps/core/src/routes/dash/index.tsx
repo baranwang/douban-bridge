@@ -4,7 +4,7 @@ import { basicAuth } from "hono/basic-auth";
 import { Link, ViteClient } from "vite-ssr-components/react";
 import { tidyUpRoute } from "./tidy-up";
 
-export const dashRoute = new Hono<Env>();
+export const dashRoute = new Hono<Env>({ strict: false });
 
 dashRoute.use(
   "*",

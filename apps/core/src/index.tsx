@@ -2,10 +2,17 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import { app } from "./app";
 import { scheduled } from "./cron";
 import { internalApi } from "./routes/internal-api";
+import { internalStremio } from "./routes/internal-stremio";
 
 export class ApiEntrypoint extends WorkerEntrypoint<CloudflareBindings> {
   fetch(request: Request) {
     return internalApi.fetch(request, this.env, this.ctx);
+  }
+}
+
+export class StremioEntrypoint extends WorkerEntrypoint<CloudflareBindings> {
+  fetch(request: Request) {
+    return internalStremio.fetch(request, this.env, this.ctx);
   }
 }
 

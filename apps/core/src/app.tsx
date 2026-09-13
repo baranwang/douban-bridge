@@ -5,12 +5,9 @@ import { contextStorage, rateLimit } from "./libs/middleware";
 import { authMiddleware } from "./libs/session";
 import { apiKeysRoute } from "./routes/api-keys";
 import { authRoute } from "./routes/auth";
-import { catalogRoute } from "./routes/catalog";
 import { configureRoute } from "./routes/configure";
 import { dashRoute } from "./routes/dash";
 import { imageProxyRoute } from "./routes/image-proxy";
-import { manifestRoute } from "./routes/manifest";
-import { metaRoute } from "./routes/meta";
 
 export const app = new Hono();
 
@@ -25,18 +22,24 @@ app.get("/", (c) => c.redirect("/configure"));
 app.route("/api-keys", apiKeysRoute);
 app.route("/auth", authRoute);
 
-app.route("/manifest.json", manifestRoute);
-app.route("/:config/manifest.json", manifestRoute);
-
 app.route("/configure", configureRoute);
 app.route("/:config/configure", configureRoute);
-
-app.route("/catalog", catalogRoute);
-app.route("/:config/catalog", catalogRoute);
-
-app.route("/meta", metaRoute);
-app.route("/:config/meta", metaRoute);
 
 app.route("/image-proxy", imageProxyRoute);
 
 app.route("/dash", dashRoute);
+
+app.get("/icon.png", (c) => c.env.ASSETS.fetch(c.req.raw));
+app.get("/assets/*", (c) => {
+  const pathname = new URL(c.req.url).pathname;
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return c.notFound();
+  }
+  if (decoded.includes("..") || decoded.includes("\\")) return c.notFound();
+  return c.env.ASSETS.fetch(c.req.raw);
+});
+
+app.notFound((c) => c.body(null, 404));

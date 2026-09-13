@@ -8,12 +8,13 @@ import { Link, Script, ViteClient } from "vite-ssr-components/react";
 import { Configure, type ConfigureProps } from "@/components/configure";
 import { DEFAULT_COLLECTION_IDS } from "@/libs/collections";
 import { configSchema, decodeConfig, encodeConfig, getConfig, isUserId, saveUserConfig } from "@/libs/config";
+import { getStremioOrigin } from "@/libs/public-origins";
 import { toPublicUser } from "@/libs/public-user";
 
 export const configureRoute = new Hono<Env>().post("/", zValidator("json", configSchema), async (c) => {
   const config = c.req.valid("json");
   const user = c.get("user");
-  const { origin } = new URL(c.req.url);
+  const origin = getStremioOrigin(c.env);
 
   let manifestUrl: string;
 
@@ -62,7 +63,7 @@ configureRoute.get(
 configureRoute.get("/", async (c) => {
   const user = c.get("user");
   const configId = c.req.param("config");
-  const { origin } = new URL(c.req.url);
+  const origin = getStremioOrigin(c.env);
 
   let manifestUrl: string;
   let configSource: string | undefined;

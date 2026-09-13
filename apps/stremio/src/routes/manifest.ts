@@ -1,21 +1,21 @@
 import { ADDON } from "@douban-bridge/contracts/addon";
+import type { StremioManifestData } from "@douban-bridge/contracts/stremio";
 import type { Manifest } from "@stremio-addon/sdk";
-import { type Env, Hono } from "hono";
-import { getCatalogs } from "@/libs/catalog";
-import { encodeConfig, getConfig } from "@/libs/config";
+import { Hono } from "hono";
+import type { StremioEnv } from "../env";
+import { coreGet } from "../libs/core-client";
 import { idPrefixes } from "./meta";
 
-export const manifestRoute = new Hono<Env>();
+export const manifestRoute = new Hono<StremioEnv>();
 
 manifestRoute.get("/", async (c) => {
   const configId = c.req.param("config");
+  const data = await coreGet<StremioManifestData>(c.env, "/stremio/manifest", { config: configId });
   if (!configId) {
-    const encodedConfig = encodeConfig();
-    return c.redirect(`/${encodedConfig}/manifest.json`);
+    if ("redirectConfig" in data) return c.redirect(`/${data.redirectConfig}/manifest.json`);
+    return c.notFound();
   }
-
-  const config = await getConfig(c.env, configId);
-  const catalogs = await getCatalogs(config);
+  if (!("catalogs" in data)) return c.notFound();
 
   const resources: Manifest["resources"] = ["catalog", "meta"];
   return c.json({
@@ -26,7 +26,7 @@ manifestRoute.get("/", async (c) => {
     logo: "https://stremio-addon-douban.baran.wang/icon.png",
     types: ["movie", "series"],
     resources,
-    catalogs,
+    catalogs: data.catalogs,
     idPrefixes,
     behaviorHints: {
       configurable: true,
