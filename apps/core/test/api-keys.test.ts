@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import test, { describe } from "node:test";
 import { HTTPException } from "hono/http-exception";
 import { sign } from "hono/jwt";
+import { app } from "../src/app";
 import { getDrizzle, userConfigs, users } from "../src/db";
-import worker from "../src/index";
 import { authenticateApiKey, replaceApiKey, revokeApiKey } from "../src/libs/api-key";
 import { configSchema } from "../src/libs/config";
 import { withTestContext } from "./context";
@@ -46,7 +46,7 @@ async function sessionCookie(env: CloudflareBindings, userId: string): Promise<s
 }
 
 async function fetchApiKeys(env: CloudflareBindings, ctx: ExecutionContext, request: Request): Promise<Response> {
-  return worker.fetch(request, withRateLimits(env), ctx);
+  return app.fetch(request, withRateLimits(env), ctx);
 }
 
 describe("api key digest auth", { concurrency: false }, () => {

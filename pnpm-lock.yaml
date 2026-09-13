@@ -21,6 +21,19 @@ importers:
         specifier: ^4.23.13
         version: 4.23.13
 
+  apps/api:
+    dependencies:
+      '@douban-bridge/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      hono:
+        specifier: ^4.11.0
+        version: 4.11.0
+    devDependencies:
+      wrangler:
+        specifier: ^4.100.0
+        version: 4.100.0
+
   apps/core:
     dependencies:
       '@dnd-kit/core':

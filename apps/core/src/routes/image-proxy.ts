@@ -1,7 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import { and, eq } from "drizzle-orm";
 import { type Env, Hono } from "hono";
-import { proxy } from "hono/proxy";
 import { z } from "zod/v4";
 import { getDrizzle, users } from "@/db";
 import { DoubanAPI } from "@/libs/api";
@@ -14,10 +13,6 @@ const imageProxySchema = z.object({
 
 imageProxyRoute.get("/:userId", zValidator("query", imageProxySchema), async (c) => {
   const { url } = c.req.valid("query");
-  if (c.req.header("If-None-Match") === url) {
-    return c.body(null, 304);
-  }
-
   const { userId } = c.req.param();
   if (!userId) {
     return c.text("Unauthorized", 401);
@@ -30,16 +25,35 @@ imageProxyRoute.get("/:userId", zValidator("query", imageProxySchema), async (c)
     return c.text("Unauthorized", 401);
   }
 
-  const resp = await proxy(url, {
-    ...c.req,
-    headers: {
-      ...c.req.header(),
-      ...DoubanAPI.BASE_HEADERS,
-    },
-  });
-  resp.headers.set("Access-Control-Allow-Origin", "*");
-  if (resp.status === 200) {
-    resp.headers.set("ETag", url);
+  if (c.req.header("If-None-Match") === url) {
+    return c.body(null, 304);
   }
-  return resp;
+
+  const image = new URL(url);
+  if (
+    image.protocol !== "https:" ||
+    image.username ||
+    image.password ||
+    (image.port && image.port !== "443") ||
+    !image.hostname.endsWith(".doubanio.com")
+  ) {
+    return c.text("Unsupported image source", 400);
+  }
+
+  const response = await fetch(image, {
+    headers: DoubanAPI.BASE_HEADERS,
+    redirect: "manual",
+  });
+  if (response.status >= 300 && response.status < 400) {
+    return c.text("Image source redirected", 502);
+  }
+
+  const headers = new Headers();
+  const contentType = response.headers.get("Content-Type");
+  if (contentType) headers.set("Content-Type", contentType);
+  if (response.status === 200) {
+    headers.set("ETag", url);
+    headers.set("Access-Control-Allow-Origin", "*");
+  }
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 });
