@@ -2,7 +2,17 @@
   "name": "@douban-bridge/contracts",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "node ../../scripts/test.mjs"
+  },
   "exports": {
-    "./addon": "./src/addon.ts"
+    ".": "./src/index.ts",
+    "./addon": "./src/addon.ts",
+    "./collections": "./src/collections.ts",
+    "./stremio": "./src/stremio.ts"
+  },
+  "dependencies": {
+    "es-toolkit": "^1.43.0",
+    "zod": "3.25.76"
   }
 }

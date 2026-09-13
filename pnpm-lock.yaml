@@ -172,7 +172,14 @@ importers:
         specifier: ^4.100.0
         version: 4.100.0
 
-  packages/contracts: {}
+  packages/contracts:
+    dependencies:
+      es-toolkit:
+        specifier: ^1.43.0
+        version: 1.43.0
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
 
 packages:
 
