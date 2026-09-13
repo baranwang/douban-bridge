@@ -193,6 +193,10 @@ importers:
       zod:
         specifier: 3.25.76
         version: 3.25.76
+    devDependencies:
+      vite:
+        specifier: ^8.0.16
+        version: 8.0.16(@types/node@24.10.1)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.13)(yaml@2.8.2)
 
   apps/stremio:
     dependencies:
@@ -7117,6 +7121,21 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.10.1
       esbuild: 0.25.12
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      tsx: 4.23.13
+      yaml: 2.8.2
+
+  vite@8.0.16(@types/node@24.10.1)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.13)(yaml@2.8.2):
+    dependencies:
+      lightningcss: 1.32.0
+      picomatch: 4.0.4
+      postcss: 8.5.15
+      rolldown: 1.0.3
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 24.10.1
+      esbuild: 0.28.2
       fsevents: 2.3.3
       jiti: 2.6.1
       tsx: 4.23.13
