@@ -1,6 +1,6 @@
+import { ADDON } from "@douban-bridge/contracts/addon";
 import type { Manifest } from "@stremio-addon/sdk";
 import { type Env, Hono } from "hono";
-import pkg from "@/../package.json" with { type: "json" };
 import { getCatalogs } from "@/libs/catalog";
 import { encodeConfig, getConfig } from "@/libs/config";
 import { idPrefixes } from "./meta";
@@ -19,10 +19,10 @@ manifestRoute.get("/", async (c) => {
 
   const resources: Manifest["resources"] = ["catalog", "meta"];
   return c.json({
-    id: `${pkg.name}.${configId}`,
-    version: pkg.version,
-    name: pkg.displayName,
-    description: pkg.description,
+    id: `${ADDON.id}.${configId}`,
+    version: ADDON.version,
+    name: ADDON.name,
+    description: ADDON.description,
     logo: "https://stremio-addon-douban.baran.wang/icon.png",
     types: ["movie", "series"],
     resources,

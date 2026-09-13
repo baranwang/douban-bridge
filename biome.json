@@ -7,7 +7,17 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!!.cursor", "!!.omo", "!!dist", "!!.wrangler", "!!worker-configuration.d.ts", "!!drizzle/meta"]
+    "includes": [
+      "**",
+      "!!.cursor",
+      "!!.omo",
+      "!!dist",
+      "!!.wrangler",
+      "!!worker-configuration.d.ts",
+      "!!**/worker-configuration.d.ts",
+      "!!drizzle/meta",
+      "!!**/drizzle/meta"
+    ]
   },
   "formatter": {
     "enabled": true,

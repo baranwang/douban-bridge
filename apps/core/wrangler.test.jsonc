@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "douban-bridge-core-test",
+  "main": "./src/index.tsx",
+  "compatibility_date": "2025-11-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "STREMIO_ADDON_DOUBAN",
+      "database_name": "douban-bridge-core-test",
+      "database_id": "00000000-0000-0000-0000-000000000001"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+  "vars": {
+    "JWT_SECRET": "local-test-only-secret"
+  }
+}

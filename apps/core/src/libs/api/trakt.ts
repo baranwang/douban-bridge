@@ -1,3 +1,4 @@
+import { ADDON } from "@douban-bridge/contracts/addon";
 import {
   episodeResponseSchema,
   type SearchMovieResultResponse,
@@ -7,7 +8,6 @@ import {
   Environment as TraktBaseUrl,
 } from "@trakt/api";
 import { z } from "zod/v3";
-import pkg from "@/../package.json" with { type: "json" };
 import type { DoubanIdMapping } from "@/db";
 import { SECONDS_PER_DAY } from "../constants";
 import { BaseAPI } from "./base";
@@ -31,7 +31,7 @@ export class TraktAPI extends BaseAPI {
     this.axios.interceptors.request.use((config) => {
       config.headers.set("trakt-api-version", "2");
       config.headers.set("trakt-api-key", this.context.env.TRAKT_CLIENT_ID || process.env.TRAKT_CLIENT_ID);
-      config.headers.set("User-Agent", `${pkg.name}/${pkg.version}`);
+      config.headers.set("User-Agent", `${ADDON.id}/${ADDON.version}`);
       return config;
     });
   }

@@ -1,0 +1,8 @@
+{
+  "name": "@douban-bridge/contracts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./addon": "./src/addon.ts"
+  }
+}

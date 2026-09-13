@@ -1,10 +1,10 @@
+import { ADDON } from "@douban-bridge/contracts/addon";
 import { reactRenderer } from "@hono/react-renderer";
 import { zValidator } from "@hono/zod-validator";
 import { type Env, Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { Github, Heart } from "lucide-react";
 import { Link, Script, ViteClient } from "vite-ssr-components/react";
-import pkg from "@/../package.json" with { type: "json" };
 import { Configure, type ConfigureProps } from "@/components/configure";
 import { DEFAULT_COLLECTION_IDS } from "@/libs/collections";
 import { configSchema, decodeConfig, encodeConfig, getConfig, isUserId, saveUserConfig } from "@/libs/config";
@@ -104,7 +104,7 @@ configureRoute.get("/", async (c) => {
         <header className="page-container shrink-0 px-4 pt-6 pb-2">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-balance font-bold text-xl tracking-tight">{pkg.description}</h1>
+              <h1 className="text-balance font-bold text-xl tracking-tight">{ADDON.description}</h1>
               <p className="text-muted-foreground text-sm">选择要显示的目录，生成你的专属配置</p>
             </div>
             {!!user && <div id="user-menu" />}
