@@ -31,10 +31,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# generated worker types (wrangler types)
-worker-configuration.d.ts
-apps/*/worker-configuration.d.ts
-
 # misc
 .DS_Store
 
