@@ -1,0 +1,13 @@
+{
+  "name": "@douban-bridge/rex-widget",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "test": "node ../../scripts/test.mjs"
+  },
+  "dependencies": {
+    "@douban-bridge/contracts": "workspace:*",
+    "zod": "3.25.76"
+  }
+}

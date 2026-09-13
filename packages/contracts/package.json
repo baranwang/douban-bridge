@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./addon": "./src/addon.ts",
     "./collections": "./src/collections.ts",
+    "./douban": "./src/douban.ts",
     "./stremio": "./src/stremio.ts"
   },
   "dependencies": {
