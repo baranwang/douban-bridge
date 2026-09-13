@@ -44,7 +44,7 @@ export class ImageUrlGenerator {
     };
 
     for (const provider of this.providers) {
-      const urls = await this.getUrlsForProvider(provider, options);
+      const urls = await this.getUrlsForProvider(provider, options).catch(() => null);
       this.mergeUrls(result, urls);
       if (Object.values(result).every(Boolean)) break;
     }
