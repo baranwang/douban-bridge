@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { getPlatformProxy } from "wrangler";
+import { assertScheduledSafe } from "./scheduled-safe.mjs";
 
 const core = "http://localhost:8787";
 const stremio = "http://localhost:8788";
@@ -134,6 +135,15 @@ assert.equal(readFileSync(resolve("apps/stremio/src/index.ts"), "utf8").includes
 assert.equal(readFileSync(resolve("apps/api/src/index.ts"), "utf8").includes("scheduled"), false);
 assert.match(readFileSync(resolve("apps/core/src/index.tsx"), "utf8"), /scheduled/);
 
+const unmappedCount = await withLocalD1(async (db) => {
+  const row = await db
+    .prepare(
+      "SELECT COUNT(*) AS n FROM douban_mapping WHERE tmdb_id IS NULL AND (calibrated IS NOT 1 OR calibrated IS NULL)",
+    )
+    .first();
+  return Number(row?.n ?? 0);
+});
+assertScheduledSafe(unmappedCount);
 const scheduled = await get(`${core}/cdn-cgi/handler/scheduled`);
 assert.equal(scheduled.status, 200);
 
