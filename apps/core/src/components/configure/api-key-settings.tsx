@@ -5,11 +5,14 @@ import { SettingSection } from "@/components/setting-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { PublicUser } from "@/libs/public-user";
+import { apiKeyActionUi } from "./api-key-action";
 
 export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
   const [hasKey, setHasKey] = useState(false);
   const [sk, setSk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const { disabled, label } = apiKeyActionUi({ loaded, hasKey, busy });
 
   useEffect(() => {
     if (!user) return;
@@ -19,7 +22,10 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
         const response = await fetch("/api-keys", { credentials: "same-origin" });
         if (!response.ok) throw new Error("key request failed");
         const data = (await response.json()) as { hasKey: boolean };
-        if (!cancelled) setHasKey(data.hasKey);
+        if (!cancelled) {
+          setHasKey(data.hasKey);
+          setLoaded(true);
+        }
       } catch {
         if (!cancelled) toast.error("操作失败，请重试");
       }
@@ -30,7 +36,7 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
   }, [user]);
 
   const generate = useCallback(() => {
-    if (busy) return;
+    if (disabled) return;
     setBusy(true);
     void (async () => {
       try {
@@ -50,10 +56,10 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
         setBusy(false);
       }
     })();
-  }, [busy]);
+  }, [disabled]);
 
   const revoke = useCallback(() => {
-    if (busy) return;
+    if (disabled) return;
     setBusy(true);
     void (async () => {
       try {
@@ -70,7 +76,7 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
         setBusy(false);
       }
     })();
-  }, [busy]);
+  }, [disabled]);
 
   if (!user) return null;
   if (!user.hasStarred && !hasKey && !sk) return null;
@@ -110,12 +116,12 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
         ) : null}
         <div className="flex gap-2">
           {user.hasStarred ? (
-            <Button type="button" disabled={busy} onClick={generate}>
-              {hasKey ? "重新生成密钥" : "生成密钥"}
+            <Button type="button" disabled={disabled} onClick={generate}>
+              {label}
             </Button>
           ) : null}
           {hasKey ? (
-            <Button type="button" variant="outline" disabled={busy} onClick={revoke}>
+            <Button type="button" variant="outline" disabled={disabled} onClick={revoke}>
               撤销密钥
             </Button>
           ) : null}
