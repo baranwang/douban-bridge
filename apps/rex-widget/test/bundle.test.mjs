@@ -59,7 +59,7 @@ test("VM globals, 13 default modules, optional yearly params, empty cloud page",
   assert.equal(typeof context.loadDefaultCatalog, "function");
   assert.equal(typeof context.loadGenreCatalog, "function");
   assert.equal(typeof context.loadYearlyCatalog, "function");
-  assert.equal(typeof context.loadDetail, "function");
+  assert.equal(context.loadDetail, undefined);
   assert.equal(DEFAULT_COLLECTION_IDS.length, 13);
   for (const id of DEFAULT_COLLECTION_IDS) {
     assert.ok(
