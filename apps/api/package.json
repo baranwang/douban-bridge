@@ -1,0 +1,19 @@
+{
+  "name": "@douban-bridge/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "preview": "wrangler dev --local --port 8790 --persist-to ../../.wrangler/bridge-smoke --local-upstream localhost:8790",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "test": "node ../../scripts/test.mjs"
+  },
+  "dependencies": {
+    "@douban-bridge/contracts": "workspace:*",
+    "hono": "^4.13.7"
+  },
+  "devDependencies": {
+    "wrangler": "^4.131.1"
+  }
+}

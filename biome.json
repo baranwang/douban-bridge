@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -7,7 +7,20 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!!.cursor", "!!.omo", "!!dist", "!!.wrangler", "!!worker-configuration.d.ts", "!!drizzle/meta"]
+    "includes": [
+      "**",
+      "!!.cursor",
+      "!!.omo",
+      "!!dist",
+      "!!**/dist",
+      "!!.turbo",
+      "!!.wrangler",
+      "!!**/.wrangler",
+      "!!worker-configuration.d.ts",
+      "!!**/worker-configuration.d.ts",
+      "!!drizzle/meta",
+      "!!**/drizzle/meta"
+    ]
   },
   "formatter": {
     "enabled": true,

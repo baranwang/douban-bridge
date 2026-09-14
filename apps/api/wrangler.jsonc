@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "douban-bridge-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-11-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "dev": { "port": 8790 },
+  "routes": [{ "pattern": "douban-bridge-api.baran.wang", "custom_domain": true }],
+  "services": [
+    { "binding": "CORE_API", "service": "douban-bridge-core", "entrypoint": "ApiEntrypoint", "remote": false }
+  ],
+  "ratelimits": [{ "name": "PUBLIC_RATE_LIMIT", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } }]
+}

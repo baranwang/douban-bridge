@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1766884803599,
+      "tag": "0000_ambiguous_charles_xavier",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1766886073439,
+      "tag": "0001_easy_karen_page",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789321189538,
+      "tag": "0002_api_keys",
+      "breakpoints": true
+    }
+  ]
+}

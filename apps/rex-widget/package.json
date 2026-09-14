@@ -1,0 +1,19 @@
+{
+  "name": "@douban-bridge/rex-widget",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "rslib build",
+    "test": "rslib build && node ../../scripts/test.mjs"
+  },
+  "dependencies": {
+    "@douban-bridge/contracts": "workspace:*",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@rexnow/libs": "^3.0.0",
+    "@rexnow/rslib-plugin": "^3.0.1",
+    "@rslib/core": "^1.0.0"
+  }
+}

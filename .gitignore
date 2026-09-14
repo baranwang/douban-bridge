@@ -1,5 +1,6 @@
 # prod
 dist/
+apps/*/dist/
 
 # dev
 .yarn/
@@ -10,12 +11,17 @@ dist/
 
 # deps
 node_modules/
+.turbo/
 .wrangler
+apps/*/.wrangler/
 
 # env
 .env
 .env.production
 .dev.vars
+apps/*/.dev.vars
+apps/*/.env
+apps/*/.env.production
 
 # logs
 logs/

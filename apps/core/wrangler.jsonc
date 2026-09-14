@@ -1,0 +1,82 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "douban-bridge-core",
+  "main": "./src/index.tsx",
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "compatibility_date": "2025-11-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "placement": {
+    "mode": "smart"
+  },
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "douban-bridge-dash.baran.wang",
+      "custom_domain": true
+    }
+  ],
+  "dev": {
+    "port": 8787
+  },
+  "d1_databases": [
+    {
+      "binding": "STREMIO_ADDON_DOUBAN",
+      "database_name": "stremio-addon-douban",
+      "database_id": "543ed1d5-3da8-4ed1-8084-25084af52953",
+      "migrations_dir": "drizzle",
+      "remote": false
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "8274189206e84436bf11f861debd918a",
+      "remote": false
+    }
+  ],
+  "vars": {
+    "DOUBAN_API_KEY": "0ac44ae016490db2204ce0a042db2916",
+    "TRAKT_CLIENT_ID": "7100193031cd53fc7d2ec3eb22fe4162f30f0fb572d18c5b87fa1274c3dab80b",
+    "GITHUB_CLIENT_ID": "Ov23liAcIeCqxTwANWoZ",
+    "STREMIO_ORIGIN": "https://stremio-addon-douban.baran.wang",
+    "DASH_ORIGIN": "https://douban-bridge-dash.baran.wang"
+  },
+  "ratelimits": [
+    {
+      "name": "PUBLIC_RATE_LIMIT",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    },
+    {
+      "name": "USER_RATE_LIMIT",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 600,
+        "period": 60
+      }
+    }
+  ],
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true
+    }
+  }
+}

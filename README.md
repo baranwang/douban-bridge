@@ -1,8 +1,8 @@
 # Douban addon for Stremio
 
-为 Stremio 提供豆瓣电影/剧集目录的插件。
+为 Stremio 提供豆瓣电影/剧集目录的插件，并附带 Rex Widget（云端列表优先，本地基础模式回退）。
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/baranwang/stremio-addon-douban)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/baranwang/douban-bridge)
 
 ## ✨ 功能特性
 
@@ -12,6 +12,7 @@
 - 🌍 **多地区剧集** - 大陆、美剧、英剧、日剧、韩剧、港剧、台剧等
 - ⚙️ **可配置目录** - 自定义选择要显示的目录内容
 - 🔗 **ID 映射** - 自动将豆瓣 ID 映射到 TMDB/IMDB/Trakt ID
+- 🔑 **网页密钥** - 登录并 Star 后可生成 `sk`，供 Rex Widget 读取云端完整列表与详情
 
 ## 📋 支持的目录
 
@@ -47,19 +48,40 @@
 
 ## 🚀 快速开始
 
-### 在线使用
+### Stremio 安装
 
-直接在 Stremio 中添加以下 URL：
+直接在 Stremio 中添加：
 
 ```
 https://stremio-addon-douban.baran.wang/manifest.json
 ```
 
-或访问配置页面自定义目录：
+已安装用户无需更换地址。自定义目录：
 
 ```
 https://stremio-addon-douban.baran.wang/configure
 ```
+
+同一配置页也在网页后台提供：
+
+```
+https://douban-bridge-dash.baran.wang/configure
+```
+
+安装链接始终指向 `stremio-addon-douban.baran.wang`。登录并 Star 仓库后，可在配置页生成 / 替换 / 撤销 API 密钥（`sk_` 前缀）。密钥只显示一次，不要写进目录 URL。
+
+### Rex Widget
+
+1. 在配置页生成 `sk`。
+2. 在 Rex 导入 Widget 脚本（发布后）：
+
+```
+https://github.com/baranwang/douban-bridge/releases/download/widget-v0.1.0/douban-bridge.js
+```
+
+3. 在模块参数 **密钥**（`sk`）中粘贴该值。Widget 把它记在 `douban.bridge.sk`。清空 `sk` 后回到本地基础列表；详情链接不携带密钥。
+
+`widget-v0.1.0` 尚未发布时上述 URL 为 404，这是预期。不要把本地 `apps/rex-widget/dist/` 当成已分发。
 
 ### 自行部署
 
@@ -72,49 +94,28 @@ https://stremio-addon-douban.baran.wang/configure
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/baranwang/stremio-addon-douban.git
-cd stremio-addon-douban
+git clone https://github.com/baranwang/douban-bridge.git
+cd douban-bridge
 pnpm install
 ```
 
-#### 2. 配置环境变量
-
-创建 `.env` 文件并配置以下环境变量：
+#### 2. 开发命令
 
 ```bash
-# Trakt API (用于 ID 映射)
-TRAKT_CLIENT_ID=your_trakt_client_id
-
-# TMDB API (用于获取元数据)
-TMDB_API_KEY=your_tmdb_api_key
-
-# 豆瓣认证信息 (可选，用于访问受限内容)
-DOUBAN_COOKIE=your_douban_cookie
+pnpm test
+pnpm build
 ```
 
-#### 3. 配置 Cloudflare 资源
+本地三个预览（需先 `pnpm build`；core 使用构建产物）：
 
 ```bash
-# 创建 D1 数据库
-wrangler d1 create stremio-addon-douban
-
-# 创建 KV 命名空间
-wrangler kv:namespace create KV
+pnpm --filter @douban-bridge/core preview    # http://localhost:8787
+pnpm --filter @douban-bridge/stremio preview # http://localhost:8788
+pnpm --filter @douban-bridge/api preview     # http://localhost:8790
+node scripts/smoke.mjs
 ```
 
-更新 `wrangler.jsonc` 中的数据库 ID 和 KV 命名空间 ID。
-
-#### 4. 本地开发
-
-```bash
-pnpm dev
-```
-
-#### 5. 部署
-
-```bash
-pnpm deploy
-```
+`pnpm dev` 只启动 core 的 Vite 开发服务。生产切换、迁移和回滚见 [docs/deployment/douban-bridge.md](docs/deployment/douban-bridge.md)。根目录 `pnpm deploy` 不会一次发布全部服务，也不会应用远端数据库迁移。
 
 ## 🛠️ 技术栈
 
@@ -129,19 +130,11 @@ pnpm deploy
 ## 📁 项目结构
 
 ```
-src/
-├── client/          # 客户端代码
-├── components/      # React 组件
-├── db/              # 数据库 schema
-├── libs/
-│   ├── api/         # API 封装 (豆瓣、TMDB、Trakt、IMDB)
-│   ├── middleware/  # Hono 中间件
-│   └── catalog.ts   # 目录配置
-├── routes/          # 路由处理
-│   ├── catalog.ts   # 目录数据接口
-│   ├── configure.tsx # 配置页面
-│   └── manifest.ts  # Stremio manifest
-└── index.tsx        # 入口文件
+apps/core/        # 网页配置、后台、数据与定时任务
+apps/stremio/     # Stremio 安装与协议
+apps/api/         # 带密钥的数据接口
+apps/rex-widget/  # Rex 静态脚本
+packages/contracts/
 ```
 
 ## 🔗 相关链接
@@ -152,7 +145,7 @@ src/
 
 ## ❤️ 支持
 
-如果这个项目对你有帮助，欢迎 [Star](https://github.com/baranwang/stremio-addon-douban) 支持！
+如果这个项目对你有帮助，欢迎 [Star](https://github.com/baranwang/douban-bridge) 支持！
 
 也可以通过 [爱发电](https://afdian.com/a/baran) 进行捐赠。
 
