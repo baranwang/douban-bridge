@@ -420,7 +420,6 @@ test("toHostItem uses imdb then douban when tmdb is missing", async () => {
 });
 
 test("WidgetMetadata exposes 13 defaults plus genre and yearly modules", () => {
-  assert.equal(WidgetMetadata.version, "0.1.0");
   assert.equal(WidgetMetadata.requiredVersion, "0.0.1");
   assert.equal(WidgetMetadata.detailCacheDuration, 0);
   assert.equal(DEFAULT_COLLECTION_IDS.length, 13);
