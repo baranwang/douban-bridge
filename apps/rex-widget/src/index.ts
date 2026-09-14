@@ -11,14 +11,13 @@ import { version } from "../package.json";
 import { loadCatalog } from "./cloud";
 import { SUB_COLLECTIONS } from "./sub-collections";
 
-const PAGE = { name: "page", title: "页码", type: "page" } satisfies WidgetModuleParam;
+const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfies WidgetModuleParam;
 
-function queryFromParams(params: { collectionId: string; page?: string | number; offset?: string | number }) {
+function queryFromParams(params: { collectionId: string; page?: string | number }) {
   const page = Number(params.page ?? 1);
-  const skip = params.offset === undefined ? (page - 1) * 20 : Number(params.offset);
-  if (params.offset === undefined && (!Number.isSafeInteger(page) || page < 1)) throw new Error("Invalid page");
+  if (!Number.isSafeInteger(page) || page < 1) throw new Error("Invalid page");
   const subCollectionId = Reflect.get(params, `subCollectionId_${params.collectionId}`);
-  return catalogQuerySchema.parse({ collectionId: subCollectionId || params.collectionId, skip });
+  return catalogQuerySchema.parse({ collectionId: subCollectionId || params.collectionId, skip: (page - 1) * 20 });
 }
 
 function toHostItem(item: BridgeItem) {
@@ -35,18 +34,24 @@ function toHostItem(item: BridgeItem) {
   } satisfies VideoItem;
 }
 
-loadDefaultCatalog = async (params) => {
+const loadCatalogForWidget = async (
+  params: DoubanBridge.GlobalParams & {
+    collectionId: string;
+    page?: string | number;
+  },
+) => {
   const items = await loadCatalog(queryFromParams(params), (params.sk ?? "").trim());
   return items.map(toHostItem);
 };
-export const loadGenreCatalog = loadDefaultCatalog;
-export const loadYearlyCatalog = loadDefaultCatalog;
+loadDefaultCatalog = loadCatalogForWidget;
+loadGenreCatalog = loadCatalogForWidget;
+loadYearlyCatalog = loadCatalogForWidget;
 function enumOptions(items: { id: string; name: string }[]) {
   return items.map((item) => ({ title: item.name, value: item.id }));
 }
 
 function subCollectionParams(collections: { id: string }[]) {
-  return collections.flatMap(({ id }) => {
+  return collections.flatMap<WidgetModuleParam>(({ id }) => {
     const items = SUB_COLLECTIONS[id as keyof typeof SUB_COLLECTIONS];
     return items
       ? [
@@ -57,34 +62,65 @@ function subCollectionParams(collections: { id: string }[]) {
             value: id,
             belongTo: { paramName: "collectionId", value: [id] },
             enumOptions: enumOptions([...items]),
-          } satisfies WidgetModuleParam,
+          },
         ]
       : [];
   });
 }
 
+const i18n = {
+  "zh-Hant": {
+    密钥: "密鑰",
+    榜单: "排行榜",
+    页码: "頁碼",
+    分类: "分類",
+    年度: "年度",
+    最新年度: "最新年度",
+    豆瓣榜单: "豆瓣排行榜",
+    "豆瓣电影、剧集排行榜": "豆瓣電影、劇集排行榜",
+    电影类型榜: "電影類型排行榜",
+    剧集类型榜: "劇集類型排行榜",
+    豆瓣年度评分最高电影: "豆瓣年度最高評分電影",
+    豆瓣年度评分最高剧集: "豆瓣年度最高評分劇集",
+  },
+  en: {
+    密钥: "Secret Key",
+    榜单: "Chart",
+    页码: "Page",
+    分类: "Category",
+    年度: "Year",
+    最新年度: "Latest",
+    豆瓣榜单: "Douban Charts",
+    "豆瓣电影、剧集排行榜": "Douban movie and TV charts",
+    电影类型榜: "Movies by Genre",
+    剧集类型榜: "TV Shows by Genre",
+    豆瓣年度评分最高电影: "Douban's Top-Rated Movies by Year",
+    豆瓣年度评分最高剧集: "Douban's Top-Rated TV Shows by Year",
+  },
+};
+
 WidgetMetadata = {
   id: "douban.bridge",
-  title: "豆瓣",
+  title: "豆瓣榜单",
+  description: "豆瓣电影、剧集排行榜",
+  author: "Baran",
+  site: "https://github.com/baranwang/douban-bridge",
   version,
   requiredVersion: "0.0.1",
+  iconurl: "https://fastly.jsdelivr.net/gh/baranwang/douban-bridge@main/icon.png",
   globalParams: [{ name: "sk", title: "密钥", type: "input" }],
+  i18n,
   modules: [
-    ...COLLECTION_CONFIGS.filter((item) => item.isDefault).map((item) => ({
+    ...COLLECTION_CONFIGS.filter((item) => item.isDefault).map<WidgetModule>((item) => ({
       id: item.id,
       title: item.name,
       functionName: "loadDefaultCatalog",
-      cacheDuration: 0,
-      params: [
-        { name: "collectionId", title: "榜单", type: "constant", value: item.id } satisfies WidgetModuleParam,
-        PAGE,
-      ],
+      params: [{ name: "collectionId", title: "榜单", type: "constant", value: item.id }, PAGE],
     })),
     {
       id: "movie_genre",
       title: "电影类型榜",
       functionName: "loadGenreCatalog",
-      cacheDuration: 0,
       params: [
         { name: "collectionId", title: "榜单", type: "enumeration", enumOptions: enumOptions(MOVIE_GENRE_CONFIGS) },
         ...subCollectionParams(MOVIE_GENRE_CONFIGS),
@@ -95,7 +131,6 @@ WidgetMetadata = {
       id: "tv_genre",
       title: "剧集类型榜",
       functionName: "loadGenreCatalog",
-      cacheDuration: 0,
       params: [
         { name: "collectionId", title: "榜单", type: "enumeration", enumOptions: enumOptions(TV_GENRE_CONFIGS) },
         ...subCollectionParams(TV_GENRE_CONFIGS),
@@ -106,7 +141,7 @@ WidgetMetadata = {
       id: "movie_yearly",
       title: "豆瓣年度评分最高电影",
       functionName: "loadYearlyCatalog",
-      cacheDuration: 0,
+
       params: [
         {
           name: "collectionId",
@@ -124,7 +159,7 @@ WidgetMetadata = {
       id: "tv_yearly",
       title: "豆瓣年度评分最高剧集",
       functionName: "loadYearlyCatalog",
-      cacheDuration: 0,
+
       params: [
         {
           name: "collectionId",
@@ -140,5 +175,3 @@ WidgetMetadata = {
     },
   ],
 };
-
-Object.assign(globalThis, { WidgetMetadata, loadDefaultCatalog, loadGenreCatalog, loadYearlyCatalog });
