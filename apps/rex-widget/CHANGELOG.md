@@ -1,5 +1,11 @@
 # @rexnow/douban
 
+## 0.2.0
+
+### Minor Changes
+
+- 5efec12: Add localized Widget metadata and the Douban Bridge icon.
+
 ## 0.1.0
 
 ### Minor Changes
