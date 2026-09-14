@@ -14,7 +14,10 @@ interface MovieHotGaiaLoadDefaultCatalogParams extends DoubanBridge.GlobalParams
      * @default 'movie_hot_gaia'
      */
     collectionId: 'movie_hot_gaia';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -31,7 +34,10 @@ interface MovieWeeklyBestLoadDefaultCatalogParams extends DoubanBridge.GlobalPar
      * @default 'movie_weekly_best'
      */
     collectionId: 'movie_weekly_best';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -48,7 +54,10 @@ interface MovieRealTimeHotestLoadDefaultCatalogParams extends DoubanBridge.Globa
      * @default 'movie_real_time_hotest'
      */
     collectionId: 'movie_real_time_hotest';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -65,7 +74,10 @@ interface MovieTop250LoadDefaultCatalogParams extends DoubanBridge.GlobalParams 
      * @default 'movie_top250'
      */
     collectionId: 'movie_top250';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -82,7 +94,10 @@ interface MovieShowingLoadDefaultCatalogParams extends DoubanBridge.GlobalParams
      * @default 'movie_showing'
      */
     collectionId: 'movie_showing';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -99,7 +114,10 @@ interface TvHotLoadDefaultCatalogParams extends DoubanBridge.GlobalParams {
      * @default 'tv_hot'
      */
     collectionId: 'tv_hot';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -116,7 +134,10 @@ interface TvAnimationLoadDefaultCatalogParams extends DoubanBridge.GlobalParams 
      * @default 'tv_animation'
      */
     collectionId: 'tv_animation';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -133,7 +154,10 @@ interface ShowHotLoadDefaultCatalogParams extends DoubanBridge.GlobalParams {
      * @default 'show_hot'
      */
     collectionId: 'show_hot';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -150,7 +174,10 @@ interface TvRealTimeHotestLoadDefaultCatalogParams extends DoubanBridge.GlobalPa
      * @default 'tv_real_time_hotest'
      */
     collectionId: 'tv_real_time_hotest';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -167,7 +194,10 @@ interface TvChineseBestWeeklyLoadDefaultCatalogParams extends DoubanBridge.Globa
      * @default 'tv_chinese_best_weekly'
      */
     collectionId: 'tv_chinese_best_weekly';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -184,7 +214,10 @@ interface TvGlobalBestWeeklyLoadDefaultCatalogParams extends DoubanBridge.Global
      * @default 'tv_global_best_weekly'
      */
     collectionId: 'tv_global_best_weekly';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -201,7 +234,10 @@ interface ShowChineseBestWeeklyLoadDefaultCatalogParams extends DoubanBridge.Glo
      * @default 'show_chinese_best_weekly'
      */
     collectionId: 'show_chinese_best_weekly';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -218,7 +254,10 @@ interface ShowGlobalBestWeeklyLoadDefaultCatalogParams extends DoubanBridge.Glob
      * @default 'show_global_best_weekly'
      */
     collectionId: 'show_global_best_weekly';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -332,7 +371,10 @@ interface MovieGenreLoadGenreCatalogParams extends DoubanBridge.GlobalParams {
      * @default 'film_genre_47'
      */
     subCollectionId_film_genre_47: 'film_genre_47' | 'ECM4OWDGI' | 'ECU4ORYVI';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -386,7 +428,10 @@ interface TvGenreLoadGenreCatalogParams extends DoubanBridge.GlobalParams {
      * @default 'EC6I5FYHA'
      */
     subCollectionId_EC6I5FYHA: 'EC6I5FYHA' | 'ECZY5KBOQ' | 'ECJQ5LPXY' | 'ECSA5KEKY' | 'ECEU47F2I' | 'ECGM5NIQA' | 'ECTM5JVYA';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -400,7 +445,10 @@ interface TvGenreLoadGenreCatalogReturnType extends Array<VideoItem> {
 interface MovieYearlyLoadYearlyCatalogParams extends DoubanBridge.GlobalParams {
     /** 年度 */
     collectionId: '__movie_yearly_ranking__' | 'ECE472UNY' | 'ECBE7RX5A' | 'ECQ46F7XI' | 'ECKA55LSA' | 'ECWY6B2GQ' | 'EC2A5MRIY' | 'ECFYHQBWQ' | '2018_movie_1' | '2017_movie_chinese_score' | '2016_movie_451' | '2015_movie_3' | '2014_movie_2';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 
@@ -414,7 +462,10 @@ interface MovieYearlyLoadYearlyCatalogReturnType extends Array<VideoItem> {
 interface TvYearlyLoadYearlyCatalogParams extends DoubanBridge.GlobalParams {
     /** 年度 */
     collectionId: '__tv_yearly_ranking__' | 'EC2FACYKQ' | 'ECYA7RAZQ' | 'ECTE6EOZA' | 'ECWU56XUI' | 'ECOY56I6Y' | 'ECCM5TXSI' | 'ECR4HOW3I' | '2018_tv_23' | '2017_tv_domestic_score' | '2016_tv_478' | '2015_tv_6' | '2014_tv_14';
-    /** 页码 */
+    /**
+     * 页码
+     * @default '1'
+     */
     page: string;
 }
 

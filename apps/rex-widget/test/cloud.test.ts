@@ -10,8 +10,43 @@ import {
 } from "@douban-bridge/contracts/collections";
 import { loadCatalog } from "../src/cloud";
 
-Object.assign(globalThis, { WidgetMetadata: undefined, loadDefaultCatalog: undefined });
+Object.assign(globalThis, {
+  WidgetMetadata: undefined,
+  loadDefaultCatalog: undefined,
+  loadGenreCatalog: undefined,
+  loadYearlyCatalog: undefined,
+});
 await import("../src/index");
+
+test("metadata translates broad labels to English", () => {
+  const metadata = Reflect.get(globalThis, "WidgetMetadata") as {
+    description?: string;
+    i18n?: { en?: Record<string, string> };
+    modules: unknown[];
+  };
+  assert.notEqual(metadata.description, "todo");
+  assert.equal(WidgetMetadata.id, "douban.bridge");
+  assert.equal(WidgetMetadata.iconurl, "https://fastly.jsdelivr.net/gh/baranwang/douban-bridge@main/icon.png");
+  assert.deepEqual(
+    Object.keys(metadata.i18n?.en ?? {}).sort(),
+    [
+      "分类",
+      "密钥",
+      "年度",
+      "页码",
+      "榜单",
+      "最新年度",
+      "豆瓣年度评分最高剧集",
+      "豆瓣年度评分最高电影",
+      "豆瓣榜单",
+      "豆瓣电影、剧集排行榜",
+      "剧集类型榜",
+      "电影类型榜",
+    ].sort(),
+  );
+  assert.equal(metadata.i18n?.en?.电影类型榜, "Movies by Genre");
+  assert.equal(metadata.i18n?.en?.豆瓣年度评分最高电影, "Douban's Top-Rated Movies by Year");
+});
 
 type TestWidget = {
   http: {
@@ -330,7 +365,7 @@ test("WidgetMetadata exposes 13 defaults plus genre and yearly modules", () => {
     const module = WidgetMetadata.modules.find((item: { id: string }) => item.id === id);
     assert.ok(module, id);
     assert.equal(module.functionName, "loadDefaultCatalog");
-    assert.equal(module.cacheDuration, 0);
+    assert.equal(module.cacheDuration, undefined);
     assert.equal(module.params.find((param: { name: string }) => param.name === "collectionId")?.value, id);
     assert.equal(module.params.find((param: { name: string }) => param.name === "page")?.type, "page");
   }
@@ -338,7 +373,7 @@ test("WidgetMetadata exposes 13 defaults plus genre and yearly modules", () => {
   const tvGenre = WidgetMetadata.modules.find((item: { id: string }) => item.id === "tv_genre");
   assert.equal(movieGenre.functionName, "loadGenreCatalog");
   assert.equal(tvGenre.functionName, "loadGenreCatalog");
-  assert.equal(movieGenre.cacheDuration, 0);
+  assert.equal(movieGenre.cacheDuration, undefined);
   const movieGenreIds = movieGenre.params
     .find((param: { name: string }) => param.name === "collectionId")
     .enumOptions.map((option: { value: string }) => option.value);
