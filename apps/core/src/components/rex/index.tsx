@@ -99,7 +99,7 @@ export function Rex({ user, imageProviders: initialImageProviders }: RexProps) {
               <p className="mt-1 max-w-prose text-muted-foreground text-sm">
                 登录并 Star 项目后，即可创建 Rex 密钥，并在云端保存所有播放器共用的图片设置。
               </p>
-              <StarBanner user={user} />
+              <StarBanner user={user} context="rex" />
             </section>
           )}
         </main>

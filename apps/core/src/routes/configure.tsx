@@ -1,4 +1,3 @@
-import { ADDON } from "@douban-bridge/contracts/addon";
 import { zValidator } from "@hono/zod-validator";
 import { type Env, Hono } from "hono";
 import { getCookie } from "hono/cookie";
@@ -100,8 +99,8 @@ configureRoute.get("/", async (c) => {
         <header className="page-container shrink-0 px-4 pt-6 pb-2">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-balance font-bold text-xl tracking-tight">{ADDON.description}</h1>
-              <p className="text-muted-foreground text-sm">选择要显示的目录，生成你的专属配置</p>
+              <h1 className="text-balance font-bold text-xl tracking-tight">Douban for Stremio</h1>
+              <p className="text-muted-foreground text-sm">选择目录并生成你的 Stremio Manifest</p>
             </div>
             {!!user && <div id="user-menu" />}
           </div>

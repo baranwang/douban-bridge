@@ -24,6 +24,14 @@ export function getStremioOrigin(env: { STREMIO_ORIGIN: string }): string {
   return env.STREMIO_ORIGIN;
 }
 
+export function getSignedInPath(env: WebOriginEnv, origin: string, userId: string): string {
+  return origin === env.STREMIO_ORIGIN ? `/${userId}/configure` : "/rex";
+}
+
+export function getSignedOutPath(env: WebOriginEnv, origin: string): string {
+  return origin === env.STREMIO_ORIGIN ? "/configure" : "/";
+}
+
 export function isAllowedStremioOrigin(env: { STREMIO_ORIGIN: string }, origin: string | undefined): origin is string {
   if (!origin) return false;
   if (origin === env.STREMIO_ORIGIN) return true;

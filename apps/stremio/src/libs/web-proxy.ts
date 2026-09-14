@@ -44,5 +44,5 @@ export function isWebCompatibilityRoute(method: string, pathname: string): boole
     if (isTidyUpItem(pathname)) return true;
   }
   if (verb === "POST" && (pathname === "/auth/logout" || isTidyUpItem(pathname))) return true;
-  return (verb === "GET" || verb === "POST" || verb === "DELETE") && pathname === "/api-keys";
+  return false;
 }

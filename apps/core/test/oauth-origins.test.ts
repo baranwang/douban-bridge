@@ -6,6 +6,7 @@ import { app } from "../src/app";
 import { getDrizzle, users } from "../src/db";
 import { api } from "../src/libs/api";
 import { encodeConfig } from "../src/libs/config";
+import { getSignedInPath, getSignedOutPath } from "../src/libs/public-origins";
 import { internalStremio } from "../src/routes/internal-stremio";
 import { withTestContext } from "./context";
 
@@ -52,6 +53,26 @@ async function insertUser(env: CloudflareBindings): Promise<string> {
 }
 
 describe("oauth origins", { concurrency: false }, () => {
+  test("auth return paths are fixed by product origin", () => {
+    const env = { STREMIO_ORIGIN: STREMIO, DASH_ORIGIN: DASH };
+    assert.equal(getSignedInPath(env, DASH, "user-id"), "/rex");
+    assert.equal(getSignedOutPath(env, DASH), "/");
+    assert.equal(getSignedInPath(env, STREMIO, "user-id"), "/user-id/configure");
+    assert.equal(getSignedOutPath(env, STREMIO), "/configure");
+  });
+
+  test("logout returns to the current product", async () => {
+    await withTestContext(async (env, ctx) => {
+      const bindings = withOrigins(env);
+      const core = await app.fetch(new Request(`${DASH}/auth/logout`, { method: "POST" }), bindings, ctx);
+      const stremio = await app.fetch(new Request(`${STREMIO}/auth/logout`, { method: "POST" }), bindings, ctx);
+      assert.equal(core.status, 302);
+      assert.equal(core.headers.get("location"), "/");
+      assert.equal(stremio.status, 302);
+      assert.equal(stremio.headers.get("location"), "/configure");
+    });
+  });
+
   test("both public origins share one GitHub app and send matching redirect_uri", async () => {
     await withTestContext(async (env, ctx) => {
       const limited = withOrigins(env);
