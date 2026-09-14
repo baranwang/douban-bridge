@@ -4,8 +4,8 @@
   "type": "module",
   "version": "0.1.0",
   "scripts": {
-    "build": "node scripts/build.mjs",
-    "test": "node scripts/build.mjs && node ../../scripts/test.mjs"
+    "build": "rslib build",
+    "test": "rslib build && node ../../scripts/test.mjs"
   },
   "dependencies": {
     "@douban-bridge/contracts": "workspace:*",

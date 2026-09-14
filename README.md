@@ -73,10 +73,10 @@ https://douban-bridge-dash.baran.wang/configure
 ### Rex Widget
 
 1. 在配置页生成 `sk`。
-2. 在 Rex 导入 Widget 清单（发布后）：
+2. 在 Rex 导入 Widget 脚本（发布后）：
 
 ```
-https://github.com/baranwang/stremio-addon-douban/releases/download/widget-v0.1.0/manifest.json
+https://github.com/baranwang/stremio-addon-douban/releases/download/widget-v0.1.0/douban-bridge.js
 ```
 
 3. 在模块参数 **密钥**（`sk`）中粘贴该值。Widget 把它记在 `douban.bridge.sk`。清空 `sk` 后回到本地基础列表；详情链接不携带密钥。

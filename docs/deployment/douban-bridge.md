@@ -121,7 +121,7 @@ rtk proxy pnpm --filter @douban-bridge/api deploy
 
 ### 8. Widget Release（须仓库已整合且获授权）
 
-为已验证并推到远端仓库的 commit 创建 `widget-v0.1.0` **draft** Release，上传 `apps/rex-widget/dist/douban-bridge.js` 与 `apps/rex-widget/dist/manifest.json`。核对构建 commit、包版本 `0.1.0` 和资源校验值后再发布。最后在 Rex 导入发布后的 manifest URL，并完成任务 9 实测矩阵。Release 发布前该 URL **404 是预期**；本地 `dist/` 存在不等于分发成功。本任务不创建 Release。
+为已验证并推到远端仓库的 commit 创建 `widget-v0.1.0` **draft** Release，上传 `apps/rex-widget/dist/douban-bridge.js`。核对构建 commit、包版本 `0.1.0` 和资源校验值后再发布。最后在 Rex 导入发布后的脚本 URL，并完成任务 9 实测矩阵。Release 发布前该 URL **404 是预期**；本地 `dist/` 存在不等于分发成功。本任务不创建 Release。
 
 ## 回滚
 

@@ -27,7 +27,7 @@ stremio-addon-douban/
 |   `-- vite.config.ts
 +-- apps/stremio/              # Worker stremio-addon-douban; original domain
 +-- apps/api/                 # Worker douban-bridge-api; Bearer /v1 + image-proxy
-+-- apps/rex-widget/          # Rex Widget (Rslib + @rexnow) + GitHub Release manifest
++-- apps/rex-widget/          # Rex Widget (Rslib + @rexnow); Release asset is douban-bridge.js
 +-- packages/contracts/        # shared addon identity and HTTP schemas
 +-- scripts/test.mjs          # Node test runner
 +-- scripts/smoke.mjs         # local three-Worker HTTP + D1 smoke
