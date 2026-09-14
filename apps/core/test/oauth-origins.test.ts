@@ -10,7 +10,7 @@ import { internalStremio } from "../src/routes/internal-stremio";
 import { withTestContext } from "./context";
 
 const STREMIO = "https://stremio-addon-douban.baran.wang";
-const DASH = "https://douban-bridge-core.baran.wang";
+const DASH = "https://douban-bridge.baran.wang";
 const CLIENT_ID = "stremio-gh-id";
 
 function withOrigins(env: CloudflareBindings, extra: Partial<CloudflareBindings> = {}): CloudflareBindings {
@@ -73,7 +73,7 @@ describe("oauth origins", { concurrency: false }, () => {
       assert.equal(dashLocation.searchParams.get("redirect_uri"), `${DASH}/auth/github/callback`);
 
       const forwarded = await app.fetch(
-        new Request(`${STREMIO}/auth/github`, { headers: { "X-Forwarded-Host": "douban-bridge-core.baran.wang" } }),
+        new Request(`${STREMIO}/auth/github`, { headers: { "X-Forwarded-Host": "douban-bridge.baran.wang" } }),
         limited,
         ctx,
       );
@@ -158,7 +158,7 @@ describe("install origin and internal stremio isolation", { concurrency: false }
       const json = (await posted.json()) as { success: boolean; manifestUrl: string };
       assert.equal(json.success, true);
       assert.equal(json.manifestUrl.startsWith(`${STREMIO}/`), true);
-      assert.equal(json.manifestUrl.includes("douban-bridge-core.baran.wang"), false);
+      assert.equal(json.manifestUrl.includes("douban-bridge.baran.wang"), false);
     });
   });
 

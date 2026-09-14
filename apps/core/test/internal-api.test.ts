@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import test, { describe, mock } from "node:test";
 import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
+import { sign } from "hono/jwt";
 import { app } from "../src/app";
 import { getDrizzle, userConfigs, users } from "../src/db";
 import { api } from "../src/libs/api";
@@ -11,8 +12,7 @@ import { replaceApiKey } from "../src/libs/api-key";
 import { internalApi } from "../src/routes/internal-api";
 import { withTestContext } from "./context";
 
-const DASH = "https://douban-bridge-core.baran.wang";
-const API = "https://douban-bridge-api.baran.wang";
+const PUBLIC = "https://douban-bridge.baran.wang";
 const POSTER = "https://img9.doubanio.com/view/photo/s_ratio_poster/public/p480747492.jpg";
 
 function withRateLimits(env: CloudflareBindings, userSuccess = true): CloudflareBindings {
@@ -47,7 +47,7 @@ function noStore(response: Response) {
 }
 
 describe("internal api entry isolation", { concurrency: false }, () => {
-  test("web app does not serve /v1 catalog and bypass headers never grant access", async () => {
+  test("public /v1 requires Bearer and ignores cookies or bypass headers", async () => {
     await withTestContext(async (env, ctx) => {
       try {
         let sourceCalls = 0;
@@ -56,18 +56,29 @@ describe("internal api entry isolation", { concurrency: false }, () => {
           return { subject_collection_items: [], total: 0 };
         });
         const limited = withRateLimits(env);
-        const web = await app.fetch(new Request(`${DASH}/v1/catalog/movie_top250`), limited, ctx);
-        assert.equal(web.status, 404);
+        const web = await app.fetch(new Request(`${PUBLIC}/v1/catalog/movie_top250`), limited, ctx);
+        assert.equal(web.status, 401);
+        noStore(web);
         assert.equal(sourceCalls, 0);
 
+        const userId = await insertUser(env);
+        const token = await sign({ sub: userId, exp: Math.floor(Date.now() / 1000) + 3600 }, env.JWT_SECRET, "HS256");
+        const cookied = await app.fetch(
+          new Request(`${PUBLIC}/v1/catalog/movie_top250`, { headers: { Cookie: `token=${token}` } }),
+          limited,
+          ctx,
+        );
+        assert.equal(cookied.status, 401);
+        noStore(cookied);
+
         const denied = await Promise.all([
-          internalApi.fetch(new Request(`${API}/v1/catalog/movie_top250`), limited, ctx),
-          internalApi.fetch(
-            new Request(`${API}/v1/catalog/movie_top250`, { headers: { "X-Internal": "true", "X-User-Id": "u1" } }),
+          app.fetch(new Request(`${PUBLIC}/v1/catalog/movie_top250`), limited, ctx),
+          app.fetch(
+            new Request(`${PUBLIC}/v1/catalog/movie_top250`, { headers: { "X-Internal": "true", "X-User-Id": "u1" } }),
             limited,
             ctx,
           ),
-          internalApi.fetch(new Request(`${API}/v1/catalog/movie_top250?mode=stremio`), limited, ctx),
+          app.fetch(new Request(`${PUBLIC}/v1/catalog/movie_top250?mode=stremio`), limited, ctx),
         ]);
         for (const response of denied) {
           assert.equal(response.status, 401);
@@ -95,9 +106,9 @@ describe("internal api catalog and meta", { concurrency: false }, () => {
         const limited = withRateLimits(env);
         const headers = { Authorization: `Bearer ${sk}` };
         const urls = [
-          `${API}/v1/catalog/movie_top250?foo=1`,
-          `${API}/v1/catalog/movie_top250?skip=0&skip=20`,
-          `${API}/v1/catalog/movie_top250?skip=`,
+          `${PUBLIC}/v1/catalog/movie_top250?foo=1`,
+          `${PUBLIC}/v1/catalog/movie_top250?skip=0&skip=20`,
+          `${PUBLIC}/v1/catalog/movie_top250?skip=`,
         ];
         for (const url of urls) {
           const response = await internalApi.fetch(new Request(url, { headers }), limited, ctx);
@@ -127,7 +138,7 @@ describe("internal api catalog and meta", { concurrency: false }, () => {
         const sk = await replaceApiKey(env, userId);
         const headers = { Authorization: `Bearer ${sk}` };
         const meta = await internalApi.fetch(
-          new Request(`${API}/v1/meta/1291546?origin=https://evil.example`, { headers }),
+          new Request(`${PUBLIC}/v1/meta/1291546?origin=https://evil.example`, { headers }),
           withRateLimits(env),
           ctx,
         );
@@ -135,7 +146,7 @@ describe("internal api catalog and meta", { concurrency: false }, () => {
         noStore(meta);
 
         const limited = await internalApi.fetch(
-          new Request(`${API}/v1/catalog/movie_top250`, { headers }),
+          new Request(`${PUBLIC}/v1/catalog/movie_top250`, { headers }),
           withRateLimits(env, false),
           ctx,
         );
@@ -181,7 +192,7 @@ describe("internal api catalog and meta", { concurrency: false }, () => {
         const doubanSk = await replaceApiKey(env, doubanUser);
         const emptySk = await replaceApiKey(env, emptyUser);
         const limited = withRateLimits(env);
-        const url = `${API}/v1/catalog/movie_top250`;
+        const url = `${PUBLIC}/v1/catalog/movie_top250`;
         const first = await internalApi.fetch(
           new Request(url, { headers: { Authorization: `Bearer ${doubanSk}` } }),
           limited,
@@ -251,7 +262,7 @@ describe("internal api catalog and meta", { concurrency: false }, () => {
         const headers = { Authorization: `Bearer ${sk}` };
         mock.method(api.doubanAPI, "getSubjectCollectionItems", async () => undefined);
         const missing = await internalApi.fetch(
-          new Request(`${API}/v1/catalog/movie_top250`, { headers }),
+          new Request(`${PUBLIC}/v1/catalog/movie_top250`, { headers }),
           limited,
           ctx,
         );
@@ -263,7 +274,7 @@ describe("internal api catalog and meta", { concurrency: false }, () => {
           throw new Error("upstream down");
         });
         const badGateway = await internalApi.fetch(
-          new Request(`${API}/v1/catalog/movie_top250`, { headers }),
+          new Request(`${PUBLIC}/v1/catalog/movie_top250`, { headers }),
           limited,
           ctx,
         );
@@ -286,7 +297,7 @@ describe("internal api catalog and meta", { concurrency: false }, () => {
           logs.push(args);
         });
         const crashed = await internalApi.fetch(
-          new Request(`${API}/v1/catalog/movie_top250`, { headers }),
+          new Request(`${PUBLIC}/v1/catalog/movie_top250`, { headers }),
           limited,
           ctx,
         );
@@ -294,7 +305,7 @@ describe("internal api catalog and meta", { concurrency: false }, () => {
         noStore(crashed);
         assert.deepEqual(await crashed.json(), { error: "internal_error" });
         const dumped = JSON.stringify(logs);
-        assert.equal(dumped.includes(`${API}/v1/catalog/movie_top250`), false);
+        assert.equal(dumped.includes(`${PUBLIC}/v1/catalog/movie_top250`), false);
         assert.equal(dumped.includes("Authorization"), false);
         assert.ok(logs.some((args) => args.includes("internal_error")));
         error.mock.restore();

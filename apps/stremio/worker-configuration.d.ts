@@ -4,8 +4,8 @@
 interface __BaseEnv_CloudflareBindings {
 	PUBLIC_RATE_LIMIT: RateLimit;
 	USER_RATE_LIMIT: RateLimit;
-	CORE_STREMIO: Service /* entrypoint StremioEntrypoint from douban-bridge-core */;
-	CORE_WEB: Fetcher /* douban-bridge-core */;
+	CORE_STREMIO: Service /* entrypoint StremioEntrypoint from douban-bridge */;
+	CORE_WEB: Fetcher /* douban-bridge */;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

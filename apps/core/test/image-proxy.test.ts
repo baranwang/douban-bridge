@@ -5,11 +5,9 @@ import { eq } from "drizzle-orm";
 import { app } from "../src/app";
 import { getDrizzle, users } from "../src/db";
 import { DoubanAPI } from "../src/libs/api";
-import { internalApi } from "../src/routes/internal-api";
 import { withTestContext } from "./context";
 
-const DASH = "https://douban-bridge-core.baran.wang";
-const API = "https://douban-bridge-api.baran.wang";
+const PUBLIC = "https://douban-bridge.baran.wang";
 const POSTER = "https://img9.doubanio.com/view/photo/s_ratio_poster/public/p480747492.jpg";
 
 function withRateLimits(env: CloudflareBindings): CloudflareBindings {
@@ -58,28 +56,23 @@ describe("image proxy", { concurrency: false }, () => {
             headers: { "Content-Type": "image/jpeg", "Set-Cookie": "secret=1", "X-Powered-By": "origin" },
           });
         });
-        for (const [client, origin] of [
-          [app, DASH],
-          [internalApi, API],
-        ] as const) {
-          const ok = await client.fetch(
-            new Request(imageUrl(origin, starred, POSTER), {
-              headers: { Cookie: "token=nope", Authorization: "Bearer sk_nope", Host: "evil.example" },
-            }),
-            limited,
-            ctx,
-          );
-          assert.equal(ok.status, 200);
-          assert.equal(ok.headers.get("Content-Type"), "image/jpeg");
-          assert.equal(ok.headers.get("Access-Control-Allow-Origin"), "*");
-          assert.equal(ok.headers.get("Set-Cookie"), null);
-          assert.equal(ok.headers.get("X-Powered-By"), null);
-          assert.equal(await ok.text(), "img");
-          const denied = await client.fetch(new Request(imageUrl(origin, blocked, POSTER)), limited, ctx);
-          assert.equal(denied.status, 401);
-          assert.notEqual(denied.status, 200);
-        }
-        assert.ok(fetched.length >= 2);
+        const ok = await app.fetch(
+          new Request(imageUrl(PUBLIC, starred, POSTER), {
+            headers: { Cookie: "token=nope", Authorization: "Bearer sk_nope", Host: "evil.example" },
+          }),
+          limited,
+          ctx,
+        );
+        assert.equal(ok.status, 200);
+        assert.equal(ok.headers.get("Content-Type"), "image/jpeg");
+        assert.equal(ok.headers.get("Access-Control-Allow-Origin"), "*");
+        assert.equal(ok.headers.get("Set-Cookie"), null);
+        assert.equal(ok.headers.get("X-Powered-By"), null);
+        assert.equal(await ok.text(), "img");
+        const denied = await app.fetch(new Request(imageUrl(PUBLIC, blocked, POSTER)), limited, ctx);
+        assert.equal(denied.status, 401);
+        assert.notEqual(denied.status, 200);
+        assert.ok(fetched.length >= 1);
         for (const request of fetched) {
           assert.equal(request.url, POSTER);
           assert.equal(request.headers.get("Cookie"), null);
@@ -105,11 +98,11 @@ describe("image proxy", { concurrency: false }, () => {
           "fetch",
           async () => new Response("img", { status: 200, headers: { "Content-Type": "image/jpeg" } }),
         );
-        const first = await internalApi.fetch(new Request(imageUrl(API, userId, POSTER)), limited, ctx);
+        const first = await app.fetch(new Request(imageUrl(PUBLIC, userId, POSTER)), limited, ctx);
         assert.equal(first.status, 200);
         await getDrizzle(env).update(users).set({ hasStarred: false }).where(eq(users.id, userId));
-        const conditional = await internalApi.fetch(
-          new Request(imageUrl(API, userId, POSTER), { headers: { "If-None-Match": POSTER } }),
+        const conditional = await app.fetch(
+          new Request(imageUrl(PUBLIC, userId, POSTER), { headers: { "If-None-Match": POSTER } }),
           limited,
           ctx,
         );
@@ -146,12 +139,12 @@ describe("image proxy", { concurrency: false }, () => {
         ];
         for (const url of rejected) {
           const before = fetchCalls;
-          const response = await internalApi.fetch(new Request(imageUrl(API, userId, url)), limited, ctx);
+          const response = await app.fetch(new Request(imageUrl(PUBLIC, userId, url)), limited, ctx);
           assert.equal(response.status, 400, url);
           assert.equal(await response.text(), "Unsupported image source");
           assert.equal(fetchCalls, before, url);
         }
-        const redirected = await internalApi.fetch(new Request(imageUrl(API, userId, POSTER)), limited, ctx);
+        const redirected = await app.fetch(new Request(imageUrl(PUBLIC, userId, POSTER)), limited, ctx);
         assert.equal(redirected.status, 502);
         assert.equal(await redirected.text(), "Image source redirected");
         assert.equal(fetchCalls, 1);
@@ -170,7 +163,7 @@ describe("image proxy", { concurrency: false }, () => {
           "fetch",
           async () => new Response("missing", { status: 404, headers: { "Content-Type": "text/plain" } }),
         );
-        const response = await internalApi.fetch(new Request(imageUrl(API, userId, POSTER)), withRateLimits(env), ctx);
+        const response = await app.fetch(new Request(imageUrl(PUBLIC, userId, POSTER)), withRateLimits(env), ctx);
         assert.equal(response.status, 404);
         assert.notEqual(response.status, 200);
       } finally {

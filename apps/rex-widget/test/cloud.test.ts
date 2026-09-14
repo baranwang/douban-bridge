@@ -109,7 +109,7 @@ function install(
   const widget = hostFixture();
   widget.http.get = async (url, options) => {
     const host = new URL(url).hostname;
-    if (host === "douban-bridge-api.baran.wang") {
+    if (host === "douban-bridge.baran.wang") {
       counts.cloud += 1;
       return handler(url, options);
     }
@@ -130,7 +130,7 @@ test("valid empty cloud page never calls local sources", async () => {
     http: {
       get: async (url) => {
         calls += 1;
-        assert.equal(new URL(url).hostname, "douban-bridge-api.baran.wang");
+        assert.equal(new URL(url).hostname, "douban-bridge.baran.wang");
         return { statusCode: 200, data: { items: [] } };
       },
     },
@@ -224,7 +224,7 @@ test("cloud and basic catalog failure rejects to the host", async () => {
   const counts = { cloud: 0, basic: 0 };
   const widget = hostFixture();
   widget.http.get = async (url) => {
-    if (new URL(url).hostname === "douban-bridge-api.baran.wang") {
+    if (new URL(url).hostname === "douban-bridge.baran.wang") {
       counts.cloud += 1;
       return { statusCode: 500, data: null };
     }
@@ -249,7 +249,7 @@ test("empty sk uses basic meta only", async () => {
 
 test("complete cloud meta never calls basic and keeps original images", async () => {
   const { counts } = install(async (url, options) => {
-    assert.equal(url, "https://douban-bridge-api.baran.wang/v1/meta/1291546");
+    assert.equal(url, "https://douban-bridge.baran.wang/v1/meta/1291546");
     assert.equal(options?.headers?.Authorization, `Bearer ${SK}`);
     return { statusCode: 200, data: { item: CLOUD_DETAIL } };
   });
@@ -315,7 +315,7 @@ test("cloud and basic meta failure rejects to the host", async () => {
   const counts = { cloud: 0, basic: 0 };
   const widget = hostFixture();
   widget.http.get = async (url) => {
-    if (new URL(url).hostname === "douban-bridge-api.baran.wang") {
+    if (new URL(url).hostname === "douban-bridge.baran.wang") {
       counts.cloud += 1;
       throw new Error("network");
     }
@@ -380,13 +380,13 @@ test("clearing sk uses basic only on the same call", async () => {
 test("detail links never include sk and loadDetail uses stored sk", async () => {
   const { widget, counts } = install(async (url, options) => {
     if (url.includes("/v1/catalog/")) return { statusCode: 200, data: { items: [CLOUD_ITEM] } };
-    assert.equal(url, "https://douban-bridge-api.baran.wang/v1/meta/1291546");
+    assert.equal(url, "https://douban-bridge.baran.wang/v1/meta/1291546");
     assert.equal(new URL(url).search, "");
     assert.equal(options?.headers?.Authorization, `Bearer ${SK}`);
     return { statusCode: 200, data: { item: CLOUD_DETAIL } };
   });
   const [item] = await loadDefaultCatalog({ collectionId: "movie_top250", sk: SK });
-  assert.equal(item.link, "https://douban-bridge-api.baran.wang/v1/meta/1291546");
+  assert.equal(item.link, "https://douban-bridge.baran.wang/v1/meta/1291546");
   assert.equal(item.link.includes("sk"), false);
   assert.equal(item.id, "278");
   assert.equal(item.type, "tmdb");

@@ -8,6 +8,7 @@ import { authRoute } from "./routes/auth";
 import { configureRoute } from "./routes/configure";
 import { dashRoute } from "./routes/dash";
 import { imageProxyRoute } from "./routes/image-proxy";
+import { internalApi } from "./routes/internal-api";
 
 export const app = new Hono();
 
@@ -15,7 +16,11 @@ app.use(logger());
 app.use(cors());
 app.use(rateLimit);
 app.use(contextStorage);
-app.use(authMiddleware);
+app.use(async (c, next) => {
+  if (new URL(c.req.url).pathname.startsWith("/v1/")) return next();
+  return authMiddleware(c, next);
+});
+app.route("/", internalApi);
 
 app.get("/", (c) => c.redirect("/configure"));
 

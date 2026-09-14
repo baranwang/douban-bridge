@@ -102,7 +102,7 @@ describe("stremio protocol", () => {
     assert.equal(url.pathname, "/stremio/meta/1291546");
     assert.equal(url.searchParams.get("origin"), ORIGIN);
     assert.equal(url.searchParams.get("config"), null);
-    assert.equal(url.hostname === "douban-bridge-core.baran.wang", false);
+    assert.equal(url.hostname === "douban-bridge.baran.wang", false);
   });
 
   test("config-scoped URLs pass config and TV becomes series", async () => {

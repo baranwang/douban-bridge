@@ -65,7 +65,7 @@ https://stremio-addon-douban.baran.wang/configure
 同一配置页也在网页后台提供：
 
 ```
-https://douban-bridge-core.baran.wang/configure
+https://douban-bridge.baran.wang/configure
 ```
 
 安装链接始终指向 `stremio-addon-douban.baran.wang`。登录并 Star 仓库后，可在配置页生成 / 替换 / 撤销 API 密钥（`sk_` 前缀）。密钥只显示一次，不要写进目录 URL。
@@ -106,12 +106,11 @@ pnpm test
 pnpm build
 ```
 
-本地三个预览（需先 `pnpm build`；core 使用构建产物）：
+本地两个预览（需先 `pnpm build`；core 使用构建产物）：
 
 ```bash
-pnpm --filter @douban-bridge/core preview    # http://localhost:8787
+pnpm --filter @douban-bridge/core preview    # http://localhost:8787  网页 + /v1
 pnpm --filter @douban-bridge/stremio preview # http://localhost:8788
-pnpm --filter @douban-bridge/api preview     # http://localhost:8790
 node scripts/smoke.mjs
 ```
 
@@ -130,9 +129,8 @@ node scripts/smoke.mjs
 ## 📁 项目结构
 
 ```
-apps/core/        # 网页配置、后台、数据与定时任务
+apps/core/        # Worker douban-bridge：网页、/v1、后台、数据与定时任务
 apps/stremio/     # Stremio 安装与协议
-apps/api/         # 带密钥的数据接口
 apps/rex-widget/  # Rex 静态脚本
 packages/contracts/
 ```

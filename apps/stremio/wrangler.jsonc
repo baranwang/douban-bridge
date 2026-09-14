@@ -7,8 +7,8 @@
   "dev": { "port": 8788 },
   "routes": [{ "pattern": "stremio-addon-douban.baran.wang", "custom_domain": true }],
   "services": [
-    { "binding": "CORE_STREMIO", "service": "douban-bridge-core", "entrypoint": "StremioEntrypoint", "remote": false },
-    { "binding": "CORE_WEB", "service": "douban-bridge-core", "remote": false }
+    { "binding": "CORE_STREMIO", "service": "douban-bridge", "entrypoint": "StremioEntrypoint", "remote": false },
+    { "binding": "CORE_WEB", "service": "douban-bridge", "remote": false }
   ],
   "ratelimits": [
     { "name": "PUBLIC_RATE_LIMIT", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } },

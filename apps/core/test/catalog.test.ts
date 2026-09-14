@@ -8,7 +8,7 @@ import { TmdbAPI } from "../src/libs/api/tmdb";
 import { getCatalogPage } from "../src/services/catalog";
 import { withTestContext } from "./context";
 
-const origin = "https://douban-bridge-api.baran.wang";
+const origin = "https://douban-bridge.baran.wang";
 
 describe("catalog service", { concurrency: false }, () => {
   test("fills only missing mappings and keeps source order", async () => {
