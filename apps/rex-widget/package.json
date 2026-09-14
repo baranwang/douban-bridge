@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@rexnow/libs": "^3.0.0",
-    "@rexnow/rslib-plugin": "^3.0.0",
+    "@rexnow/rslib-plugin": "^3.0.1",
     "@rslib/core": "^1.0.0"
   }
 }

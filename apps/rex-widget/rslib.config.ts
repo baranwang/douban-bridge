@@ -1,26 +1,8 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { pluginRexWidget } from "@rexnow/rslib-plugin";
-import { defineConfig, type Rsbuild } from "@rslib/core";
-
-const BUNDLE = "douban-bridge.js";
-
-/** @rexnow/rslib-plugin 3.0.0 reads top-level stats.assets; Rslib 1.0 puts them on children. */
-function pluginRexWidgetScript(): Rsbuild.RsbuildPlugin {
-  return {
-    name: "rex-widget-script",
-    setup(api) {
-      api.onAfterBuild(async () => {
-        const file = join(api.context.distPath, BUNDLE);
-        const code = await readFile(file, "utf8");
-        await writeFile(file, code.replace(/^export \{[^;]+\};\s*$/gm, ""));
-      });
-    },
-  };
-}
+import { defineConfig } from "@rslib/core";
 
 export default defineConfig({
-  plugins: [pluginRexWidget(), pluginRexWidgetScript()],
+  plugins: [pluginRexWidget()],
   source: {
     entry: {
       "douban-bridge": "./src/index.ts",
@@ -36,7 +18,7 @@ export default defineConfig({
       output: {
         target: "web",
         filename: {
-          js: BUNDLE,
+          js: "douban-bridge.js",
         },
         autoExternal: false,
       },
