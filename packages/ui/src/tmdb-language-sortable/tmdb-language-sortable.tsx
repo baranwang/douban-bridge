@@ -17,7 +17,7 @@ import { Badge } from "@douban-bridge/ui/components/badge";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@douban-bridge/ui/components/item";
 import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from "@douban-bridge/ui/components/native-select";
 import { Plus } from "lucide-react";
-import { type FC, useMemo, useState } from "react";
+import * as React from "react";
 import { getAllLanguages, getCountriesForLanguage } from "./language-utils";
 import { SortableLanguageItem } from "./sortable-language-item";
 
@@ -26,22 +26,25 @@ interface TmdbLanguageSortableProps {
   onChange: (languages: string[]) => void;
 }
 
-export const TmdbLanguageSortable: FC<TmdbLanguageSortableProps> = ({ value, onChange }) => {
-  const [selectedLang, setSelectedLang] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState("");
+export const TmdbLanguageSortable: React.FC<TmdbLanguageSortableProps> = ({ value, onChange }) => {
+  const [selectedLang, setSelectedLang] = React.useState("");
+  const [selectedCountry, setSelectedCountry] = React.useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const allLanguages = useMemo(() => getAllLanguages(), []);
+  const allLanguages = React.useMemo(() => getAllLanguages(), []);
 
   // 获取选中语言对应的国家列表
-  const countriesForLang = useMemo(() => (selectedLang ? getCountriesForLanguage(selectedLang) : []), [selectedLang]);
+  const countriesForLang = React.useMemo(
+    () => (selectedLang ? getCountriesForLanguage(selectedLang) : []),
+    [selectedLang],
+  );
 
   // 计算最终要添加的语言代码
-  const codeToAdd = useMemo(() => {
+  const codeToAdd = React.useMemo(() => {
     if (!selectedLang) return "";
     if (selectedCountry) return `${selectedLang}-${selectedCountry}`;
     return selectedLang;

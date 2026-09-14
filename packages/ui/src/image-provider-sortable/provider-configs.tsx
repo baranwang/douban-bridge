@@ -6,22 +6,24 @@ import {
   InputGroupInput,
 } from "@douban-bridge/ui/components/input-group";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@douban-bridge/ui/components/item";
-import { forwardRef, useState } from "react";
+import * as React from "react";
 import { TmdbLanguageSortable } from "../tmdb-language-sortable";
 import type { ProviderConfigDef } from "./types";
 
-const InputGroupPassword = forwardRef<HTMLInputElement, React.ComponentProps<typeof InputGroupInput>>((props, ref) => {
-  const [isFocus, setIsFocus] = useState(false);
-  return (
-    <InputGroupInput
-      {...props}
-      type={isFocus ? "text" : "password"}
-      onFocus={() => setIsFocus(true)}
-      onBlur={() => setIsFocus(false)}
-      ref={ref}
-    />
-  );
-});
+const InputGroupPassword = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof InputGroupInput>>(
+  (props, ref) => {
+    const [isFocus, setIsFocus] = React.useState(false);
+    return (
+      <InputGroupInput
+        {...props}
+        type={isFocus ? "text" : "password"}
+        onFocus={() => setIsFocus(true)}
+        onBlur={() => setIsFocus(false)}
+        ref={ref}
+      />
+    );
+  },
+);
 
 /** 豆瓣配置 */
 export const doubanConfig: ProviderConfigDef<"douban"> = {

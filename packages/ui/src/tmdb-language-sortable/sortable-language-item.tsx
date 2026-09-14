@@ -3,7 +3,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@douban-bridge/ui/components/badge";
 import { Item, ItemActions, ItemContent, ItemTitle } from "@douban-bridge/ui/components/item";
 import { GripVertical, X } from "lucide-react";
-import type { FC } from "react";
+// biome-ignore lint/style/useImportType: Node tests compile package-exported JSX with the classic React runtime.
+import * as React from "react";
 import { getLanguageDisplayName } from "./language-utils";
 
 export interface SortableLanguageItemProps {
@@ -12,7 +13,7 @@ export interface SortableLanguageItemProps {
   canRemove: boolean;
 }
 
-export const SortableLanguageItem: FC<SortableLanguageItemProps> = ({ code, onRemove, canRemove }) => {
+export const SortableLanguageItem: React.FC<SortableLanguageItemProps> = ({ code, onRemove, canRemove }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: code,
   });

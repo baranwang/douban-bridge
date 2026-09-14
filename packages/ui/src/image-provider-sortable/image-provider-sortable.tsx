@@ -14,15 +14,15 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import type { ImageProvider } from "@douban-bridge/contracts/image-providers";
-import { type FC, useState } from "react";
+import * as React from "react";
 import { reorderImageProviders, toggleImageProvider } from "./image-provider-state";
 import { PROVIDER_CONFIGS } from "./provider-configs";
 import { SortableProviderItem } from "./sortable-provider-item";
 import type { ImageProviderSortableProps } from "./types";
 
-export const ImageProviderSortable: FC<ImageProviderSortableProps> = ({ value, onChange, disabled }) => {
+export const ImageProviderSortable: React.FC<ImageProviderSortableProps> = ({ value, onChange, disabled }) => {
   // 使用本地状态跟踪所有 provider 的显示顺序
-  const [displayOrder, setDisplayOrder] = useState<string[]>(() => {
+  const [displayOrder, setDisplayOrder] = React.useState<string[]>(() => {
     // 初始化：已启用的在前（保持顺序），未启用的在后
     const enabledIds = value.map((provider) => provider.provider);
     const disabledIds = PROVIDER_CONFIGS.filter((config) => !enabledIds.includes(config.id)).map((config) => config.id);

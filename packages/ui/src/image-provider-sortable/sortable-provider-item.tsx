@@ -5,7 +5,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from 
 import { Item, ItemActions, ItemContent, ItemSeparator, ItemTitle } from "@douban-bridge/ui/components/item";
 import { Switch } from "@douban-bridge/ui/components/switch";
 import { GripVertical, Settings2 } from "lucide-react";
-import { type FC, useCallback, useEffect, useRef, useState } from "react";
+import * as React from "react";
 import type { ProviderConfig } from "./provider-configs";
 
 interface SortableProviderItemProps {
@@ -18,7 +18,7 @@ interface SortableProviderItemProps {
   showSeparator?: boolean;
 }
 
-export const SortableProviderItem: FC<SortableProviderItemProps> = ({
+export const SortableProviderItem: React.FC<SortableProviderItemProps> = ({
   provider,
   config,
   isEnabled,
@@ -27,16 +27,16 @@ export const SortableProviderItem: FC<SortableProviderItemProps> = ({
   disabled,
   showSeparator,
 }) => {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   // 使用本地状态管理 extra，确保输入框能正确响应
-  const [localExtra, setLocalExtra] = useState<ImageProvider["extra"]>(provider.extra);
+  const [localExtra, setLocalExtra] = React.useState<ImageProvider["extra"]>(provider.extra);
 
   // 使用 ref 来跟踪是否是本地更新，避免循环
-  const isLocalUpdateRef = useRef(false);
+  const isLocalUpdateRef = React.useRef(false);
 
   // 当外部 provider.extra 变化且不是本地更新引起的时，同步到本地
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isLocalUpdateRef.current) {
       setLocalExtra(provider.extra);
     }
@@ -44,7 +44,7 @@ export const SortableProviderItem: FC<SortableProviderItemProps> = ({
   }, [provider.extra]);
 
   // 处理本地 extra 变化
-  const handleLocalExtraChange = useCallback(
+  const handleLocalExtraChange = React.useCallback(
     (newExtra: ImageProvider["extra"]) => {
       isLocalUpdateRef.current = true;
       setLocalExtra(newExtra);
