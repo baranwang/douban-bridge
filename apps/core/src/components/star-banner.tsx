@@ -72,7 +72,7 @@ export const StarBanner: React.FC<StarBannerProps> = ({ user }) => {
           <Button size="sm" className="shrink-0 bg-neutral-100 font-semibold text-neutral-900 hover:bg-white" asChild>
             {user ? (
               <a
-                href="https://github.com/baranwang/stremio-addon-douban"
+                href="https://github.com/baranwang/douban-bridge"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleClick}

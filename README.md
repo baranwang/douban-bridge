@@ -2,7 +2,7 @@
 
 为 Stremio 提供豆瓣电影/剧集目录的插件，并附带 Rex Widget（云端列表优先，本地基础模式回退）。
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/baranwang/stremio-addon-douban)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/baranwang/douban-bridge)
 
 ## ✨ 功能特性
 
@@ -76,7 +76,7 @@ https://douban-bridge-dash.baran.wang/configure
 2. 在 Rex 导入 Widget 脚本（发布后）：
 
 ```
-https://github.com/baranwang/stremio-addon-douban/releases/download/widget-v0.1.0/douban-bridge.js
+https://github.com/baranwang/douban-bridge/releases/download/widget-v0.1.0/douban-bridge.js
 ```
 
 3. 在模块参数 **密钥**（`sk`）中粘贴该值。Widget 把它记在 `douban.bridge.sk`。清空 `sk` 后回到本地基础列表；详情链接不携带密钥。
@@ -94,8 +94,8 @@ https://github.com/baranwang/stremio-addon-douban/releases/download/widget-v0.1.
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/baranwang/stremio-addon-douban.git
-cd stremio-addon-douban
+git clone https://github.com/baranwang/douban-bridge.git
+cd douban-bridge
 pnpm install
 ```
 
@@ -145,7 +145,7 @@ packages/contracts/
 
 ## ❤️ 支持
 
-如果这个项目对你有帮助，欢迎 [Star](https://github.com/baranwang/stremio-addon-douban) 支持！
+如果这个项目对你有帮助，欢迎 [Star](https://github.com/baranwang/douban-bridge) 支持！
 
 也可以通过 [爱发电](https://afdian.com/a/baran) 进行捐赠。
 

@@ -2,7 +2,7 @@ import { Octokit } from "@octokit/core";
 import { OAuthApp } from "@octokit/oauth-app";
 
 const GITHUB_REPO_OWNER = "baranwang";
-const GITHUB_REPO_NAME = "stremio-addon-douban";
+const GITHUB_REPO_NAME = "douban-bridge";
 
 export interface GitHubUser {
   id: number;

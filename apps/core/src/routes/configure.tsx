@@ -132,7 +132,7 @@ configureRoute.get("/", async (c) => {
         <footer className="shrink-0 px-4 py-2">
           <div className="flex items-center justify-center gap-4 text-muted-foreground text-xs">
             <a
-              href="https://github.com/baranwang/stremio-addon-douban"
+              href="https://github.com/baranwang/douban-bridge"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 hover:text-foreground"
