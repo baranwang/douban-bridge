@@ -9,7 +9,6 @@ import {
 } from "@douban-bridge/contracts/collections";
 import { version } from "../package.json";
 import { loadCatalog, loadMeta } from "./cloud";
-import "./host";
 
 const API_ORIGIN = "https://douban-bridge-api.baran.wang";
 const SK_STORAGE = "douban.bridge.sk";
@@ -23,14 +22,14 @@ export type WidgetParams = {
   sk?: string;
 };
 
-function readSk(params?: { sk?: string }): string {
+async function readSk(params?: { sk?: string }): Promise<string> {
   if (params && Object.hasOwn(params, "sk")) {
     const sk = (params.sk ?? "").trim();
-    if (sk) Widget.storage.set(SK_STORAGE, sk);
-    else Widget.storage.remove(SK_STORAGE);
+    if (sk) await Widget.storage.set(SK_STORAGE, sk);
+    else await Widget.storage.remove(SK_STORAGE);
     return sk;
   }
-  return Widget.storage.get(SK_STORAGE) || "";
+  return (await Widget.storage.get(SK_STORAGE)) || "";
 }
 
 function detailLink(id: number): string {
@@ -57,9 +56,9 @@ function queryFromParams(params: {
   return catalogQuerySchema.parse({ collectionId: params.collectionId, skip, genre: params.genre || undefined });
 }
 
-function toHostItem(item: BridgeItem) {
+function toHostItem(item: BridgeItem): VideoItem {
   return {
-    id: item.tmdbId ?? item.imdbId ?? String(item.doubanId),
+    id: String(item.tmdbId ?? item.imdbId ?? item.doubanId),
     type: item.tmdbId ? "tmdb" : item.imdbId ? "imdb" : "douban",
     title: item.title,
     description: item.description,
@@ -73,13 +72,13 @@ function toHostItem(item: BridgeItem) {
 }
 
 export async function loadDefaultCatalog(params: WidgetParams) {
-  const items = await loadCatalog(queryFromParams(params), readSk(params));
+  const items = await loadCatalog(queryFromParams(params), await readSk(params));
   return items.map(toHostItem);
 }
 export const loadGenreCatalog = loadDefaultCatalog;
 export const loadYearlyCatalog = loadDefaultCatalog;
 export async function loadDetail(link: string) {
-  return toHostItem(await loadMeta(readDetailId(link), readSk()));
+  return toHostItem(await loadMeta(readDetailId(link), await readSk()));
 }
 
 function enumOptions(items: { id: string; name: string }[]) {
@@ -99,7 +98,10 @@ export const WidgetMetadata = {
       title: item.name,
       functionName: "loadDefaultCatalog",
       cacheDuration: 0,
-      params: [{ name: "collectionId", type: "constant", value: item.id }, PAGE],
+      params: [
+        { name: "collectionId", title: "榜单", type: "constant", value: item.id },
+        PAGE,
+      ],
     })),
     {
       id: "movie_genre",

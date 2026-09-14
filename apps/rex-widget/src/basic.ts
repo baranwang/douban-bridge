@@ -7,7 +7,6 @@ import {
   doubanSubjectDetailSchema,
 } from "@douban-bridge/contracts/douban";
 import { z } from "zod/v4";
-import "./host";
 
 const DOUBAN_BASE = "https://m.douban.com/rexxar/api/v2";
 const DOUBAN_HEADERS = {

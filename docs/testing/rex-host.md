@@ -110,7 +110,7 @@
 | 直接详情走云端 | **未执行** | — | — |
 | 替换 key / 变更网页图源后下次请求生效 | **未执行** | — | — |
 
-Task 1 Steps 3–6 仍为 **未执行**。宿主字段组合（`id` / `type` / `link`、`Widget.storage`、`cacheDuration: 0`、`Object.assign(globalThis, …)`）仍按规划候选实现，未经 Rex 复测锁定。
+Task 1 Steps 3–6 仍为 **未执行**。Widget 按 `@rexnow/libs` / `@rexnow/rslib-plugin` 实现（`Widget.http` 用 `statusCode`，`Widget.storage` 为 async）。宿主字段组合（`id` / `type` / `link`、`Widget.storage`、`cacheDuration: 0`）仍未经 Rex 复测锁定。
 
 ## Task 10 本地 Worker 联调
 

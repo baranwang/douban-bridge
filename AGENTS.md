@@ -5,7 +5,7 @@
 
 ## OVERVIEW
 
-Douban catalogs, metadata, images, and ID mapping for Stremio and Rex. pnpm workspace: `apps/core` (dash + D1/KV/cron + named entrypoints), `apps/stremio` (original install domain), `apps/api` (Bearer HTTP), `apps/rex-widget` (static IIFE), `packages/contracts`. Cloudflare Workers with Hono, React SSR/hydration, Tailwind v4/shadcn UI, Drizzle over D1, KV/caches.default for caching.
+Douban catalogs, metadata, images, and ID mapping for Stremio and Rex. pnpm workspace: `apps/core` (dash + D1/KV/cron + named entrypoints), `apps/stremio` (original install domain), `apps/api` (Bearer HTTP), `apps/rex-widget` (Rslib + @rexnow), `packages/contracts`. Cloudflare Workers with Hono, React SSR/hydration, Tailwind v4/shadcn UI, Drizzle over D1, KV/caches.default for caching.
 
 ## STRUCTURE
 
@@ -27,7 +27,7 @@ stremio-addon-douban/
 |   `-- vite.config.ts
 +-- apps/stremio/              # Worker stremio-addon-douban; original domain
 +-- apps/api/                 # Worker douban-bridge-api; Bearer /v1 + image-proxy
-+-- apps/rex-widget/          # static Widget IIFE + GitHub Release manifest
++-- apps/rex-widget/          # Rex Widget (Rslib + @rexnow) + GitHub Release manifest
 +-- packages/contracts/        # shared addon identity and HTTP schemas
 +-- scripts/test.mjs          # Node test runner
 +-- scripts/smoke.mjs         # local three-Worker HTTP + D1 smoke

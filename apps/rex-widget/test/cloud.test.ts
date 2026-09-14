@@ -9,8 +9,17 @@ import {
   YEARLY_RANKINGS,
 } from "@douban-bridge/contracts/collections";
 import { loadCatalog, loadMeta } from "../src/cloud";
-import type { HostWidget } from "../src/host";
 import { loadDefaultCatalog, loadDetail, WidgetMetadata } from "../src/index";
+
+type TestWidget = {
+  http: { get: (url: string, options?: { headers?: Record<string, string> }) => Promise<{ statusCode: number; data: unknown }> };
+  tmdb: { get: (path: string, options?: { params?: Record<string, string> }) => Promise<unknown> };
+  storage: {
+    get: (key: string) => Promise<string | null>;
+    set: (key: string, value: string) => Promise<void>;
+    remove: (key: string) => Promise<void>;
+  };
+};
 
 const DOUBAN_SOURCE = {
   subject_collection_items: [
@@ -65,7 +74,7 @@ const CLOUD_DETAIL = {
 const SK = "sk_test";
 const SK_STORAGE = "douban.bridge.sk";
 
-function hostFixture(): HostWidget {
+function hostFixture(): TestWidget {
   const storage = new Map<string, string>();
   return {
     http: {
@@ -79,11 +88,11 @@ function hostFixture(): HostWidget {
       },
     },
     storage: {
-      get: (key) => storage.get(key) ?? null,
-      set: (key, value) => {
+      get: async (key) => storage.get(key) ?? null,
+      set: async (key, value) => {
         storage.set(key, value);
       },
-      remove: (key) => {
+      remove: async (key) => {
         storage.delete(key);
       },
     },
@@ -192,12 +201,12 @@ test("illegal cloud item falls back to basic", async () => {
 for (const statusCode of [401, 403, 404, 429, 500]) {
   test(`cloud ${statusCode} falls back to basic without clearing sk`, async () => {
     const { widget, counts } = install(async () => ({ statusCode, data: null }));
-    widget.storage.set(SK_STORAGE, SK);
+    await widget.storage.set(SK_STORAGE, SK);
     const result = await loadCatalog({ collectionId: "movie_top250", skip: 0 }, SK);
     assert.equal(counts.cloud, 1);
     assert.equal(counts.basic, 1);
     assert.equal(result[0].title, "肖申克的救赎");
-    assert.equal(widget.storage.get(SK_STORAGE), SK);
+    assert.equal(await widget.storage.get(SK_STORAGE), SK);
   });
 }
 
@@ -283,12 +292,12 @@ test("illegal cloud meta item falls back to basic", async () => {
 for (const statusCode of [401, 403, 404, 429, 500]) {
   test(`cloud meta ${statusCode} falls back to basic without clearing sk`, async () => {
     const { widget, counts } = install(async () => ({ statusCode, data: null }));
-    widget.storage.set(SK_STORAGE, SK);
+    await widget.storage.set(SK_STORAGE, SK);
     const result = await loadMeta(1291546, SK);
     assert.equal(counts.cloud, 1);
     assert.equal(counts.basic, 1);
     assert.equal(result.title, "肖申克的救赎");
-    assert.equal(widget.storage.get(SK_STORAGE), SK);
+    assert.equal(await widget.storage.get(SK_STORAGE), SK);
   });
 }
 
@@ -352,18 +361,18 @@ test("invalid page throws before any request", async () => {
 test("storing sk and clearing params updates douban.bridge.sk", async () => {
   const { widget } = install(async () => ({ statusCode: 200, data: { items: [] } }));
   await loadDefaultCatalog({ collectionId: "movie_top250", sk: ` ${SK} ` });
-  assert.equal(widget.storage.get(SK_STORAGE), SK);
+  assert.equal(await widget.storage.get(SK_STORAGE), SK);
   await loadDefaultCatalog({ collectionId: "movie_top250", sk: "" });
-  assert.equal(widget.storage.get(SK_STORAGE), null);
+  assert.equal(await widget.storage.get(SK_STORAGE), null);
 });
 
 test("clearing sk uses basic only on the same call", async () => {
   const { widget, counts } = install(async () => {
     throw new Error("cloud should not be called");
   });
-  widget.storage.set(SK_STORAGE, SK);
+  await widget.storage.set(SK_STORAGE, SK);
   await loadDefaultCatalog({ collectionId: "movie_top250", sk: "" });
-  assert.equal(widget.storage.get(SK_STORAGE), null);
+  assert.equal(await widget.storage.get(SK_STORAGE), null);
   assert.equal(counts.cloud, 0);
   assert.equal(counts.basic, 1);
 });
@@ -379,7 +388,7 @@ test("detail links never include sk and loadDetail uses stored sk", async () => 
   const [item] = await loadDefaultCatalog({ collectionId: "movie_top250", sk: SK });
   assert.equal(item.link, "https://douban-bridge-api.baran.wang/v1/meta/1291546");
   assert.equal(item.link.includes("sk"), false);
-  assert.equal(item.id, 278);
+  assert.equal(item.id, "278");
   assert.equal(item.type, "tmdb");
   assert.equal(item.posterPath, "https://cdn.example.com/poster.jpg");
   assert.equal(item.rating, "9.7");
@@ -388,7 +397,7 @@ test("detail links never include sk and loadDetail uses stored sk", async () => 
   assert.equal(detail.title, "云端标题");
   assert.equal(counts.cloud, 2);
   assert.equal(counts.basic, 0);
-  assert.equal(widget.storage.get(SK_STORAGE), SK);
+  assert.equal(await widget.storage.get(SK_STORAGE), SK);
 });
 
 test("toHostItem uses imdb then douban when tmdb is missing", async () => {

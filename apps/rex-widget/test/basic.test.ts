@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { MOVIE_YEARLY_RANKING_ID } from "@douban-bridge/contracts/collections";
 import { findBasicTmdb, getBasicCatalog, getBasicMeta } from "../src/basic";
-import type { HostWidget } from "../src/host";
+
+type TestWidget = {
+  http: { get: (url: string, options?: { headers?: Record<string, string> }) => Promise<{ statusCode: number; data: unknown }> };
+  tmdb: { get: (path: string, options?: { params?: Record<string, string> }) => Promise<unknown> };
+  storage: {
+    get: (key: string) => Promise<string | null>;
+    set: (key: string, value: string) => Promise<void>;
+    remove: (key: string) => Promise<void>;
+  };
+};
 
 const SOURCE = {
   subject_collection_items: [
@@ -52,7 +61,7 @@ function installWidget(opts?: {
 }) {
   const requests: string[] = [];
   const storage = new Map<string, string>();
-  const widget: HostWidget = {
+  const widget: TestWidget = {
     http: {
       get: async (url) => {
         requests.push(url);
@@ -68,11 +77,11 @@ function installWidget(opts?: {
       },
     },
     storage: {
-      get: (key) => storage.get(key) ?? null,
-      set: (key, value) => {
+      get: async (key) => storage.get(key) ?? null,
+      set: async (key, value) => {
         storage.set(key, value);
       },
-      remove: (key) => {
+      remove: async (key) => {
         storage.delete(key);
       },
     },

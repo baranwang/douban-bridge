@@ -6,7 +6,6 @@ import {
   metaResponseSchema,
 } from "@douban-bridge/contracts";
 import { getBasicCatalog, getBasicMeta } from "./basic";
-import "./host";
 
 const API_ORIGIN = "https://douban-bridge-api.baran.wang";
 

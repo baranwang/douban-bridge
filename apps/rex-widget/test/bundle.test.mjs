@@ -20,7 +20,7 @@ const SECRETS = [
 
 const code = await readFile(new URL("../dist/douban-bridge.js", import.meta.url), "utf8");
 
-test("IIFE bundle has no ESM import, require, core secrets, or Node builtins", () => {
+test("Rex bundle has no ESM import, require, core secrets, or Node builtins", () => {
   assert.equal(/\bimport\s+|require\s*\(/.test(code), false);
   for (const name of SECRETS) assert.equal(code.includes(name), false, name);
   assert.equal(/\bfrom\s+["']node:/.test(code), false);
@@ -49,9 +49,9 @@ test("VM globals, 13 default modules, optional yearly params, empty cloud page",
         },
       },
       storage: {
-        get: (key) => storage.get(key) ?? null,
-        set: (key, value) => storage.set(key, value),
-        remove: (key) => storage.delete(key),
+        get: async (key) => storage.get(key) ?? null,
+        set: async (key, value) => storage.set(key, value),
+        remove: async (key) => storage.delete(key),
       },
     },
   });
