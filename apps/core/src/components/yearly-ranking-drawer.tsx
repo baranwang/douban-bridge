@@ -1,5 +1,3 @@
-import { ChevronRight } from "lucide-react";
-import { type FC, Fragment, useState } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -7,7 +5,7 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
-} from "@/components/ui/drawer";
+} from "@douban-bridge/ui/components/drawer";
 import {
   Item,
   ItemActions,
@@ -16,8 +14,10 @@ import {
   ItemGroup,
   ItemSeparator,
   ItemTitle,
-} from "@/components/ui/item";
-import { Switch } from "@/components/ui/switch";
+} from "@douban-bridge/ui/components/item";
+import { Switch } from "@douban-bridge/ui/components/switch";
+import { ChevronRight } from "lucide-react";
+import { type FC, Fragment, useState } from "react";
 import { YEARLY_RANKINGS, type YearlyRankingItem } from "@/libs/collections";
 
 export interface YearlyRankingDrawerProps {
@@ -69,16 +69,14 @@ export const YearlyRankingDrawer: FC<YearlyRankingDrawerProps> = ({ yearlyRankin
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        <Item size="sm" className="cursor-pointer">
-          <ItemContent>
-            <ItemTitle>{title}</ItemTitle>
-          </ItemContent>
-          <ItemActions>
-            <span className="text-muted-foreground text-sm">{getStatusText()}</span>
-            <ChevronRight className="size-4 text-muted-foreground" />
-          </ItemActions>
-        </Item>
+      <DrawerTrigger render={<Item size="sm" className="cursor-pointer" />}>
+        <ItemContent>
+          <ItemTitle>{title}</ItemTitle>
+        </ItemContent>
+        <ItemActions>
+          <span className="text-muted-foreground text-sm">{getStatusText()}</span>
+          <ChevronRight className="size-4 text-muted-foreground" />
+        </ItemActions>
       </DrawerTrigger>
       <DrawerContent className="h-4/5">
         <DrawerHeader>
@@ -88,16 +86,14 @@ export const YearlyRankingDrawer: FC<YearlyRankingDrawerProps> = ({ yearlyRankin
         <div className="flex-1 overflow-y-auto px-4 pb-6">
           <ItemGroup className="rounded-lg border">
             {/* 动态榜单开关 */}
-            <Item size="sm" asChild>
-              <label>
-                <ItemContent>
-                  <ItemTitle>自动获取最新</ItemTitle>
-                  <ItemDescription>开启后将自动显示最新年份的榜单</ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  <Switch checked={isDynamicEnabled} onCheckedChange={handleDynamicToggle} />
-                </ItemActions>
-              </label>
+            <Item size="sm" render={<label />}>
+              <ItemContent>
+                <ItemTitle>自动获取最新</ItemTitle>
+                <ItemDescription>开启后将自动显示最新年份的榜单</ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <Switch checked={isDynamicEnabled} onCheckedChange={handleDynamicToggle} />
+              </ItemActions>
             </Item>
 
             {/* 年份列表（仅在关闭动态时显示） */}
@@ -109,18 +105,16 @@ export const YearlyRankingDrawer: FC<YearlyRankingDrawerProps> = ({ yearlyRankin
                 </div>
                 {yearlyItems.map((item, index, array) => (
                   <Fragment key={item.id}>
-                    <Item size="sm" asChild>
-                      <label>
-                        <ItemContent>
-                          <ItemTitle>{item.name}</ItemTitle>
-                        </ItemContent>
-                        <ItemActions>
-                          <Switch
-                            checked={catalogIds.includes(item.id)}
-                            onCheckedChange={(checked) => handleYearToggle(item, checked)}
-                          />
-                        </ItemActions>
-                      </label>
+                    <Item size="sm" render={<label />}>
+                      <ItemContent>
+                        <ItemTitle>{item.name}</ItemTitle>
+                      </ItemContent>
+                      <ItemActions>
+                        <Switch
+                          checked={catalogIds.includes(item.id)}
+                          onCheckedChange={(checked) => handleYearToggle(item, checked)}
+                        />
+                      </ItemActions>
                     </Item>
                     {index !== array.length - 1 && <ItemSeparator />}
                   </Fragment>

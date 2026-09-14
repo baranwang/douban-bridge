@@ -4,9 +4,9 @@ import { zValidator } from "@hono/zod-validator";
 import { type Env, Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { Heart } from "lucide-react";
-import { Github } from "@/components/github-icon";
 import { Link, Script, ViteClient } from "vite-ssr-components/react";
 import { Configure, type ConfigureProps } from "@/components/configure";
+import { Github } from "@/components/github-icon";
 import { DEFAULT_COLLECTION_IDS } from "@/libs/collections";
 import { configSchema, decodeConfig, encodeConfig, getConfig, isUserId, saveUserConfig } from "@/libs/config";
 import { getStremioOrigin } from "@/libs/public-origins";
@@ -40,11 +40,9 @@ export type ConfigureRoute = typeof configureRoute;
 
 configureRoute.get(
   "*",
-  reactRenderer(({ c, children }) => {
-    const userAgent = c.req.header("User-Agent");
-    const isSafari = userAgent?.includes("Safari") && !userAgent?.includes("Chrome");
+  reactRenderer(({ children }) => {
     return (
-      <html lang="zh" className={isSafari ? "safari" : ""}>
+      <html lang="zh">
         <head>
           <ViteClient />
           <Link rel="stylesheet" href="/src/style.css" />

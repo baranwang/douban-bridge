@@ -1,9 +1,9 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Badge } from "@douban-bridge/ui/components/badge";
+import { Item, ItemActions, ItemContent, ItemTitle } from "@douban-bridge/ui/components/item";
 import { GripVertical, X } from "lucide-react";
 import type { FC } from "react";
-import { Item, ItemActions, ItemContent, ItemTitle } from "@/components/ui/item";
-import { Badge } from "../ui/badge";
 import { getLanguageDisplayName } from "./language-utils";
 
 export interface SortableLanguageItemProps {

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-nova",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles.css",
+    "baseColor": "mist",
+    "cssVariables": true
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@douban-bridge/ui/components",
+    "utils": "cn",
+    "ui": "@douban-bridge/ui/components",
+    "lib": "@douban-bridge/ui",
+    "hooks": "@douban-bridge/ui/hooks"
+  }
+}

@@ -8,11 +8,11 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Badge } from "@douban-bridge/ui/components/badge";
+import { Item, ItemContent, ItemDescription, ItemTitle } from "@douban-bridge/ui/components/item";
+import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from "@douban-bridge/ui/components/native-select";
 import { Plus } from "lucide-react";
 import { type FC, useMemo, useState } from "react";
-import { Item, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
-import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from "@/components/ui/native-select";
-import { Badge } from "../ui/badge";
 import { getAllLanguages, getCountriesForLanguage } from "./language-utils";
 import { SortableLanguageItem } from "./sortable-language-item";
 
@@ -90,7 +90,7 @@ export const TmdbLanguageSortable: FC<TmdbLanguageSortableProps> = ({ value, onC
       <ItemContent className="flex-1">
         <ItemTitle className="mb-2">图片语言偏好</ItemTitle>
 
-        <div className="rounded-md border bg-muted/30" data-vaul-no-drag>
+        <div className="rounded-md border bg-muted/30">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={value} strategy={verticalListSortingStrategy}>
               {value.map((code) => (

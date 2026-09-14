@@ -1,10 +1,10 @@
+import { Button } from "@douban-bridge/ui/components/button";
+import { Spinner } from "@douban-bridge/ui/components/spinner";
 import { hc } from "hono/client";
 import { Check, Star } from "lucide-react";
-import { Github } from "@/components/github-icon";
 import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { Github } from "@/components/github-icon";
 import type { PublicUser } from "@/libs/public-user";
 import type { AuthRoute } from "@/routes/auth";
 
@@ -69,22 +69,32 @@ export const StarBanner: React.FC<StarBannerProps> = ({ user }) => {
           </div>
 
           {/* CTA 按钮 */}
-          <Button size="sm" className="shrink-0 bg-neutral-100 font-semibold text-neutral-900 hover:bg-white" asChild>
+          <Button
+            size="sm"
+            className="shrink-0 bg-neutral-100 font-semibold text-neutral-900 hover:bg-white"
+            render={
+              user ? (
+                <a
+                  href="https://github.com/baranwang/douban-bridge"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleClick}
+                />
+              ) : (
+                <a href="/auth/github" />
+              )
+            }
+          >
             {user ? (
-              <a
-                href="https://github.com/baranwang/douban-bridge"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleClick}
-              >
+              <>
                 <Star className="size-4" />
                 <span>去 Star 解锁</span>
-              </a>
+              </>
             ) : (
-              <a href="/auth/github">
+              <>
                 <Github className="size-4" />
                 <span>GitHub 登录</span>
-              </a>
+              </>
             )}
           </Button>
         </div>

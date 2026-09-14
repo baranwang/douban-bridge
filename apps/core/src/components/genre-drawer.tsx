@@ -1,5 +1,3 @@
-import { ChevronRight } from "lucide-react";
-import { type FC, Fragment, useState } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -7,9 +5,11 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
-} from "@/components/ui/drawer";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator, ItemTitle } from "@/components/ui/item";
-import { Switch } from "@/components/ui/switch";
+} from "@douban-bridge/ui/components/drawer";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator, ItemTitle } from "@douban-bridge/ui/components/item";
+import { Switch } from "@douban-bridge/ui/components/switch";
+import { ChevronRight } from "lucide-react";
+import { type FC, Fragment, useState } from "react";
 import type { IdName } from "@/libs/collections";
 
 export interface GenreDrawerProps {
@@ -39,16 +39,14 @@ export const GenreDrawer: FC<GenreDrawerProps> = ({ title, items, catalogIds, on
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        <Item size="sm" className="cursor-pointer">
-          <ItemContent>
-            <ItemTitle>{title}</ItemTitle>
-          </ItemContent>
-          <ItemActions>
-            <span className="text-muted-foreground text-sm">{getStatusText()}</span>
-            <ChevronRight className="size-4 text-muted-foreground" />
-          </ItemActions>
-        </Item>
+      <DrawerTrigger render={<Item size="sm" className="cursor-pointer" />}>
+        <ItemContent>
+          <ItemTitle>{title}</ItemTitle>
+        </ItemContent>
+        <ItemActions>
+          <span className="text-muted-foreground text-sm">{getStatusText()}</span>
+          <ChevronRight className="size-4 text-muted-foreground" />
+        </ItemActions>
       </DrawerTrigger>
       <DrawerContent className="h-4/5">
         <DrawerHeader>
@@ -59,18 +57,16 @@ export const GenreDrawer: FC<GenreDrawerProps> = ({ title, items, catalogIds, on
           <ItemGroup className="rounded-lg border">
             {items.map((item, index, array) => (
               <Fragment key={item.id}>
-                <Item size="sm" asChild>
-                  <label>
-                    <ItemContent>
-                      <ItemTitle>{item.name}</ItemTitle>
-                    </ItemContent>
-                    <ItemActions>
-                      <Switch
-                        checked={catalogIds.includes(item.id)}
-                        onCheckedChange={(checked) => onToggle(item.id, checked)}
-                      />
-                    </ItemActions>
-                  </label>
+                <Item size="sm" render={<label />}>
+                  <ItemContent>
+                    <ItemTitle>{item.name}</ItemTitle>
+                  </ItemContent>
+                  <ItemActions>
+                    <Switch
+                      checked={catalogIds.includes(item.id)}
+                      onCheckedChange={(checked) => onToggle(item.id, checked)}
+                    />
+                  </ItemActions>
                 </Item>
                 {index !== array.length - 1 && <ItemSeparator />}
               </Fragment>

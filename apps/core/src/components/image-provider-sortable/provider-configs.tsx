@@ -1,8 +1,13 @@
 import { TMDB_IMAGE_LANGUAGE } from "@douban-bridge/contracts/image-providers";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@douban-bridge/ui/components/input-group";
+import { Item, ItemContent, ItemDescription, ItemTitle } from "@douban-bridge/ui/components/item";
 import { forwardRef, useState } from "react";
 import { TmdbLanguageSortable } from "../tmdb-language-sortable";
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../ui/input-group";
-import { Item, ItemContent, ItemDescription, ItemTitle } from "../ui/item";
 import type { ProviderConfigDef } from "./types";
 
 const InputGroupPassword = forwardRef<HTMLInputElement, React.ComponentProps<typeof InputGroupInput>>((props, ref) => {
@@ -48,10 +53,10 @@ export const fanartConfig: ProviderConfigDef<"fanart"> = {
               onChange={(e) => onChange({ ...extra, apiKey: e.target.value || undefined })}
             />
             <InputGroupAddon align="inline-end">
-              <InputGroupButton asChild>
-                <a href="https://fanart.tv/get-an-api-key/" target="_blank" rel="noreferrer">
-                  获取 API 密钥
-                </a>
+              <InputGroupButton
+                render={<a href="https://fanart.tv/get-an-api-key/" target="_blank" rel="noreferrer" />}
+              >
+                获取 API 密钥
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
@@ -86,10 +91,10 @@ export const tmdbConfig: ProviderConfigDef<"tmdb"> = {
               onChange={(e) => onChange({ ...extra, apiKey: e.target.value || undefined })}
             />
             <InputGroupAddon align="inline-end">
-              <InputGroupButton asChild>
-                <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noreferrer">
-                  获取令牌
-                </a>
+              <InputGroupButton
+                render={<a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noreferrer" />}
+              >
+                获取令牌
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>

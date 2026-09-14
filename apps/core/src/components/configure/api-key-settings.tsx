@@ -1,9 +1,9 @@
+import { Button } from "@douban-bridge/ui/components/button";
+import { Input } from "@douban-bridge/ui/components/input";
 import { Copy, KeyRound } from "lucide-react";
 import { type FC, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SettingSection } from "@/components/setting-section";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import type { PublicUser } from "@/libs/public-user";
 import { apiKeyActionUi } from "./api-key-action";
 

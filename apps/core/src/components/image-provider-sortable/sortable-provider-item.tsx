@@ -1,11 +1,11 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@douban-bridge/ui/components/drawer";
+import { Item, ItemActions, ItemContent, ItemSeparator, ItemTitle } from "@douban-bridge/ui/components/item";
+import { Switch } from "@douban-bridge/ui/components/switch";
 import { GripVertical, Settings2 } from "lucide-react";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import type { ImageProvider } from "@/libs/config";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "../ui/drawer";
-import { Item, ItemActions, ItemContent, ItemSeparator, ItemTitle } from "../ui/item";
-import { Switch } from "../ui/switch";
 import type { ProviderConfig } from "./provider-configs";
 
 interface SortableProviderItemProps {
@@ -83,11 +83,11 @@ export const SortableProviderItem: FC<SortableProviderItemProps> = ({
           <ItemActions>
             {/* 配置按钮 - 只有启用且有配置项时才显示 */}
             {isEnabled && config.renderConfig && (
-              <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} repositionInputs={false}>
-                <DrawerTrigger asChild>
-                  <button type="button" className="p-1 text-muted-foreground hover:text-foreground">
-                    <Settings2 className="size-4" />
-                  </button>
+              <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+                <DrawerTrigger
+                  render={<button type="button" className="p-1 text-muted-foreground hover:text-foreground" />}
+                >
+                  <Settings2 className="size-4" />
                 </DrawerTrigger>
                 <DrawerContent className="h-4/5">
                   <DrawerHeader>
