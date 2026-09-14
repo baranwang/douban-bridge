@@ -125,9 +125,9 @@ Production cutover: `docs/deployment/douban-bridge.md`. Do not use root `pnpm de
 ## NOTES
 
 - `apps/core` deploy script uses `npm run build && wrangler deploy` even though the project uses pnpm.
-- No `.github/workflows` CI exists.
+- Widget 发版：`.github/workflows/release.yml` + Changesets（对齐 baranwang/rex-widget）。`pnpm changeset` 后合并 `main`，workflow 开版本 PR 或 `changeset publish` 到 npm。core / stremio / contracts 不发布。
 - D1 migrations are not part of any deploy script; apply them explicitly.
 - `a11y` linting is off in Biome.
 - Local tests use `apps/core/wrangler.test.jsonc`. Live Douban in `scripts/smoke.mjs` is not the same evidence as mocked Node tests.
 - Rex host verification in `docs/testing/rex-host.md` is 未执行; do not invent device results.
-- Widget GitHub Release `widget-v0.1.0` is a later authorized step; unpublished asset URLs 404.
+- Widget npm `unpkg.com/@douban-bridge/rex-widget` 在首次 `changeset publish` 前 404；不要把本地 `dist/` 当成已分发。

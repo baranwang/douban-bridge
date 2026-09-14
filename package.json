@@ -13,10 +13,16 @@
     "deploy": "pnpm --filter @douban-bridge/core deploy",
     "cf-typegen": "turbo cf-typegen",
     "test": "turbo test",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "change": "changeset",
+    "version": "changeset version",
+    "postversion": "pnpm --filter @douban-bridge/rex-widget build",
+    "prerelease": "pnpm --filter @douban-bridge/rex-widget build",
+    "release": "changeset publish"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
+    "@changesets/cli": "^2.31.1",
     "@types/node": "^26.5.1",
     "tsx": "^4.23.13",
     "turbo": "^2.10.12",
