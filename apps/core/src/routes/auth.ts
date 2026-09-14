@@ -26,7 +26,7 @@ export const authRoute = new Hono<Env>()
     });
 
     const github = new GitHubAPI(clientId, clientSecret);
-    const authUrl = github.getAuthUrl(state);
+    const authUrl = github.getAuthUrl(state, `${origin}/auth/github/callback`);
     return c.redirect(authUrl);
   })
 
@@ -53,7 +53,7 @@ export const authRoute = new Hono<Env>()
       const github = new GitHubAPI(clientId, clientSecret);
 
       // 交换 access token
-      const accessToken = await github.exchangeCodeForToken(code);
+      const accessToken = await github.exchangeCodeForToken(code, `${origin}/auth/github/callback`);
 
       // 获取用户信息
       const githubUser = await github.getUser(accessToken);

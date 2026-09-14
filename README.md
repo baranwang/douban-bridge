@@ -65,7 +65,7 @@ https://stremio-addon-douban.baran.wang/configure
 同一配置页也在网页后台提供：
 
 ```
-https://douban-bridge-dash.baran.wang/configure
+https://douban-bridge-core.baran.wang/configure
 ```
 
 安装链接始终指向 `stremio-addon-douban.baran.wang`。登录并 Star 仓库后，可在配置页生成 / 替换 / 撤销 API 密钥（`sk_` 前缀）。密钥只显示一次，不要写进目录 URL。

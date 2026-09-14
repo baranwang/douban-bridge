@@ -15,7 +15,6 @@ const SECRETS = [
   "FANART_API_KEY",
   "JWT_SECRET",
   "GITHUB_CLIENT_SECRET",
-  "DASH_GITHUB_CLIENT_SECRET",
 ];
 
 const code = await readFile(new URL("../dist/douban-bridge.js", import.meta.url), "utf8");

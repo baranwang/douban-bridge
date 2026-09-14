@@ -10,27 +10,18 @@ import { internalStremio } from "../src/routes/internal-stremio";
 import { withTestContext } from "./context";
 
 const STREMIO = "https://stremio-addon-douban.baran.wang";
-const DASH = "https://douban-bridge-dash.baran.wang";
-const STREMIO_CLIENT = "stremio-gh-id";
-const DASH_CLIENT = "dash-gh-id";
+const DASH = "https://douban-bridge-core.baran.wang";
+const CLIENT_ID = "stremio-gh-id";
 
-function withOrigins(
-  env: CloudflareBindings,
-  extra: Partial<CloudflareBindings> & {
-    DASH_GITHUB_CLIENT_ID?: string;
-    DASH_GITHUB_CLIENT_SECRET?: string;
-  } = {},
-): CloudflareBindings {
+function withOrigins(env: CloudflareBindings, extra: Partial<CloudflareBindings> = {}): CloudflareBindings {
   return {
     ...env,
     STREMIO_ORIGIN: STREMIO,
     DASH_ORIGIN: DASH,
-    GITHUB_CLIENT_ID: STREMIO_CLIENT,
+    GITHUB_CLIENT_ID: CLIENT_ID,
     GITHUB_CLIENT_SECRET: "stremio-gh-secret",
     PUBLIC_RATE_LIMIT: { limit: async () => ({ success: true }) },
     USER_RATE_LIMIT: { limit: async () => ({ success: true }) },
-    DASH_GITHUB_CLIENT_ID: "dash-gh-id",
-    DASH_GITHUB_CLIENT_SECRET: "dash-gh-secret",
     ...extra,
   } as CloudflareBindings;
 }
@@ -61,14 +52,15 @@ async function insertUser(env: CloudflareBindings): Promise<string> {
 }
 
 describe("oauth origins", { concurrency: false }, () => {
-  test("request origin selects the GitHub app pair and ignores X-Forwarded-Host", async () => {
+  test("both public origins share one GitHub app and send matching redirect_uri", async () => {
     await withTestContext(async (env, ctx) => {
       const limited = withOrigins(env);
       const stremio = await app.fetch(new Request(`${STREMIO}/auth/github`), limited, ctx);
       assert.equal(stremio.status, 302);
       const stremioLocation = new URL(stremio.headers.get("location") ?? "");
       assert.equal(stremioLocation.origin, "https://github.com");
-      assert.equal(stremioLocation.searchParams.get("client_id"), STREMIO_CLIENT);
+      assert.equal(stremioLocation.searchParams.get("client_id"), CLIENT_ID);
+      assert.equal(stremioLocation.searchParams.get("redirect_uri"), `${STREMIO}/auth/github/callback`);
 
       const dash = await app.fetch(
         new Request(`${DASH}/auth/github`, { headers: { "X-Forwarded-Host": "stremio-addon-douban.baran.wang" } }),
@@ -76,14 +68,18 @@ describe("oauth origins", { concurrency: false }, () => {
         ctx,
       );
       assert.equal(dash.status, 302);
-      assert.equal(new URL(dash.headers.get("location") ?? "").searchParams.get("client_id"), DASH_CLIENT);
+      const dashLocation = new URL(dash.headers.get("location") ?? "");
+      assert.equal(dashLocation.searchParams.get("client_id"), CLIENT_ID);
+      assert.equal(dashLocation.searchParams.get("redirect_uri"), `${DASH}/auth/github/callback`);
 
       const forwarded = await app.fetch(
-        new Request(`${STREMIO}/auth/github`, { headers: { "X-Forwarded-Host": "douban-bridge-dash.baran.wang" } }),
+        new Request(`${STREMIO}/auth/github`, { headers: { "X-Forwarded-Host": "douban-bridge-core.baran.wang" } }),
         limited,
         ctx,
       );
-      assert.equal(new URL(forwarded.headers.get("location") ?? "").searchParams.get("client_id"), STREMIO_CLIENT);
+      const forwardedLocation = new URL(forwarded.headers.get("location") ?? "");
+      assert.equal(forwardedLocation.searchParams.get("client_id"), CLIENT_ID);
+      assert.equal(forwardedLocation.searchParams.get("redirect_uri"), `${STREMIO}/auth/github/callback`);
 
       const cookies = stremio.headers.getSetCookie();
       const state = cookies.find((value) => value.startsWith("oauth_state="));
@@ -96,18 +92,11 @@ describe("oauth origins", { concurrency: false }, () => {
     });
   });
 
-  test("unknown origin is 400, missing dash pair is 503, and a 302 is not a login", async () => {
+  test("unknown origin is 400 and a 302 is not a login", async () => {
     await withTestContext(async (env, ctx) => {
       const limited = withOrigins(env);
       const unknown = await app.fetch(new Request("https://evil.example/auth/github"), limited, ctx);
       assert.equal(unknown.status, 400);
-
-      const missing = await app.fetch(
-        new Request(`${DASH}/auth/github`),
-        withOrigins(env, { DASH_GITHUB_CLIENT_ID: "", DASH_GITHUB_CLIENT_SECRET: "" }),
-        ctx,
-      );
-      assert.equal(missing.status, 503);
 
       const start = await app.fetch(new Request(`${STREMIO}/auth/github`), limited, ctx);
       const state = new URL(start.headers.get("location") ?? "").searchParams.get("state");
@@ -169,7 +158,7 @@ describe("install origin and internal stremio isolation", { concurrency: false }
       const json = (await posted.json()) as { success: boolean; manifestUrl: string };
       assert.equal(json.success, true);
       assert.equal(json.manifestUrl.startsWith(`${STREMIO}/`), true);
-      assert.equal(json.manifestUrl.includes("douban-bridge-dash.baran.wang"), false);
+      assert.equal(json.manifestUrl.includes("douban-bridge-core.baran.wang"), false);
     });
   });
 

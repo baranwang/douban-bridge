@@ -21,19 +21,11 @@ export function getOAuthCredentials(
     DASH_ORIGIN: string;
     GITHUB_CLIENT_ID: string;
     GITHUB_CLIENT_SECRET: string;
-    DASH_GITHUB_CLIENT_ID?: string;
-    DASH_GITHUB_CLIENT_SECRET?: string;
   },
   origin: string,
 ): { clientId: string; clientSecret: string } {
-  if (origin === env.STREMIO_ORIGIN) {
-    return { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET };
+  if (origin !== env.STREMIO_ORIGIN && origin !== env.DASH_ORIGIN) {
+    throw new HTTPException(400);
   }
-  if (origin === env.DASH_ORIGIN) {
-    const clientId = env.DASH_GITHUB_CLIENT_ID;
-    const clientSecret = env.DASH_GITHUB_CLIENT_SECRET;
-    if (!clientId || !clientSecret) throw new HTTPException(503);
-    return { clientId, clientSecret };
-  }
-  throw new HTTPException(400);
+  return { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET };
 }

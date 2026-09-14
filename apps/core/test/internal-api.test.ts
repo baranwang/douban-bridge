@@ -11,7 +11,7 @@ import { replaceApiKey } from "../src/libs/api-key";
 import { internalApi } from "../src/routes/internal-api";
 import { withTestContext } from "./context";
 
-const DASH = "https://douban-bridge-dash.baran.wang";
+const DASH = "https://douban-bridge-core.baran.wang";
 const API = "https://douban-bridge-api.baran.wang";
 const POSTER = "https://img9.doubanio.com/view/photo/s_ratio_poster/public/p480747492.jpg";
 
