@@ -5,13 +5,13 @@
 
 ## OVERVIEW
 
-Douban catalogs, metadata, images, and ID mapping for Stremio and Rex. pnpm workspace: `apps/core` (Worker `douban-bridge`: web + `/v1` + D1/KV/cron + StremioEntrypoint), `apps/stremio` (original install domain), `apps/rex-widget` (Rslib + @rexnow), `packages/contracts`. Cloudflare Workers with Hono, React SSR/hydration, Tailwind v4/shadcn UI, Drizzle over D1, KV/caches.default for caching.
+Douban catalogs, metadata, images, and ID mapping for Stremio and Rex. pnpm workspace: `apps/core` (Worker `douban-bridge-core`: web + `/v1` + D1/KV/cron + StremioEntrypoint), `apps/stremio` (original install domain), `apps/rex-widget` (Rslib + @rexnow), `packages/contracts`. Cloudflare Workers with Hono, React SSR/hydration, Tailwind v4/shadcn UI, Drizzle over D1, KV/caches.default for caching.
 
 ## STRUCTURE
 
 ```text
 stremio-addon-douban/
-+-- apps/core/                 # Worker douban-bridge; public host douban-bridge.baran.wang
++-- apps/core/                 # Worker douban-bridge-core; public host douban-bridge.baran.wang
 |   +-- src/index.tsx         # default fetch + scheduled + StremioEntrypoint
 |   +-- src/app.tsx           # web + /v1 (Bearer); no public Stremio catalog/meta/manifest
 |   +-- src/cron.ts           # hourly ID-mapping backfill

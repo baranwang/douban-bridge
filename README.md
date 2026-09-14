@@ -129,7 +129,7 @@ node scripts/smoke.mjs
 ## 📁 项目结构
 
 ```
-apps/core/        # Worker douban-bridge：网页、/v1、后台、数据与定时任务
+apps/core/        # Worker douban-bridge-core：网页、/v1、后台、数据与定时任务
 apps/stremio/     # Stremio 安装与协议
 apps/rex-widget/  # Rex 静态脚本
 packages/contracts/

@@ -8,7 +8,7 @@
 
 | Worker | 资源与凭据 |
 | --- | --- |
-| core（Worker `douban-bridge`，域名 `douban-bridge.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件；dash basic auth 读取 KV 键 `DASH_USER` / `DASH_PASS`）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *`。公开 `/v1` 只认 Bearer `sk` |
+| core（Worker `douban-bridge-core`，域名 `douban-bridge.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件；dash basic auth 读取 KV 键 `DASH_USER` / `DASH_PASS`）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *`。公开 `/v1` 只认 Bearer `sk` |
 | stremio（`stremio-addon-douban`，旧 custom domain `stremio-addon-douban.baran.wang`） | `CORE_STREMIO` → `StremioEntrypoint`、`CORE_WEB` → 默认入口、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、旧 custom domain。无 D1 / KV / cron / 上游凭据 |
 
 当前 `apps/core/wrangler.jsonc` 的 **vars**（明文配置，不是 secret）：`DOUBAN_API_KEY`、`TRAKT_CLIENT_ID`、`GITHUB_CLIENT_ID`、`STREMIO_ORIGIN`、`DASH_ORIGIN`。代码还读取以下名称，它们应作为 **secrets**（或尚未配置）：`JWT_SECRET`、`GITHUB_CLIENT_SECRET`、`TMDB_API_KEY`；可选 `FANART_API_KEY` / `TRAKT_CLIENT_SECRET`。获得授权后用下面命令核对实际存在的名称，**不要把值写入仓库或本文**：
@@ -45,7 +45,7 @@ core preview 使用 Vite 构建后 `.wrangler/deploy/config.json` 指向的配�
 
 `scripts/smoke.mjs` 使用本地 URL 与一次性 D1 账号，不打印 `sk`。其中带 Bearer 的 catalog / meta 请求会走公网豆瓣（若预览进程在跑）。包内 Node 测试使用 mock 数据源，二者不是同一种证据。
 
-本环境实测：`wrangler d1 migrations apply --local --persist-to ../../.wrangler/bridge-smoke` **exit 1**（`0000` 为注释 dump，`0001` 找不到 `user_configs`）。smoke 用与 Node 测试相同的 SQL 展开写入 persist。CLI 的 persist 目录是 `.wrangler/bridge-smoke/v3/`；`getPlatformProxy({ persist: { path } })` 必须指向该 `v3` 路径才能与 preview 共用 D1。对 `apps/core/wrangler.jsonc` 直接 `getPlatformProxy` 会占用 Worker 名 `douban-bridge`，适配器变为 `[not connected]`；smoke 用相同 D1 `database_id`、不同 `name` 的临时配置。preview 需 `--local-upstream localhost:<port>`，否则请求 origin 是 custom domain，和本地 `STREMIO_ORIGIN=http://localhost:8788` 不一致。core preview 不能把 `--config` 直接指到 `.wrangler/deploy/config.json` 指针文件，应解析它指向的 `dist/douban_bridge/wrangler.json`。
+本环境实测：`wrangler d1 migrations apply --local --persist-to ../../.wrangler/bridge-smoke` **exit 1**（`0000` 为注释 dump，`0001` 找不到 `user_configs`）。smoke 用与 Node 测试相同的 SQL 展开写入 persist。CLI 的 persist 目录是 `.wrangler/bridge-smoke/v3/`；`getPlatformProxy({ persist: { path } })` 必须指向该 `v3` 路径才能与 preview 共用 D1。对 `apps/core/wrangler.jsonc` 直接 `getPlatformProxy` 会占用 Worker 名 `douban-bridge-core`，适配器变为 `[not connected]`；smoke 用相同 D1 `database_id`、不同 `name` 的临时配置。preview 需 `--local-upstream localhost:<port>`，否则请求 origin 是 custom domain，和本地 `STREMIO_ORIGIN=http://localhost:8788` 不一致。core preview 不能把 `--config` 直接指到 `.wrangler/deploy/config.json` 指针文件，应解析它指向的 `dist/douban_bridge_core/wrangler.json`。
 
 本轮 **未执行** `wrangler secret list`（环境无 Cloudflare 登录）。
 

@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "douban-bridge",
+  "name": "douban-bridge-core",
   "main": "./src/index.tsx",
   "assets": {
     "directory": "public",
