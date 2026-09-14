@@ -53,4 +53,12 @@ describe("product entry routing", { concurrency: false }, () => {
       "http://localhost:8788/a/configure?q=1",
     );
   });
+
+  test("double-slash paths retain the trusted Stremio origin", () => {
+    const env = { DASH_ORIGIN: CORE, STREMIO_ORIGIN: STREMIO };
+    assert.equal(
+      toStremioWebUrl(env, `${CORE}//evil.example/configure?from=bookmark`),
+      `${STREMIO}//evil.example/configure?from=bookmark`,
+    );
+  });
 });

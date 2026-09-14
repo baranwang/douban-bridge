@@ -14,7 +14,10 @@ export function isStremioWebRequest(env: WebOriginEnv, requestUrl: string): bool
 export function toStremioWebUrl(env: WebOriginEnv, requestUrl: string): string {
   const request = new URL(requestUrl);
   const origin = isLoopback(request) ? `${request.protocol}//${request.hostname}:8788` : env.STREMIO_ORIGIN;
-  return new URL(`${request.pathname}${request.search}`, origin).toString();
+  const target = new URL(origin);
+  target.pathname = request.pathname;
+  target.search = request.search;
+  return target.toString();
 }
 
 export function getStremioOrigin(env: { STREMIO_ORIGIN: string }): string {
