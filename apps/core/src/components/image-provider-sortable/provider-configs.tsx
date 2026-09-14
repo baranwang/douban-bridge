@@ -1,5 +1,5 @@
+import { TMDB_IMAGE_LANGUAGE } from "@douban-bridge/contracts/image-providers";
 import { forwardRef, useState } from "react";
-import { TMDB_IMAGE_LANGUAGE } from "@/libs/api/tmdb/constants";
 import { TmdbLanguageSortable } from "../tmdb-language-sortable";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../ui/input-group";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "../ui/item";

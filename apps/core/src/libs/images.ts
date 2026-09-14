@@ -1,9 +1,9 @@
+import { TMDB_IMAGE_LANGUAGE } from "@douban-bridge/contracts/image-providers";
 import { sortBy } from "es-toolkit";
 
 import type { DoubanSubjectCollectionItem } from "./api";
 import { FanartAPI } from "./api/fanart";
 import { TmdbAPI } from "./api/tmdb";
-import { TMDB_IMAGE_LANGUAGE } from "./api/tmdb/constants";
 import type { TmdbImageData } from "./api/tmdb/schema";
 
 import type { ImageProvider } from "./config";

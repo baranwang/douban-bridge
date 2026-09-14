@@ -1,37 +1,12 @@
 import { brotliCompressSync, brotliDecompressSync, constants } from "node:zlib";
+import { imageProviderSchema } from "@douban-bridge/contracts/image-providers";
 import { eq } from "drizzle-orm";
 import type { Context, Env } from "hono";
 import { z } from "zod/v4";
 import { getDrizzle, type UserConfig, userConfigs } from "@/db";
 import { DEFAULT_COLLECTION_IDS } from "./collections";
 
-const imageProviderDoubanSchema = z.object({
-  provider: z.literal("douban"),
-  extra: z.object({}),
-});
-
-const imageProviderFanartSchema = z.object({
-  provider: z.literal("fanart"),
-  extra: z.object({
-    apiKey: z.string().optional(),
-  }),
-});
-
-const imageProviderTmdbSchema = z.object({
-  provider: z.literal("tmdb"),
-  extra: z.object({
-    apiKey: z.string().optional(),
-    imageLanguages: z.array(z.string()).optional(),
-  }),
-});
-
-const imageProviderSchema = z.union([imageProviderDoubanSchema, imageProviderFanartSchema, imageProviderTmdbSchema]);
-
-type ImageProviderBase = z.output<typeof imageProviderSchema>;
-export type ImageProvider<T extends ImageProviderBase["provider"] = ImageProviderBase["provider"]> = Extract<
-  ImageProviderBase,
-  { provider: T }
->;
+export type { ImageProvider } from "@douban-bridge/contracts/image-providers";
 
 export const configSchema = z.object({
   catalogIds: z.array(z.string()).default(DEFAULT_COLLECTION_IDS),

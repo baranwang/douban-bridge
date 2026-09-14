@@ -1,5 +1,7 @@
 import { z } from "zod/v4";
 
+export * from "./image-providers";
+
 export const bridgeItemSchema = z.object({
   doubanId: z.number().int().positive(),
   mediaType: z.enum(["movie", "tv"]),
