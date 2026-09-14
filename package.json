@@ -16,8 +16,8 @@
     "smoke": "node scripts/smoke.mjs",
     "change": "changeset",
     "version": "changeset version",
-    "postversion": "pnpm --filter @douban-bridge/rex-widget build",
-    "prerelease": "pnpm --filter @douban-bridge/rex-widget build",
+    "postversion": "pnpm --filter @rexnow/douban build",
+    "prerelease": "pnpm --filter @rexnow/douban build",
     "release": "changeset publish"
   },
   "devDependencies": {

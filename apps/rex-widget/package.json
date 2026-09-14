@@ -1,5 +1,5 @@
 {
-  "name": "@douban-bridge/rex-widget",
+  "name": "@rexnow/douban",
   "version": "0.1.0",
   "description": "Douban catalogs and details for Rex",
   "type": "module",

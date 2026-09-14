@@ -29,7 +29,7 @@ core 保持原 `JWT_SECRET`，使旧 cookie 仍能校验。不从部署日志恢
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core build
 rtk proxy pnpm --filter @douban-bridge/stremio build
-rtk proxy pnpm --filter @douban-bridge/rex-widget build
+rtk proxy pnpm --filter @rexnow/douban build
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations apply stremio-addon-douban --local --persist-to ../../.wrangler/bridge-smoke
 ```
 
@@ -111,11 +111,11 @@ rtk proxy pnpm --filter @douban-bridge/core deploy
 
 Widget 不走 GitHub Release 手工上传，也不随 `pnpm deploy` 发布。流程与 [baranwang/rex-widget](https://github.com/baranwang/rex-widget) 相同：
 
-1. 功能 PR 在根目录执行 `pnpm changeset`，只给 `@douban-bridge/rex-widget` 写变更（core / stremio / contracts 已 ignore）。
+1. 功能 PR 在根目录执行 `pnpm changeset`，只给 `@rexnow/douban` 写变更（core / stremio / contracts 已 ignore）。
 2. 合并进 `main` 后，[`.github/workflows/release.yml`](../../.github/workflows/release.yml) 若有未消费的 changeset，会开 `chore: version packages` PR。
 3. 合并该版本 PR 后，同一 workflow 执行 `pnpm run release`（先构建 Widget，再 `changeset publish`）。
-4. 首次发布前在 npm 为 `@douban-bridge/rex-widget` 配置 Trusted Publisher（OIDC）或写入 `NPM_TOKEN`。空 token 时 workflow 会去掉 `_authToken`，以便走 OIDC。
-5. Rex 导入 `https://unpkg.com/@douban-bridge/rex-widget`。发布前该 URL **404 是预期**；本地 `dist/` 存在不等于分发成功。`changesets/action` 会同时建 GitHub Release（changelog），那不是旧的 `douban-bridge.js` 资源下载。
+4. 首次发布前在 npm 为 `@rexnow/douban` 配置 Trusted Publisher（OIDC）或写入 `NPM_TOKEN`。空 token 时 workflow 会去掉 `_authToken`，以便走 OIDC。
+5. Rex 导入 `https://unpkg.com/@rexnow/douban`。发布前该 URL **404 是预期**；本地 `dist/` 存在不等于分发成功。`changesets/action` 会同时建 GitHub Release（changelog），那不是旧的 `douban-bridge.js` 资源下载。
 
 Workers 仍按上面 1–6 步手动 `wrangler deploy`。
 

@@ -76,7 +76,7 @@ https://douban-bridge.baran.wang/configure
 2. 在 Rex 导入 Widget 脚本（发布到 npm 后）：
 
 ```
-https://unpkg.com/@douban-bridge/rex-widget
+https://unpkg.com/@rexnow/douban
 ```
 
 3. 在模块参数 **密钥**（`sk`）中粘贴该值。Widget 把它记在 `douban.bridge.sk`。清空 `sk` 后回到本地基础列表；详情链接不携带密钥。

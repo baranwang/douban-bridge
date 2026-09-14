@@ -26,7 +26,7 @@ stremio-addon-douban/
 |   +-- wrangler.test.jsonc  # local-only D1/KV for Node tests
 |   `-- vite.config.ts
 +-- apps/stremio/              # Worker stremio-addon-douban; original domain
-+-- apps/rex-widget/          # Rex Widget (Rslib + @rexnow); npm/unpkg @douban-bridge/rex-widget
++-- apps/rex-widget/          # Rex Widget (Rslib + @rexnow); npm/unpkg @rexnow/douban
 +-- packages/contracts/        # shared addon identity and HTTP schemas
 +-- scripts/test.mjs          # Node test runner
 +-- scripts/smoke.mjs         # local two-Worker HTTP + D1 smoke
@@ -130,4 +130,4 @@ Production cutover: `docs/deployment/douban-bridge.md`. Do not use root `pnpm de
 - `a11y` linting is off in Biome.
 - Local tests use `apps/core/wrangler.test.jsonc`. Live Douban in `scripts/smoke.mjs` is not the same evidence as mocked Node tests.
 - Rex host verification in `docs/testing/rex-host.md` is 未执行; do not invent device results.
-- Widget npm `unpkg.com/@douban-bridge/rex-widget` 在首次 `changeset publish` 前 404；不要把本地 `dist/` 当成已分发。
+- Widget npm `unpkg.com/@rexnow/douban` 在首次 `changeset publish` 前 404；不要把本地 `dist/` 当成已分发。
