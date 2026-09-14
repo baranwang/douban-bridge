@@ -10,7 +10,7 @@ import { internalStremio } from "../src/routes/internal-stremio";
 import { withTestContext } from "./context";
 
 const STREMIO = "https://stremio-addon-douban.baran.wang";
-const DASH = "https://douban-bridge-dash.baran.wang";
+const DASH = "https://douban-bridge-core.baran.wang";
 const STREMIO_CLIENT = "stremio-gh-id";
 const DASH_CLIENT = "dash-gh-id";
 
@@ -79,7 +79,7 @@ describe("oauth origins", { concurrency: false }, () => {
       assert.equal(new URL(dash.headers.get("location") ?? "").searchParams.get("client_id"), DASH_CLIENT);
 
       const forwarded = await app.fetch(
-        new Request(`${STREMIO}/auth/github`, { headers: { "X-Forwarded-Host": "douban-bridge-dash.baran.wang" } }),
+        new Request(`${STREMIO}/auth/github`, { headers: { "X-Forwarded-Host": "douban-bridge-core.baran.wang" } }),
         limited,
         ctx,
       );
@@ -169,7 +169,7 @@ describe("install origin and internal stremio isolation", { concurrency: false }
       const json = (await posted.json()) as { success: boolean; manifestUrl: string };
       assert.equal(json.success, true);
       assert.equal(json.manifestUrl.startsWith(`${STREMIO}/`), true);
-      assert.equal(json.manifestUrl.includes("douban-bridge-dash.baran.wang"), false);
+      assert.equal(json.manifestUrl.includes("douban-bridge-core.baran.wang"), false);
     });
   });
 

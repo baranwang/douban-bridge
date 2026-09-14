@@ -11,7 +11,7 @@ import { withTestContext } from "./context";
 
 const GITHUB_TOKEN = "ghp_TEST_TOKEN_DO_NOT_LEAK_abc123";
 const OLD_ORIGIN = "https://stremio-addon-douban.baran.wang";
-const DASH_ORIGIN = "https://douban-bridge-dash.baran.wang";
+const DASH_ORIGIN = "https://douban-bridge-core.baran.wang";
 
 function withRateLimits(env: CloudflareBindings): CloudflareBindings {
   return {

@@ -11,7 +11,7 @@ interface __BaseEnv_CloudflareBindings {
 	TRAKT_CLIENT_ID: "7100193031cd53fc7d2ec3eb22fe4162f30f0fb572d18c5b87fa1274c3dab80b";
 	GITHUB_CLIENT_ID: "Ov23liAcIeCqxTwANWoZ";
 	STREMIO_ORIGIN: "https://stremio-addon-douban.baran.wang";
-	DASH_ORIGIN: "https://douban-bridge-dash.baran.wang";
+	DASH_ORIGIN: "https://douban-bridge-core.baran.wang";
 	JWT_SECRET: string;
 	GITHUB_CLIENT_SECRET: string;
 	TRAKT_CLIENT_SECRET: string;
