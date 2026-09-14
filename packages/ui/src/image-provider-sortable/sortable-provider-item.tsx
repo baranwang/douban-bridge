@@ -87,7 +87,13 @@ export const SortableProviderItem: React.FC<SortableProviderItemProps> = ({
             {isEnabled && config.renderConfig && (
               <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
                 <DrawerTrigger
-                  render={<button type="button" className="p-1 text-muted-foreground hover:text-foreground" />}
+                  render={
+                    <button
+                      type="button"
+                      aria-label={`配置 ${config.name}`}
+                      className="p-1 text-muted-foreground hover:text-foreground"
+                    />
+                  }
                 >
                   <Settings2 className="size-4" />
                 </DrawerTrigger>
