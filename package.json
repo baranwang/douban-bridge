@@ -5,19 +5,21 @@
   "type": "module",
   "private": true,
   "version": "1.1.0",
+  "packageManager": "pnpm@10.33.3",
   "scripts": {
     "dev": "pnpm --filter @douban-bridge/core dev",
-    "build": "pnpm --filter @douban-bridge/core build && pnpm --filter @douban-bridge/stremio build && pnpm --filter @douban-bridge/api build && pnpm --filter @douban-bridge/rex-widget build",
+    "build": "turbo build",
     "preview": "pnpm --filter @douban-bridge/core preview",
     "deploy": "pnpm --filter @douban-bridge/core deploy",
-    "cf-typegen": "pnpm --filter @douban-bridge/core cf-typegen && pnpm --filter @douban-bridge/stremio cf-typegen && pnpm --filter @douban-bridge/api cf-typegen",
-    "test": "pnpm -r --if-present test",
+    "cf-typegen": "turbo cf-typegen",
+    "test": "turbo test",
     "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
     "@types/node": "^26.5.1",
     "tsx": "^4.23.13",
+    "turbo": "^2.10.12",
     "wrangler": "^4.131.1"
   },
   "pnpm": {

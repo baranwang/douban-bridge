@@ -13,6 +13,7 @@
       "!!.omo",
       "!!dist",
       "!!**/dist",
+      "!!.turbo",
       "!!.wrangler",
       "!!**/.wrangler",
       "!!worker-configuration.d.ts",

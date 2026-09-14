@@ -31,6 +31,7 @@ stremio-addon-douban/
 +-- packages/contracts/        # shared addon identity and HTTP schemas
 +-- scripts/test.mjs          # Node test runner
 +-- scripts/smoke.mjs         # local three-Worker HTTP + D1 smoke
++-- turbo.json                # workspace build/test/cf-typegen
 +-- docs/deployment/douban-bridge.md
 +-- docs/testing/rex-host.md
 `-- pnpm-workspace.yaml
@@ -80,7 +81,7 @@ stremio-addon-douban/
 - Tailwind v4 in `apps/core/src/style.css`.
 - Cloudflare Workers `nodejs_compat`; D1 `STREMIO_ADDON_DOUBAN` and KV `KV` only on core.
 - Drizzle schema `apps/core/src/db/schema.ts`; migrations `apps/core/drizzle/`.
-- Root `pnpm build` is core → stremio → api → rex-widget. `pnpm test` runs workspace packages that define `test`. `pnpm cf-typegen` runs all three Workers. `pnpm deploy` deploys **core only** and does not apply remote migrations.
+- Root `pnpm build` / `test` / `cf-typegen` go through Turbo. `pnpm deploy` deploys **core only** and does not apply remote migrations. `scripts/smoke.mjs` stays a live three-Worker probe.
 - Stremio addon identity comes from root `package.json` via `ADDON`.
 - Widget version is `apps/rex-widget` `0.1.0`, not root addon `1.1.0`.
 - Generated: `apps/*/dist/`, `apps/*/.wrangler/`, `worker-configuration.d.ts`, `drizzle/meta/`.
