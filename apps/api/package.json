@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@douban-bridge/contracts": "workspace:*",
-    "hono": "^4.11.0"
+    "hono": "^4.13.7"
   },
   "devDependencies": {
-    "wrangler": "^4.100.0"
+    "wrangler": "^4.131.1"
   }
 }

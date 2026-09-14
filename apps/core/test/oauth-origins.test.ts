@@ -133,7 +133,7 @@ describe("oauth origins", { concurrency: false }, () => {
   test("existing /auth/me session still works", async () => {
     await withTestContext(async (env, ctx) => {
       const userId = await insertUser(env);
-      const token = await sign({ sub: userId, exp: Math.floor(Date.now() / 1000) + 3600 }, env.JWT_SECRET);
+      const token = await sign({ sub: userId, exp: Math.floor(Date.now() / 1000) + 3600 }, env.JWT_SECRET, "HS256");
       const me = await app.fetch(
         new Request(`${STREMIO}/auth/me`, { headers: { Cookie: `token=${token}` } }),
         withOrigins(env),

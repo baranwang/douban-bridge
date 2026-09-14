@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@douban-bridge/contracts": "workspace:*",
-    "zod": "3.25.76"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@rexnow/libs": "^3.0.0",

@@ -24,6 +24,7 @@ export async function createSession(c: Context<Env>, userId: string): Promise<st
       exp,
     } satisfies JwtPayload,
     c.env.JWT_SECRET,
+    "HS256",
   );
 
   setCookie(c, JWT_COOKIE_NAME, token, {
@@ -47,7 +48,7 @@ export async function getSession(c: Context<Env>): Promise<JwtPayload | null> {
   }
 
   try {
-    const payload = await verify(token, c.env.JWT_SECRET);
+    const payload = await verify(token, c.env.JWT_SECRET, "HS256");
     if (typeof payload.sub !== "string") {
       return null;
     }

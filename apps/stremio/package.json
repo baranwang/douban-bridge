@@ -11,12 +11,12 @@
   },
   "dependencies": {
     "@douban-bridge/contracts": "workspace:*",
-    "hono": "^4.11.0",
-    "path-to-regexp": "^8.3.0",
-    "zod": "3.25.76"
+    "hono": "^4.13.7",
+    "path-to-regexp": "^8.4.2",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@stremio-addon/sdk": "^1.0.0",
-    "wrangler": "^4.100.0"
+    "wrangler": "^4.131.1"
   }
 }

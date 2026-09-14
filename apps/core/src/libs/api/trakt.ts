@@ -1,26 +1,38 @@
 import { ADDON } from "@douban-bridge/contracts/addon";
-import {
-  episodeResponseSchema,
-  type SearchMovieResultResponse,
-  type SearchShowResultResponse,
-  searchResultResponseSchema,
-  showResponseSchema,
-  Environment as TraktBaseUrl,
-} from "@trakt/api";
-import { z } from "zod/v3";
+import { type SearchMovieResultResponse, type SearchShowResultResponse, Environment as TraktBaseUrl } from "@trakt/api";
+import { z } from "zod/v4";
 import type { DoubanIdMapping } from "@/db";
 import { SECONDS_PER_DAY } from "../constants";
 import { BaseAPI } from "./base";
 
-/** 修复 trakt api 中 searchResultResponseSchema 缺失 episode 类型 */
+const idsSchema = z
+  .object({
+    trakt: z.number().optional(),
+    tmdb: z.number().nullable().optional(),
+    imdb: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+const titleSchema = z
+  .object({
+    title: z.string().optional(),
+    original_title: z.string().optional(),
+    year: z.number().optional(),
+    ids: idsSchema.optional(),
+  })
+  .passthrough();
+
 const searchResultResponseSchemaWithEpisode = z.union([
-  searchResultResponseSchema,
-  z.object({
-    score: z.number().int(),
-    type: z.literal("episode"),
-    episode: episodeResponseSchema,
-    show: showResponseSchema,
-  }),
+  z.object({ type: z.literal("movie"), movie: titleSchema.optional(), score: z.number().optional() }).passthrough(),
+  z.object({ type: z.literal("show"), show: titleSchema.optional(), score: z.number().optional() }).passthrough(),
+  z
+    .object({
+      type: z.literal("episode"),
+      show: titleSchema.optional(),
+      episode: z.unknown().optional(),
+      score: z.number().optional(),
+    })
+    .passthrough(),
 ]);
 
 export type SearchResultResponse = z.output<typeof searchResultResponseSchemaWithEpisode>;

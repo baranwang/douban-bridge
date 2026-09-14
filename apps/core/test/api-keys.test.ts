@@ -41,7 +41,7 @@ async function insertUser(
 }
 
 async function sessionCookie(env: CloudflareBindings, userId: string): Promise<string> {
-  const token = await sign({ sub: userId, exp: Math.floor(Date.now() / 1000) + 3600 }, env.JWT_SECRET);
+  const token = await sign({ sub: userId, exp: Math.floor(Date.now() / 1000) + 3600 }, env.JWT_SECRET, "HS256");
   return `token=${token}`;
 }
 

@@ -1,5 +1,6 @@
 import { hc } from "hono/client";
-import { Check, Github, Star } from "lucide-react";
+import { Check, Star } from "lucide-react";
+import { Github } from "@/components/github-icon";
 import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
