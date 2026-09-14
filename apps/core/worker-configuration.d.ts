@@ -17,8 +17,6 @@ interface __BaseEnv_CloudflareBindings {
 	TRAKT_CLIENT_SECRET: string;
 	TMDB_API_KEY: string;
 	FANART_API_KEY: string;
-	DASH_GITHUB_CLIENT_ID: string;
-	DASH_GITHUB_CLIENT_SECRET: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -31,7 +29,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "DOUBAN_API_KEY" | "TRAKT_CLIENT_ID" | "GITHUB_CLIENT_ID" | "STREMIO_ORIGIN" | "DASH_ORIGIN" | "JWT_SECRET" | "GITHUB_CLIENT_SECRET" | "TRAKT_CLIENT_SECRET" | "TMDB_API_KEY" | "FANART_API_KEY" | "DASH_GITHUB_CLIENT_ID" | "DASH_GITHUB_CLIENT_SECRET">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "DOUBAN_API_KEY" | "TRAKT_CLIENT_ID" | "GITHUB_CLIENT_ID" | "STREMIO_ORIGIN" | "DASH_ORIGIN" | "JWT_SECRET" | "GITHUB_CLIENT_SECRET" | "TRAKT_CLIENT_SECRET" | "TMDB_API_KEY" | "FANART_API_KEY">> {}
 }
 
 // Begin runtime types

@@ -26,11 +26,12 @@ export class GitHubAPI {
   /**
    * 生成 GitHub OAuth 授权 URL
    */
-  getAuthUrl(state: string): string {
+  getAuthUrl(state: string, redirectUrl: string): string {
     const params = new URLSearchParams({
       client_id: this.clientId,
       state,
-      scope: "", // 不需要任何特殊权限
+      scope: "",
+      redirect_uri: redirectUrl,
     });
     return `https://github.com/login/oauth/authorize?${params.toString()}`;
   }
@@ -38,8 +39,8 @@ export class GitHubAPI {
   /**
    * 使用授权码交换 access token
    */
-  async exchangeCodeForToken(code: string): Promise<string> {
-    const { authentication } = await this.oauthApp.createToken({ code });
+  async exchangeCodeForToken(code: string, redirectUrl: string): Promise<string> {
+    const { authentication } = await this.oauthApp.createToken({ code, redirectUrl });
     return authentication.token;
   }
 

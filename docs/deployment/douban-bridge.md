@@ -8,11 +8,11 @@
 
 | Worker | 资源与凭据 |
 | --- | --- |
-| core（`douban-bridge-core`，域名 `douban-bridge-core.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件；dash basic auth 读取 KV 键 `DASH_USER` / `DASH_PASS`）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、`DASH_GITHUB_CLIENT_ID` / `DASH_GITHUB_CLIENT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *` |
+| core（`douban-bridge-core`，域名 `douban-bridge-core.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件；dash basic auth 读取 KV 键 `DASH_USER` / `DASH_PASS`）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *` |
 | stremio（`stremio-addon-douban`，旧 custom domain `stremio-addon-douban.baran.wang`） | `CORE_STREMIO` → `StremioEntrypoint`、`CORE_WEB` → 默认入口、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、旧 custom domain。无 D1 / KV / cron / 上游凭据 |
 | api（`douban-bridge-api`，新 custom domain `douban-bridge-api.baran.wang`） | `CORE_API` → `ApiEntrypoint`、`PUBLIC_RATE_LIMIT`、新 api custom domain。无 D1 / KV / cron / 上游凭据 |
 
-当前 `apps/core/wrangler.jsonc` 的 **vars**（明文配置，不是 secret）：`DOUBAN_API_KEY`、`TRAKT_CLIENT_ID`、`GITHUB_CLIENT_ID`、`STREMIO_ORIGIN`、`DASH_ORIGIN`。代码还读取以下名称，它们应作为 **secrets**（或尚未配置）：`JWT_SECRET`、`GITHUB_CLIENT_SECRET`、`TMDB_API_KEY`、`DASH_GITHUB_CLIENT_ID`、`DASH_GITHUB_CLIENT_SECRET`；可选 `FANART_API_KEY` / `TRAKT_CLIENT_SECRET`。获得授权后用下面命令核对实际存在的名称，**不要把值写入仓库或本文**：
+当前 `apps/core/wrangler.jsonc` 的 **vars**（明文配置，不是 secret）：`DOUBAN_API_KEY`、`TRAKT_CLIENT_ID`、`GITHUB_CLIENT_ID`、`STREMIO_ORIGIN`、`DASH_ORIGIN`。代码还读取以下名称，它们应作为 **secrets**（或尚未配置）：`JWT_SECRET`、`GITHUB_CLIENT_SECRET`、`TMDB_API_KEY`；可选 `FANART_API_KEY` / `TRAKT_CLIENT_SECRET`。获得授权后用下面命令核对实际存在的名称，**不要把值写入仓库或本文**：
 
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler secret list
@@ -81,7 +81,7 @@ rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations apply st
 
 ### 3. 首次部署 core（禁用 cron）
 
-为 core 配置现有 D1 / KV / rate limits / ASSETS / 现有 secrets / 两个 origin。把 dash 基本认证写入 KV 键 `DASH_USER` 与 `DASH_PASS`（不要把值写入仓库或本文）。`verifyUser` 在二者任一缺失时 **fail-open**（返回 true，本地空 KV 仍能打开 dash）；生产必须两键都在，否则 dash 无密码可进。注册**新** dash GitHub OAuth App（callback `https://douban-bridge-core.baran.wang/auth/github/callback`）并写入 `DASH_GITHUB_*`——仅在获授权后执行。
+为 core 配置现有 D1 / KV / rate limits / ASSETS / 现有 secrets / 两个 origin。把 dash 基本认证写入 KV 键 `DASH_USER` 与 `DASH_PASS`（不要把值写入仓库或本文）。`verifyUser` 在二者任一缺失时 **fail-open**（返回 true，本地空 KV 仍能打开 dash）；生产必须两键都在，否则 dash 无密码可进。在**现有** GitHub OAuth App 上增加 callback `https://douban-bridge-core.baran.wang/auth/github/callback`（保留旧 Stremio callback），两个公开域名共用 `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`。
 
 首次 core 部署先把 `apps/core/wrangler.jsonc` 的 `triggers.crons` 设为空（或不部署该字段），**保留旧 Worker 的唯一 cron**，避免两个写入者重叠。上传 core 后验证：默认入口拒绝 `/v1/*` 与 `/stremio/manifest`；dash HTTPS、OAuth、`/icon.png` 与 `/assets/*` 正常；KV 中 `DASH_USER` 与 `DASH_PASS` 均已配置，未配置时 dash 会 fail-open。
 
