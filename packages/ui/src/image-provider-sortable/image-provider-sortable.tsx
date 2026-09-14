@@ -7,9 +7,15 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import type { ImageProvider } from "@douban-bridge/contracts/image-providers";
 import { type FC, useState } from "react";
-import type { ImageProvider } from "@/libs/config";
+import { reorderImageProviders, toggleImageProvider } from "./image-provider-state";
 import { PROVIDER_CONFIGS } from "./provider-configs";
 import { SortableProviderItem } from "./sortable-provider-item";
 import type { ImageProviderSortableProps } from "./types";
@@ -18,20 +24,20 @@ export const ImageProviderSortable: FC<ImageProviderSortableProps> = ({ value, o
   // 使用本地状态跟踪所有 provider 的显示顺序
   const [displayOrder, setDisplayOrder] = useState<string[]>(() => {
     // 初始化：已启用的在前（保持顺序），未启用的在后
-    const enabledIds = value.map((p) => p.provider);
-    const disabledIds = PROVIDER_CONFIGS.filter((c) => !enabledIds.includes(c.id)).map((c) => c.id);
+    const enabledIds = value.map((provider) => provider.provider);
+    const disabledIds = PROVIDER_CONFIGS.filter((config) => !enabledIds.includes(config.id)).map((config) => config.id);
     return [...enabledIds, ...disabledIds];
   });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   // 根据 displayOrder 获取排序后的配置列表
   const sortedConfigs = displayOrder
-    .map((id) => PROVIDER_CONFIGS.find((c) => c.id === id))
-    .filter((c) => c !== undefined);
+    .map((id) => PROVIDER_CONFIGS.find((config) => config.id === id))
+    .filter((config) => config !== undefined);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -39,43 +45,27 @@ export const ImageProviderSortable: FC<ImageProviderSortableProps> = ({ value, o
 
     const activeId = String(active.id);
     const overId = String(over.id);
-
     const oldIndex = displayOrder.indexOf(activeId);
     const newIndex = displayOrder.indexOf(overId);
 
     if (oldIndex !== -1 && newIndex !== -1) {
       const newDisplayOrder = arrayMove(displayOrder, oldIndex, newIndex);
       setDisplayOrder(newDisplayOrder);
-
-      // 同步更新 value 数组中已启用 provider 的顺序
-      const newValue = newDisplayOrder
-        .map((id) => value.find((p) => p.provider === id))
-        .filter((p): p is ImageProvider => p !== undefined);
-      onChange(newValue);
+      onChange(reorderImageProviders(value, newDisplayOrder));
     }
   };
 
-  const handleToggle = (providerId: string, enabled: boolean, defaultExtra?: ImageProvider["extra"]) => {
-    if (enabled) {
-      // 添加到末尾
-      if (defaultExtra !== undefined) {
-        onChange([...value, { provider: providerId, extra: defaultExtra } as ImageProvider]);
-      }
-    } else {
-      // 防止关闭最后一个提供商
-      if (value.length <= 1) return;
-      // 移除
-      onChange(value.filter((p) => p.provider !== providerId));
-    }
+  const handleToggle = (providerId: string, enabled: boolean, defaultExtra: ImageProvider["extra"]) => {
+    onChange(toggleImageProvider(value, { provider: providerId, extra: defaultExtra } as ImageProvider, enabled));
   };
 
   const handleExtraChange = (providerId: string, extra: ImageProvider["extra"]) => {
     onChange(
-      value.map((p) => {
-        if (p.provider === providerId) {
-          return { ...p, extra } as ImageProvider;
+      value.map((provider) => {
+        if (provider.provider === providerId) {
+          return { ...provider, extra } as ImageProvider;
         }
-        return p;
+        return provider;
       }),
     );
   };
@@ -84,7 +74,7 @@ export const ImageProviderSortable: FC<ImageProviderSortableProps> = ({ value, o
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={displayOrder} strategy={verticalListSortingStrategy}>
         {sortedConfigs.map((config, index) => {
-          const provider = value.find((p) => p.provider === config.id);
+          const provider = value.find((item) => item.provider === config.id);
           const isEnabled = !!provider;
           // 合并默认 extra，确保客户端动态默认值被应用
           // 只在客户端调用函数形式的 defaultExtra（避免服务端访问 window）

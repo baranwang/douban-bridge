@@ -38,7 +38,6 @@ export const getLanguageDisplayName = (code: string): string => {
   const parts = code.split("-");
   const langCode = parts[0] as TLanguageCode;
   const countryCode = parts[1] as keyof typeof countries | undefined;
-
   const langInfo = languages[langCode];
 
   if (countryCode) {

@@ -17,6 +17,7 @@ import {
 import { Toaster } from "@douban-bridge/ui/components/sonner";
 import { Spinner } from "@douban-bridge/ui/components/spinner";
 import { Switch } from "@douban-bridge/ui/components/switch";
+import { ImageProviderSortable } from "@douban-bridge/ui/image-providers";
 import { useForm } from "@tanstack/react-form";
 import { isEqual } from "es-toolkit";
 import { hc } from "hono/client";
@@ -35,7 +36,6 @@ import type { Config } from "@/libs/config";
 import type { PublicUser } from "@/libs/public-user";
 import type { ConfigureRoute } from "@/routes/configure";
 import { GenreDrawer } from "../genre-drawer";
-import { ImageProviderSortable } from "../image-provider-sortable";
 import { SettingSection } from "../setting-section";
 import { YearlyRankingDrawer } from "../yearly-ranking-drawer";
 import { ApiKeySettings } from "./api-key-settings";

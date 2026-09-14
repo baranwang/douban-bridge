@@ -50,7 +50,7 @@ export const fanartConfig: ProviderConfigDef<"fanart"> = {
             <InputGroupPassword
               placeholder="请输入你的 API 密钥"
               value={extra.apiKey ?? ""}
-              onChange={(e) => onChange({ ...extra, apiKey: e.target.value || undefined })}
+              onChange={(event) => onChange({ ...extra, apiKey: event.target.value || undefined })}
             />
             <InputGroupAddon align="inline-end">
               <InputGroupButton
@@ -88,7 +88,7 @@ export const tmdbConfig: ProviderConfigDef<"tmdb"> = {
             <InputGroupPassword
               placeholder="请输入你的 API 读访问令牌"
               value={extra.apiKey ?? ""}
-              onChange={(e) => onChange({ ...extra, apiKey: e.target.value || undefined })}
+              onChange={(event) => onChange({ ...extra, apiKey: event.target.value || undefined })}
             />
             <InputGroupAddon align="inline-end">
               <InputGroupButton

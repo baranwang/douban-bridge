@@ -1,5 +1,5 @@
+import type { ImageProvider } from "@douban-bridge/contracts/image-providers";
 import type { ReactNode } from "react";
-import type { ImageProvider } from "@/libs/config";
 
 /** Provider 配置渲染函数的 props */
 export interface ProviderConfigRenderProps<T extends ImageProvider["provider"]> {

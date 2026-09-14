@@ -7,7 +7,12 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Badge } from "@douban-bridge/ui/components/badge";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@douban-bridge/ui/components/item";
 import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from "@douban-bridge/ui/components/native-select";
@@ -27,7 +32,7 @@ export const TmdbLanguageSortable: FC<TmdbLanguageSortableProps> = ({ value, onC
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const allLanguages = useMemo(() => getAllLanguages(), []);
@@ -51,7 +56,6 @@ export const TmdbLanguageSortable: FC<TmdbLanguageSortableProps> = ({ value, onC
 
     const activeId = String(active.id);
     const overId = String(over.id);
-
     const oldIndex = value.indexOf(activeId);
     const newIndex = value.indexOf(overId);
 
@@ -65,7 +69,7 @@ export const TmdbLanguageSortable: FC<TmdbLanguageSortableProps> = ({ value, onC
       let newValue = [...value, codeToAdd];
       // 如果列表中有 null，将其移到最后
       if (newValue.includes("null") && codeToAdd !== "null") {
-        newValue = [...newValue.filter((c) => c !== "null"), "null"];
+        newValue = [...newValue.filter((code) => code !== "null"), "null"];
       }
       onChange(newValue);
       setSelectedLang("");
@@ -76,7 +80,7 @@ export const TmdbLanguageSortable: FC<TmdbLanguageSortableProps> = ({ value, onC
   const handleRemove = (code: string) => {
     // 至少保留一个语言
     if (value.length <= 1) return;
-    onChange(value.filter((c) => c !== code));
+    onChange(value.filter((item) => item !== code));
   };
 
   // 处理语言选择变化
@@ -109,11 +113,15 @@ export const TmdbLanguageSortable: FC<TmdbLanguageSortableProps> = ({ value, onC
         <div className="mt-3 space-y-2">
           <div className="flex items-center gap-2">
             {/* 第一步：选择语言 */}
-            <NativeSelect className="flex-1" value={selectedLang} onChange={(e) => handleLangChange(e.target.value)}>
+            <NativeSelect
+              className="flex-1"
+              value={selectedLang}
+              onChange={(event) => handleLangChange(event.target.value)}
+            >
               <NativeSelectOption value="">选择语言...</NativeSelectOption>
               <NativeSelectOptGroup label="常用语言">
                 {["zh", "en", "ja", "ko", "es", "fr", "de", "pt", "ru", "it"].map((code) => {
-                  const lang = allLanguages.find((l) => l.code === code);
+                  const lang = allLanguages.find((item) => item.code === code);
                   return lang ? (
                     <NativeSelectOption key={code} value={code}>
                       {lang.code}（{lang.native}）
@@ -138,7 +146,7 @@ export const TmdbLanguageSortable: FC<TmdbLanguageSortableProps> = ({ value, onC
               <NativeSelect
                 className="flex-1"
                 value={selectedCountry}
-                onChange={(e) => setSelectedCountry(e.target.value)}
+                onChange={(event) => setSelectedCountry(event.target.value)}
               >
                 <NativeSelectOption value="">不指定国家/地区</NativeSelectOption>
                 {countriesForLang.map((country) => (

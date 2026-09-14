@@ -1,11 +1,11 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { ImageProvider } from "@douban-bridge/contracts/image-providers";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@douban-bridge/ui/components/drawer";
 import { Item, ItemActions, ItemContent, ItemSeparator, ItemTitle } from "@douban-bridge/ui/components/item";
 import { Switch } from "@douban-bridge/ui/components/switch";
 import { GripVertical, Settings2 } from "lucide-react";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
-import type { ImageProvider } from "@/libs/config";
 import type { ProviderConfig } from "./provider-configs";
 
 interface SortableProviderItemProps {
@@ -55,6 +55,7 @@ export const SortableProviderItem: FC<SortableProviderItemProps> = ({
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: config.id,
+    disabled,
   });
 
   const style = {
@@ -69,6 +70,7 @@ export const SortableProviderItem: FC<SortableProviderItemProps> = ({
         <Item size="sm">
           <button
             type="button"
+            aria-label={`调整 ${config.name} 优先级`}
             className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
             {...attributes}
             {...listeners}
@@ -102,7 +104,12 @@ export const SortableProviderItem: FC<SortableProviderItemProps> = ({
                 </DrawerContent>
               </Drawer>
             )}
-            <Switch checked={isEnabled} disabled={disabled} onCheckedChange={onToggle} />
+            <Switch
+              aria-label={`启用 ${config.name}`}
+              checked={isEnabled}
+              disabled={disabled}
+              onCheckedChange={onToggle}
+            />
           </ItemActions>
         </Item>
       </div>

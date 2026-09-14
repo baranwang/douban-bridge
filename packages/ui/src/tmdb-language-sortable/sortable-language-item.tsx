@@ -28,6 +28,7 @@ export const SortableLanguageItem: FC<SortableLanguageItemProps> = ({ code, onRe
       <Item size="sm">
         <button
           type="button"
+          aria-label={`调整 ${getLanguageDisplayName(code)} 优先级`}
           className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
           {...attributes}
           {...listeners}
