@@ -1,11 +1,6 @@
-import { type BridgeDetail, type BridgeItem, type CatalogQuery, catalogQuerySchema } from "@douban-bridge/contracts";
+import { type BridgeItem, type CatalogQuery, catalogQuerySchema } from "@douban-bridge/contracts";
 import { getLatestYearlyRanking } from "@douban-bridge/contracts/collections";
-import {
-  type DoubanSubjectCollectionItem,
-  doubanSubjectCollectionInfoSchema,
-  doubanSubjectCollectionSchema,
-  doubanSubjectDetailSchema,
-} from "@douban-bridge/contracts/douban";
+import { type DoubanSubjectCollectionItem, doubanSubjectCollectionSchema } from "@douban-bridge/contracts/douban";
 import { z } from "zod/v4";
 
 const DOUBAN_BASE = "https://m.douban.com/rexxar/api/v2";
@@ -43,22 +38,6 @@ async function doubanGet(path: string): Promise<unknown> {
   const response = await Widget.http.get(`${DOUBAN_BASE}/${path}`, { headers: DOUBAN_HEADERS });
   if (response.statusCode < 200 || response.statusCode >= 300) throw new Error("Douban request failed");
   return response.data;
-}
-
-async function resolveCollectionId(query: CatalogQuery): Promise<string> {
-  let collectionId = getLatestYearlyRanking(query.collectionId)?.id ?? query.collectionId;
-  if (!query.genre) return collectionId;
-  try {
-    const info = doubanSubjectCollectionInfoSchema.parse(
-      await doubanGet(`subject_collection/${collectionId}?for_mobile=1`),
-    );
-    const current = info.category_tabs?.find((tab) => tab?.items?.some((item) => item.current));
-    const cid = current?.items?.find((item) => item.name === query.genre)?.id;
-    if (cid) collectionId = cid;
-  } catch {
-    /* keep original collection, same as core */
-  }
-  return collectionId;
 }
 
 function tmdbImage(path?: string | null): string | null {
@@ -135,35 +114,11 @@ async function toBridgeItem(item: DoubanSubjectCollectionItem): Promise<BridgeIt
 
 export async function getBasicCatalog(query: CatalogQuery): Promise<BridgeItem[]> {
   const parsed = catalogQuerySchema.parse(query);
-  const collectionId = await resolveCollectionId(parsed);
+  const collectionId = getLatestYearlyRanking(parsed.collectionId)?.id ?? parsed.collectionId;
   const data = doubanSubjectCollectionSchema.parse(
     await doubanGet(`subject_collection/${collectionId}/items?start=${parsed.skip}&count=20`),
   );
   const items = data.subject_collection_items;
   if (items.length === 0) return [];
   return Promise.all(items.map((item) => toBridgeItem(item)));
-}
-
-export async function getBasicMeta(id: number): Promise<BridgeDetail> {
-  const data = doubanSubjectDetailSchema.parse(await doubanGet(`subject/${id}`));
-  const match = await findBasicTmdb({
-    type: data.type,
-    title: data.title,
-    original_title: data.original_title,
-    year: data.year,
-  }).catch(() => null);
-  return {
-    doubanId: data.id,
-    mediaType: data.type,
-    title: data.title,
-    description: data.intro ?? undefined,
-    year: data.year ?? undefined,
-    rating: data.rating?.value ?? undefined,
-    tmdbId: match?.id ?? null,
-    imdbId: null,
-    images: projectImages({ cover: data.cover_url ?? data.pic?.large ?? data.pic?.normal, pic: data.pic }, match),
-    actors: (data.actors ?? []).map((actor) => actor.name),
-    directors: (data.directors ?? []).map((director) => director.name),
-    genres: data.genres ?? [],
-  };
 }

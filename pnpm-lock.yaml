@@ -187,11 +187,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/contracts
       '@rexnow/libs':
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.1.2
+        version: 3.1.2
       '@rexnow/rslib-plugin':
-        specifier: ^3.0.1
-        version: 3.0.1
+        specifier: ^3.1.2
+        version: 3.1.2
       '@rslib/core':
         specifier: ^1.0.0
         version: 1.0.0(typescript@5.9.3)
@@ -1921,11 +1921,11 @@ packages:
   '@radix-ui/rect@1.1.3':
     resolution: {integrity: sha512-JtyZR+mqgBibTo8xea3B6ZRmzZiM/YeVBtUkas6zMuXjAlfIFIW2FgqeM9eLyvEaYX66vr6DJMK+4U6LV0KhNw==}
 
-  '@rexnow/libs@3.0.0':
-    resolution: {integrity: sha512-y4+wmV27zpkjTrmsE7VCwI6sSNMCuuOL7CzUTLfvE01DvxMXTGXieVOsfM5/u/XwuMyX+10/x0rvx8IJBLBU1A==}
+  '@rexnow/libs@3.1.2':
+    resolution: {integrity: sha512-dahO5CPS6Oo9LnEowjRMWvM2q6lcRj9PpETyooYJvCe1eMt/i7mR3WoW1p4QBmU5LrFnc0TLqCGiSqPiTxTpfA==}
 
-  '@rexnow/rslib-plugin@3.0.1':
-    resolution: {integrity: sha512-6nXZXdnItmK31fbA/OYFsA12sf9WIsGEsC9ThDBPhzOlphJ+mHRetIuxKoLz6XV2wLr+GE96hL4uwub6oRViyw==}
+  '@rexnow/rslib-plugin@3.1.2':
+    resolution: {integrity: sha512-dVnCkGfdgpL6o0FNbkow17yjzeVQRMymSnp9WHyY+Y+5gfD5BbyvWQzMqJkUXXUUNC+Mz3N7XdlDaw8kbKldVA==}
 
   '@rolldown/binding-android-arm-eabi@1.2.8':
     resolution: {integrity: sha512-tN5aztYkKCte4i5SIrrz5yK/HMjEuCqCSCJa418jOV8tZ1cBY3YF2otxB1ktPxzsLA1BeTqwapK0bfjxNvHJVw==}
@@ -5746,11 +5746,11 @@ snapshots:
 
   '@radix-ui/rect@1.1.3': {}
 
-  '@rexnow/libs@3.0.0':
+  '@rexnow/libs@3.1.2':
     dependencies:
       cheerio: 1.2.0
 
-  '@rexnow/rslib-plugin@3.0.1':
+  '@rexnow/rslib-plugin@3.1.2':
     dependencies:
       '@hono/node-server': 2.1.1(hono@4.13.7)
       es-toolkit: 1.52.0

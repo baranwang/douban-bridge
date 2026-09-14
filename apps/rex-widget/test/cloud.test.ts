@@ -8,11 +8,18 @@ import {
   TV_YEARLY_RANKING_ID,
   YEARLY_RANKINGS,
 } from "@douban-bridge/contracts/collections";
-import { loadCatalog, loadMeta } from "../src/cloud";
-import { loadDefaultCatalog, loadDetail, WidgetMetadata } from "../src/index";
+import { loadCatalog } from "../src/cloud";
+
+Object.assign(globalThis, { WidgetMetadata: undefined, loadDefaultCatalog: undefined });
+await import("../src/index");
 
 type TestWidget = {
-  http: { get: (url: string, options?: { headers?: Record<string, string> }) => Promise<{ statusCode: number; data: unknown }> };
+  http: {
+    get: (
+      url: string,
+      options?: { headers?: Record<string, string> },
+    ) => Promise<{ statusCode: number; data: unknown }>;
+  };
   tmdb: { get: (path: string, options?: { params?: Record<string, string> }) => Promise<unknown> };
   storage: {
     get: (key: string) => Promise<string | null>;
@@ -34,19 +41,6 @@ const DOUBAN_SOURCE = {
   total: 1,
 };
 
-const DOUBAN_DETAIL = {
-  id: 1291546,
-  type: "movie",
-  title: "肖申克的救赎",
-  intro: "一个银行家的故事",
-  cover_url: "https://img1.doubanio.com/test.jpg",
-  year: "1994",
-  actors: [{ name: "Tim Robbins" }],
-  directors: [{ name: "Frank Darabont" }],
-  genres: ["剧情"],
-  rating: { value: 9.7 },
-};
-
 const CLOUD_ITEM = {
   doubanId: 1291546,
   mediaType: "movie" as const,
@@ -63,16 +57,7 @@ const CLOUD_ITEM = {
   },
 };
 
-const CLOUD_DETAIL = {
-  ...CLOUD_ITEM,
-  description: "cloud-detail",
-  actors: ["云端演员"],
-  directors: ["云端导演"],
-  genres: ["剧情"],
-};
-
 const SK = "sk_test";
-const SK_STORAGE = "douban.bridge.sk";
 
 function hostFixture(): TestWidget {
   const storage = new Map<string, string>();
@@ -114,9 +99,6 @@ function install(
       return handler(url, options);
     }
     counts.basic += 1;
-    if (url.includes("/subject/1291546") && !url.includes("subject_collection")) {
-      return { statusCode: 200, data: DOUBAN_DETAIL };
-    }
     return { statusCode: 200, data: DOUBAN_SOURCE };
   };
   globalThis.Widget = widget;
@@ -199,14 +181,12 @@ test("illegal cloud item falls back to basic", async () => {
 });
 
 for (const statusCode of [401, 403, 404, 429, 500]) {
-  test(`cloud ${statusCode} falls back to basic without clearing sk`, async () => {
-    const { widget, counts } = install(async () => ({ statusCode, data: null }));
-    await widget.storage.set(SK_STORAGE, SK);
+  test(`cloud ${statusCode} falls back to basic`, async () => {
+    const { counts } = install(async () => ({ statusCode, data: null }));
     const result = await loadCatalog({ collectionId: "movie_top250", skip: 0 }, SK);
     assert.equal(counts.cloud, 1);
     assert.equal(counts.basic, 1);
     assert.equal(result[0].title, "肖申克的救赎");
-    assert.equal(await widget.storage.get(SK_STORAGE), SK);
   });
 }
 
@@ -237,97 +217,6 @@ test("cloud and basic catalog failure rejects to the host", async () => {
   assert.equal(counts.basic, 1);
 });
 
-test("empty sk uses basic meta only", async () => {
-  const { counts } = install(async () => {
-    throw new Error("cloud should not be called");
-  });
-  const result = await loadMeta(1291546, "");
-  assert.equal(counts.cloud, 0);
-  assert.equal(counts.basic, 1);
-  assert.deepEqual(result.actors, ["Tim Robbins"]);
-});
-
-test("complete cloud meta never calls basic and keeps original images", async () => {
-  const { counts } = install(async (url, options) => {
-    assert.equal(url, "https://douban-bridge.baran.wang/v1/meta/1291546");
-    assert.equal(options?.headers?.Authorization, `Bearer ${SK}`);
-    return { statusCode: 200, data: { item: CLOUD_DETAIL } };
-  });
-  const result = await loadMeta(1291546, SK);
-  assert.equal(counts.cloud, 1);
-  assert.equal(counts.basic, 0);
-  assert.equal(result.description, "cloud-detail");
-  assert.equal(result.images.poster, "https://cdn.example.com/poster.jpg");
-  assert.deepEqual(result.actors, ["云端演员"]);
-});
-
-test("cloud meta with null tmdbId stays on the cloud item", async () => {
-  const { counts } = install(async () => ({
-    statusCode: 200,
-    data: { item: { ...CLOUD_DETAIL, tmdbId: null, imdbId: null } },
-  }));
-  const result = await loadMeta(1291546, SK);
-  assert.equal(counts.cloud, 1);
-  assert.equal(counts.basic, 0);
-  assert.equal(result.tmdbId, null);
-  assert.equal(result.images.poster, "https://cdn.example.com/poster.jpg");
-});
-
-test("missing cloud meta item falls back to basic", async () => {
-  const { counts } = install(async () => ({ statusCode: 200, data: {} }));
-  const result = await loadMeta(1291546, SK);
-  assert.equal(counts.cloud, 1);
-  assert.equal(counts.basic, 1);
-  assert.equal(result.title, "肖申克的救赎");
-});
-
-test("illegal cloud meta item falls back to basic", async () => {
-  const { counts } = install(async () => ({ statusCode: 200, data: { item: { doubanId: 1 } } }));
-  const result = await loadMeta(1291546, SK);
-  assert.equal(counts.cloud, 1);
-  assert.equal(counts.basic, 1);
-  assert.equal(result.title, "肖申克的救赎");
-});
-
-for (const statusCode of [401, 403, 404, 429, 500]) {
-  test(`cloud meta ${statusCode} falls back to basic without clearing sk`, async () => {
-    const { widget, counts } = install(async () => ({ statusCode, data: null }));
-    await widget.storage.set(SK_STORAGE, SK);
-    const result = await loadMeta(1291546, SK);
-    assert.equal(counts.cloud, 1);
-    assert.equal(counts.basic, 1);
-    assert.equal(result.title, "肖申克的救赎");
-    assert.equal(await widget.storage.get(SK_STORAGE), SK);
-  });
-}
-
-test("cloud meta HTTP reject falls back to basic", async () => {
-  const { counts } = install(async () => {
-    throw new Error("network");
-  });
-  const result = await loadMeta(1291546, SK);
-  assert.equal(counts.cloud, 1);
-  assert.equal(counts.basic, 1);
-  assert.equal(result.title, "肖申克的救赎");
-});
-
-test("cloud and basic meta failure rejects to the host", async () => {
-  const counts = { cloud: 0, basic: 0 };
-  const widget = hostFixture();
-  widget.http.get = async (url) => {
-    if (new URL(url).hostname === "douban-bridge.baran.wang") {
-      counts.cloud += 1;
-      throw new Error("network");
-    }
-    counts.basic += 1;
-    throw new Error("douban down");
-  };
-  globalThis.Widget = widget;
-  await assert.rejects(() => loadMeta(1291546, SK));
-  assert.equal(counts.cloud, 1);
-  assert.equal(counts.basic, 1);
-});
-
 test("page 1 maps to skip 0 and page 2 maps to skip 20", async () => {
   const skips: string[] = [];
   const { widget } = install(async (url) => {
@@ -351,6 +240,27 @@ test("offset is used directly as skip", async () => {
   assert.equal(skip, "7");
 });
 
+test("genre catalog uses only the selected parent's subcollection id", async () => {
+  let requested = "";
+  const { widget } = install(async (url) => {
+    requested = url;
+    return { statusCode: 200, data: { items: [] } };
+  });
+  globalThis.Widget = widget;
+  const load = Reflect.get(globalThis, "loadGenreCatalog") as (
+    params: Record<string, string | number>,
+  ) => Promise<VideoItem[]>;
+  await load({
+    collectionId: "movie_love",
+    subCollectionId_movie_love: "ECOIOTUGY",
+    subCollectionId_movie_comedy: "ECVUOUD7A",
+    sk: SK,
+  });
+  const url = new URL(requested);
+  assert.equal(url.pathname, "/v1/catalog/ECOIOTUGY");
+  assert.equal(url.searchParams.has("genre"), false);
+});
+
 test("invalid page throws before any request", async () => {
   const { counts } = install(async () => ({ statusCode: 200, data: { items: [] } }));
   await assert.rejects(() => loadDefaultCatalog({ collectionId: "movie_top250", page: 0, sk: SK }), /Invalid page/);
@@ -358,46 +268,40 @@ test("invalid page throws before any request", async () => {
   assert.equal(counts.basic, 0);
 });
 
-test("storing sk and clearing params updates douban.bridge.sk", async () => {
-  const { widget } = install(async () => ({ statusCode: 200, data: { items: [] } }));
+test("catalog sk comes only from current params", async () => {
+  const { widget, counts } = install(async (_url, options) => {
+    assert.equal(options?.headers?.Authorization, `Bearer ${SK}`);
+    return { statusCode: 200, data: { items: [] } };
+  });
+  const unexpectedStorage = async () => {
+    throw new Error("storage should not be used");
+  };
+  widget.storage = { get: unexpectedStorage, set: unexpectedStorage, remove: unexpectedStorage };
   await loadDefaultCatalog({ collectionId: "movie_top250", sk: ` ${SK} ` });
-  assert.equal(await widget.storage.get(SK_STORAGE), SK);
-  await loadDefaultCatalog({ collectionId: "movie_top250", sk: "" });
-  assert.equal(await widget.storage.get(SK_STORAGE), null);
+  assert.equal(counts.cloud, 1);
+  assert.equal(counts.basic, 0);
 });
 
-test("clearing sk uses basic only on the same call", async () => {
-  const { widget, counts } = install(async () => {
+test("empty sk uses basic only", async () => {
+  const { counts } = install(async () => {
     throw new Error("cloud should not be called");
   });
-  await widget.storage.set(SK_STORAGE, SK);
   await loadDefaultCatalog({ collectionId: "movie_top250", sk: "" });
-  assert.equal(await widget.storage.get(SK_STORAGE), null);
   assert.equal(counts.cloud, 0);
   assert.equal(counts.basic, 1);
 });
 
-test("detail links never include sk and loadDetail uses stored sk", async () => {
-  const { widget, counts } = install(async (url, options) => {
-    if (url.includes("/v1/catalog/")) return { statusCode: 200, data: { items: [CLOUD_ITEM] } };
-    assert.equal(url, "https://douban-bridge.baran.wang/v1/meta/1291546");
-    assert.equal(new URL(url).search, "");
-    assert.equal(options?.headers?.Authorization, `Bearer ${SK}`);
-    return { statusCode: 200, data: { item: CLOUD_DETAIL } };
-  });
+test("TMDB catalog ids include the media type", async () => {
+  const { counts } = install(async () => ({ statusCode: 200, data: { items: [CLOUD_ITEM] } }));
   const [item] = await loadDefaultCatalog({ collectionId: "movie_top250", sk: SK });
-  assert.equal(item.link, "https://douban-bridge.baran.wang/v1/meta/1291546");
-  assert.equal(item.link.includes("sk"), false);
-  assert.equal(item.id, "278");
+  assert.equal("link" in item, false);
+  assert.equal(item.id, "movie.278");
   assert.equal(item.type, "tmdb");
   assert.equal(item.posterPath, "https://cdn.example.com/poster.jpg");
   assert.equal(item.rating, "9.7");
   assert.equal(item.releaseDate, "1994");
-  const detail = await loadDetail(item.link);
-  assert.equal(detail.title, "云端标题");
-  assert.equal(counts.cloud, 2);
+  assert.equal(counts.cloud, 1);
   assert.equal(counts.basic, 0);
-  assert.equal(await widget.storage.get(SK_STORAGE), SK);
 });
 
 test("toHostItem uses imdb then douban when tmdb is missing", async () => {
@@ -421,7 +325,6 @@ test("toHostItem uses imdb then douban when tmdb is missing", async () => {
 
 test("WidgetMetadata exposes 13 defaults plus genre and yearly modules", () => {
   assert.equal(WidgetMetadata.requiredVersion, "0.0.1");
-  assert.equal(WidgetMetadata.detailCacheDuration, 0);
   assert.equal(DEFAULT_COLLECTION_IDS.length, 13);
   for (const id of DEFAULT_COLLECTION_IDS) {
     const module = WidgetMetadata.modules.find((item: { id: string }) => item.id === id);
@@ -450,10 +353,32 @@ test("WidgetMetadata exposes 13 defaults plus genre and yearly modules", () => {
     tvGenreIds,
     TV_GENRE_CONFIGS.map((item) => item.id),
   );
+  const loveCategory = movieGenre.params.find((param: { name: string }) => param.name === "subCollectionId_movie_love");
+  assert.equal(loveCategory.title, "分类");
+  assert.equal(loveCategory.value, "movie_love");
+  assert.deepEqual(loveCategory.belongTo, { paramName: "collectionId", value: ["movie_love"] });
+  assert.deepEqual(loveCategory.enumOptions.slice(0, 3), [
+    { title: "近期热门", value: "ECSAOJFTA" },
+    { title: "高分经典", value: "movie_love" },
+    { title: "华语", value: "ECOIOTUGY" },
+  ]);
   assert.equal(
-    movieGenre.params.find((param: { name: string }) => param.name === "genre")?.description,
-    "填写该榜单已有的筛选名称",
+    movieGenre.params.some((param: { name: string }) => param.name === "genre"),
+    false,
   );
+  assert.equal(
+    movieGenre.params.some((param: { name: string }) => param.name === "subCollectionId_film_genre_27"),
+    false,
+  );
+  const mainlandCategory = tvGenre.params.find((param: { name: string }) => param.name === "subCollectionId_EC74443FY");
+  assert.equal(mainlandCategory.title, "分类");
+  assert.equal(mainlandCategory.value, "EC74443FY");
+  assert.deepEqual(mainlandCategory.belongTo, { paramName: "collectionId", value: ["EC74443FY"] });
+  assert.deepEqual(mainlandCategory.enumOptions.slice(0, 3), [
+    { title: "近期热门", value: "EC74443FY" },
+    { title: "高分经典", value: "ECT45KVZI" },
+    { title: "喜剧", value: "ECVQ47BUI" },
+  ]);
   const movieYearly = WidgetMetadata.modules.find((item: { id: string }) => item.id === "movie_yearly");
   const tvYearly = WidgetMetadata.modules.find((item: { id: string }) => item.id === "tv_yearly");
   assert.equal(movieYearly.functionName, "loadYearlyCatalog");

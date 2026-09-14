@@ -1,4 +1,4 @@
-import { type BridgeItem, catalogQuerySchema, doubanIdSchema } from "@douban-bridge/contracts";
+import { type BridgeItem, catalogQuerySchema } from "@douban-bridge/contracts";
 import {
   COLLECTION_CONFIGS,
   MOVIE_GENRE_CONFIGS,
@@ -8,57 +8,22 @@ import {
   YEARLY_RANKINGS,
 } from "@douban-bridge/contracts/collections";
 import { version } from "../package.json";
-import { loadCatalog, loadMeta } from "./cloud";
+import { loadCatalog } from "./cloud";
+import { SUB_COLLECTIONS } from "./sub-collections";
 
-const API_ORIGIN = "https://douban-bridge.baran.wang";
-const SK_STORAGE = "douban.bridge.sk";
-const PAGE = { name: "page", title: "页码", type: "page" };
+const PAGE = { name: "page", title: "页码", type: "page" } satisfies WidgetModuleParam;
 
-export type WidgetParams = {
-  collectionId: string;
-  page?: string | number;
-  offset?: string | number;
-  genre?: string;
-  sk?: string;
-};
-
-async function readSk(params?: { sk?: string }): Promise<string> {
-  if (params && Object.hasOwn(params, "sk")) {
-    const sk = (params.sk ?? "").trim();
-    if (sk) await Widget.storage.set(SK_STORAGE, sk);
-    else await Widget.storage.remove(SK_STORAGE);
-    return sk;
-  }
-  return (await Widget.storage.get(SK_STORAGE)) || "";
-}
-
-function detailLink(id: number): string {
-  return `${API_ORIGIN}/v1/meta/${id}`;
-}
-
-function readDetailId(link: string): number {
-  const url = new URL(link);
-  if (url.origin !== API_ORIGIN) throw new Error("Invalid detail link");
-  const match = /^\/v1\/meta\/([1-9]\d*)$/.exec(url.pathname);
-  if (!match || url.search || url.hash) throw new Error("Invalid detail link");
-  return doubanIdSchema.parse(match[1]);
-}
-
-function queryFromParams(params: {
-  collectionId: string;
-  page?: string | number;
-  offset?: string | number;
-  genre?: string;
-}) {
+function queryFromParams(params: { collectionId: string; page?: string | number; offset?: string | number }) {
   const page = Number(params.page ?? 1);
   const skip = params.offset === undefined ? (page - 1) * 20 : Number(params.offset);
   if (params.offset === undefined && (!Number.isSafeInteger(page) || page < 1)) throw new Error("Invalid page");
-  return catalogQuerySchema.parse({ collectionId: params.collectionId, skip, genre: params.genre || undefined });
+  const subCollectionId = Reflect.get(params, `subCollectionId_${params.collectionId}`);
+  return catalogQuerySchema.parse({ collectionId: subCollectionId || params.collectionId, skip });
 }
 
-function toHostItem(item: BridgeItem): VideoItem {
+function toHostItem(item: BridgeItem) {
   return {
-    id: String(item.tmdbId ?? item.imdbId ?? item.doubanId),
+    id: item.tmdbId ? `${item.mediaType}.${item.tmdbId}` : String(item.imdbId ?? item.doubanId),
     type: item.tmdbId ? "tmdb" : item.imdbId ? "imdb" : "douban",
     title: item.title,
     description: item.description,
@@ -67,30 +32,42 @@ function toHostItem(item: BridgeItem): VideoItem {
     backdropPath: item.images.background ?? undefined,
     rating: item.rating === undefined ? undefined : String(item.rating),
     releaseDate: item.year,
-    link: detailLink(item.doubanId),
-  };
+  } satisfies VideoItem;
 }
 
-export async function loadDefaultCatalog(params: WidgetParams) {
-  const items = await loadCatalog(queryFromParams(params), await readSk(params));
+loadDefaultCatalog = async (params) => {
+  const items = await loadCatalog(queryFromParams(params), (params.sk ?? "").trim());
   return items.map(toHostItem);
-}
+};
 export const loadGenreCatalog = loadDefaultCatalog;
 export const loadYearlyCatalog = loadDefaultCatalog;
-export async function loadDetail(link: string) {
-  return toHostItem(await loadMeta(readDetailId(link), await readSk()));
-}
-
 function enumOptions(items: { id: string; name: string }[]) {
   return items.map((item) => ({ title: item.name, value: item.id }));
 }
 
-export const WidgetMetadata = {
+function subCollectionParams(collections: { id: string }[]) {
+  return collections.flatMap(({ id }) => {
+    const items = SUB_COLLECTIONS[id as keyof typeof SUB_COLLECTIONS];
+    return items
+      ? [
+          {
+            name: `subCollectionId_${id}`,
+            title: "分类",
+            type: "enumeration",
+            value: id,
+            belongTo: { paramName: "collectionId", value: [id] },
+            enumOptions: enumOptions([...items]),
+          } satisfies WidgetModuleParam,
+        ]
+      : [];
+  });
+}
+
+WidgetMetadata = {
   id: "douban.bridge",
   title: "豆瓣",
   version,
   requiredVersion: "0.0.1",
-  detailCacheDuration: 0,
   globalParams: [{ name: "sk", title: "密钥", type: "input" }],
   modules: [
     ...COLLECTION_CONFIGS.filter((item) => item.isDefault).map((item) => ({
@@ -99,7 +76,7 @@ export const WidgetMetadata = {
       functionName: "loadDefaultCatalog",
       cacheDuration: 0,
       params: [
-        { name: "collectionId", title: "榜单", type: "constant", value: item.id },
+        { name: "collectionId", title: "榜单", type: "constant", value: item.id } satisfies WidgetModuleParam,
         PAGE,
       ],
     })),
@@ -110,7 +87,7 @@ export const WidgetMetadata = {
       cacheDuration: 0,
       params: [
         { name: "collectionId", title: "榜单", type: "enumeration", enumOptions: enumOptions(MOVIE_GENRE_CONFIGS) },
-        { name: "genre", title: "筛选", type: "input", description: "填写该榜单已有的筛选名称" },
+        ...subCollectionParams(MOVIE_GENRE_CONFIGS),
         PAGE,
       ],
     },
@@ -121,7 +98,7 @@ export const WidgetMetadata = {
       cacheDuration: 0,
       params: [
         { name: "collectionId", title: "榜单", type: "enumeration", enumOptions: enumOptions(TV_GENRE_CONFIGS) },
-        { name: "genre", title: "筛选", type: "input", description: "填写该榜单已有的筛选名称" },
+        ...subCollectionParams(TV_GENRE_CONFIGS),
         PAGE,
       ],
     },
@@ -164,4 +141,4 @@ export const WidgetMetadata = {
   ],
 };
 
-Object.assign(globalThis, { WidgetMetadata, loadDefaultCatalog, loadGenreCatalog, loadYearlyCatalog, loadDetail });
+Object.assign(globalThis, { WidgetMetadata, loadDefaultCatalog, loadGenreCatalog, loadYearlyCatalog });
