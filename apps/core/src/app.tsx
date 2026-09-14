@@ -10,6 +10,7 @@ import { dashRoute } from "./routes/dash";
 import { imageProxyRoute } from "./routes/image-proxy";
 import { internalApi } from "./routes/internal-api";
 import { portalRoute } from "./routes/portal";
+import { rexRoute } from "./routes/rex";
 
 export const app = new Hono();
 
@@ -26,6 +27,7 @@ app.route("/", portalRoute);
 
 app.route("/api-keys", apiKeysRoute);
 app.route("/auth", authRoute);
+app.route("/rex", rexRoute);
 
 app.route("/configure", configureRoute);
 app.route("/:config/configure", configureRoute);

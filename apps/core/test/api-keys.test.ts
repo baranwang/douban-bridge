@@ -304,6 +304,8 @@ describe("configure SSR public user", { concurrency: false }, () => {
       const body = await response.text();
       assert.equal(body.includes(GITHUB_TOKEN), false);
       assert.equal(body.includes("githubAccessToken"), false);
+      assert.equal(body.includes("API 密钥"), false);
+      assert.equal(body.includes("Rex 密钥"), false);
     });
   });
 

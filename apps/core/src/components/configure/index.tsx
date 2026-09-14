@@ -38,7 +38,6 @@ import type { ConfigureRoute } from "@/routes/configure";
 import { GenreDrawer } from "../genre-drawer";
 import { SettingSection } from "../setting-section";
 import { YearlyRankingDrawer } from "../yearly-ranking-drawer";
-import { ApiKeySettings } from "./api-key-settings";
 import { ConfigureContext } from "./context";
 
 export interface ConfigureProps {
@@ -171,8 +170,6 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
                   </form.Field>
                 </ItemGroup>
               </SettingSection>
-
-              <ApiKeySettings user={user} />
 
               {/* 图片提供商模块 */}
               <SettingSection

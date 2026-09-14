@@ -89,7 +89,7 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
 
   return (
     <SettingSection
-      title="API 密钥"
+      title="Rex 密钥"
       icon={<KeyRound className="size-4 text-muted-foreground" />}
       footer="重新生成后，旧密钥立即失效"
     >
