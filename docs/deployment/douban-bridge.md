@@ -1,6 +1,6 @@
 # Douban Bridge 部署与回滚
 
-本文记录两个 Worker 的资源归属、按顺序发布和回滚。**本轮未获授权执行生产部署、注册 OAuth App、写入生产 secrets、或发布 GitHub Release。** 下列命令在成品审阅并获得执行授权后再跑。不要把本文当成这些动作已经完成。
+本文记录两个 Worker 的资源归属、按顺序发布和回滚。**本轮未获授权执行生产部署、注册 OAuth App、写入生产 secrets、或执行首次 npm publish。** 下列命令在成品审阅并获得执行授权后再跑。不要把本文当成这些动作已经完成。
 
 本环境未登录 Cloudflare，因此 **未执行** `wrangler secret list` 与生产控制台核对。下表名称来自仓库 Wrangler 配置与代码引用；vars 与 secrets 不要把值抄进文档。
 
@@ -29,7 +29,7 @@ core 保持原 `JWT_SECRET`，使旧 cookie 仍能校验。不从部署日志恢
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core build
 rtk proxy pnpm --filter @douban-bridge/stremio build
-rtk proxy pnpm --filter @douban-bridge/rex-widget build
+rtk proxy pnpm --filter @rexnow/douban build
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations apply stremio-addon-douban --local --persist-to ../../.wrangler/bridge-smoke
 ```
 
@@ -107,13 +107,21 @@ rtk proxy pnpm --filter @douban-bridge/stremio exec wrangler secret list
 rtk proxy pnpm --filter @douban-bridge/core deploy
 ```
 
-### 7. Widget Release（须仓库已整合且获授权）
+### 7. Widget 发版（Changesets，对齐 rex-widget）
 
-为已验证并推到远端仓库的 commit 创建 `widget-v0.1.0` **draft** Release，上传 `apps/rex-widget/dist/douban-bridge.js`。核对构建 commit、包版本 `0.1.0` 和资源校验值后再发布。最后在 Rex 导入发布后的脚本 URL，并完成任务 9 实测矩阵。Release 发布前该 URL **404 是预期**；本地 `dist/` 存在不等于分发成功。本任务不创建 Release。
+Widget 不走 GitHub Release 手工上传，也不随 `pnpm deploy` 发布。流程与 [baranwang/rex-widget](https://github.com/baranwang/rex-widget) 相同：
+
+1. 功能 PR 在根目录执行 `pnpm changeset`，只给 `@rexnow/douban` 写变更（core / stremio / contracts 已 ignore）。
+2. 合并进 `main` 后，[`.github/workflows/release.yml`](../../.github/workflows/release.yml) 若有未消费的 changeset，会开 `chore: version packages` PR。
+3. 合并该版本 PR 后，同一 workflow 执行 `pnpm run release`（先构建 Widget，再 `changeset publish`）。
+4. 首次发布前在 npm 为 `@rexnow/douban` 配置 Trusted Publisher（OIDC）或写入 `NPM_TOKEN`。空 token 时 workflow 会去掉 `_authToken`，以便走 OIDC。
+5. Rex 导入 `https://unpkg.com/@rexnow/douban`。发布前该 URL **404 是预期**；本地 `dist/` 存在不等于分发成功。`changesets/action` 会同时建 GitHub Release（changelog），那不是旧的 `douban-bridge.js` 资源下载。
+
+Workers 仍按上面 1–6 步手动 `wrangler deploy`。
 
 ## 回滚
 
-1. 先停发新 Widget 流量（撤回或取消发布 Release；必要时停 `/v1` 或 Worker）。
+1. 先停发新 Widget 流量（再发一个 patch 覆盖 `latest`，必要时 `npm deprecate`；不要 unpublish。必要时停 `/v1` 或 Worker）。
 2. 若回滚旧 Stremio Worker 版本：先停 core cron（清空 `triggers.crons` 后 `rtk proxy pnpm --filter @douban-bridge/core deploy`），再恢复旧 Worker 部署及其旧绑定 / secrets / cron。
 3. 新加 `api_keys` 表可保留。**不能 DROP 原表**，也**不能用旧备份覆盖用户新配置**。
 4. 若旧 Worker secrets 已清理，从受控备份恢复后再回滚。

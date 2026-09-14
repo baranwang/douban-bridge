@@ -1,19 +1,34 @@
 {
-  "name": "@douban-bridge/rex-widget",
-  "private": true,
-  "type": "module",
+  "name": "@rexnow/douban",
   "version": "0.1.0",
-  "scripts": {
-    "build": "rslib build",
-    "test": "rslib build && node ../../scripts/test.mjs"
+  "description": "Douban catalogs and details for Rex",
+  "type": "module",
+  "main": "./dist/douban-bridge.js",
+  "exports": {
+    ".": "./dist/douban-bridge.js"
   },
-  "dependencies": {
-    "@douban-bridge/contracts": "workspace:*",
-    "zod": "4.6.5"
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "NODE_ENV=production rslib build",
+    "test": "NODE_ENV=production rslib build && node ../../scripts/test.mjs"
   },
   "devDependencies": {
+    "@douban-bridge/contracts": "workspace:*",
     "@rexnow/libs": "^3.0.0",
     "@rexnow/rslib-plugin": "^3.0.1",
-    "@rslib/core": "^1.0.0"
-  }
+    "@rslib/core": "^1.0.0",
+    "zod": "4.6.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baranwang/douban-bridge.git",
+    "directory": "apps/rex-widget"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "license": "MIT"
 }
