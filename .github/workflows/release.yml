@@ -37,7 +37,9 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @douban-bridge/rex-widget test
 
       - uses: changesets/action@v1
         id: changesets

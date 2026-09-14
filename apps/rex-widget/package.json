@@ -1,6 +1,7 @@
 {
   "name": "@douban-bridge/rex-widget",
   "version": "0.1.0",
+  "description": "Douban catalogs and details for Rex",
   "type": "module",
   "main": "./dist/douban-bridge.js",
   "exports": {
@@ -11,7 +12,7 @@
   ],
   "scripts": {
     "build": "NODE_ENV=production rslib build",
-    "test": "rslib build && node ../../scripts/test.mjs"
+    "test": "NODE_ENV=production rslib build && node ../../scripts/test.mjs"
   },
   "devDependencies": {
     "@douban-bridge/contracts": "workspace:*",

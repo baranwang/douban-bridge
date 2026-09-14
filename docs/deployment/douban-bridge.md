@@ -115,13 +115,13 @@ Widget 不走 GitHub Release 手工上传，也不随 `pnpm deploy` 发布。流
 2. 合并进 `main` 后，[`.github/workflows/release.yml`](../../.github/workflows/release.yml) 若有未消费的 changeset，会开 `chore: version packages` PR。
 3. 合并该版本 PR 后，同一 workflow 执行 `pnpm run release`（先构建 Widget，再 `changeset publish`）。
 4. 首次发布前在 npm 为 `@douban-bridge/rex-widget` 配置 Trusted Publisher（OIDC）或写入 `NPM_TOKEN`。空 token 时 workflow 会去掉 `_authToken`，以便走 OIDC。
-5. Rex 导入 `https://unpkg.com/@douban-bridge/rex-widget`。发布前该 URL **404 是预期**；本地 `dist/` 存在不等于分发成功。
+5. Rex 导入 `https://unpkg.com/@douban-bridge/rex-widget`。发布前该 URL **404 是预期**；本地 `dist/` 存在不等于分发成功。`changesets/action` 会同时建 GitHub Release（changelog），那不是旧的 `douban-bridge.js` 资源下载。
 
 Workers 仍按上面 1–6 步手动 `wrangler deploy`。
 
 ## 回滚
 
-1. 先停发新 Widget 流量（unpublish 或撤回该 npm 版本；必要时停 `/v1` 或 Worker）。
+1. 先停发新 Widget 流量（再发一个 patch 覆盖 `latest`，必要时 `npm deprecate`；不要 unpublish。必要时停 `/v1` 或 Worker）。
 2. 若回滚旧 Stremio Worker 版本：先停 core cron（清空 `triggers.crons` 后 `rtk proxy pnpm --filter @douban-bridge/core deploy`），再恢复旧 Worker 部署及其旧绑定 / secrets / cron。
 3. 新加 `api_keys` 表可保留。**不能 DROP 原表**，也**不能用旧备份覆盖用户新配置**。
 4. 若旧 Worker secrets 已清理，从受控备份恢复后再回滚。

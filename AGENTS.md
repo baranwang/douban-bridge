@@ -26,7 +26,7 @@ stremio-addon-douban/
 |   +-- wrangler.test.jsonc  # local-only D1/KV for Node tests
 |   `-- vite.config.ts
 +-- apps/stremio/              # Worker stremio-addon-douban; original domain
-+-- apps/rex-widget/          # Rex Widget (Rslib + @rexnow); Release asset is douban-bridge.js
++-- apps/rex-widget/          # Rex Widget (Rslib + @rexnow); npm/unpkg @douban-bridge/rex-widget
 +-- packages/contracts/        # shared addon identity and HTTP schemas
 +-- scripts/test.mjs          # Node test runner
 +-- scripts/smoke.mjs         # local two-Worker HTTP + D1 smoke
