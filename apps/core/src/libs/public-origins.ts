@@ -1,5 +1,22 @@
 import { HTTPException } from "hono/http-exception";
 
+type WebOriginEnv = { STREMIO_ORIGIN: string; DASH_ORIGIN: string };
+
+function isLoopback(url: URL): boolean {
+  return url.hostname === "localhost" || url.hostname === "127.0.0.1";
+}
+
+export function isStremioWebRequest(env: WebOriginEnv, requestUrl: string): boolean {
+  const url = new URL(requestUrl);
+  return url.origin === env.STREMIO_ORIGIN || (isLoopback(url) && url.port === "8788");
+}
+
+export function toStremioWebUrl(env: WebOriginEnv, requestUrl: string): string {
+  const request = new URL(requestUrl);
+  const origin = isLoopback(request) ? `${request.protocol}//${request.hostname}:8788` : env.STREMIO_ORIGIN;
+  return new URL(`${request.pathname}${request.search}`, origin).toString();
+}
+
 export function getStremioOrigin(env: { STREMIO_ORIGIN: string }): string {
   return env.STREMIO_ORIGIN;
 }

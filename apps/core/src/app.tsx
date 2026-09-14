@@ -9,6 +9,7 @@ import { configureRoute } from "./routes/configure";
 import { dashRoute } from "./routes/dash";
 import { imageProxyRoute } from "./routes/image-proxy";
 import { internalApi } from "./routes/internal-api";
+import { portalRoute } from "./routes/portal";
 
 export const app = new Hono();
 
@@ -21,8 +22,7 @@ app.use(async (c, next) => {
   return authMiddleware(c, next);
 });
 app.route("/", internalApi);
-
-app.get("/", (c) => c.redirect("/configure"));
+app.route("/", portalRoute);
 
 app.route("/api-keys", apiKeysRoute);
 app.route("/auth", authRoute);

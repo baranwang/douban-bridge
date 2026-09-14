@@ -136,17 +136,17 @@ describe("oauth origins", { concurrency: false }, () => {
 });
 
 describe("install origin and internal stremio isolation", { concurrency: false }, () => {
-  test("configure GET/POST emit STREMIO_ORIGIN even on the dash host", async () => {
+  test("configure GET/POST emit STREMIO_ORIGIN on the Stremio host", async () => {
     await withTestContext(async (env, ctx) => {
       const limited = withOrigins(env);
-      const html = await app.fetch(new Request(`${DASH}/configure`), limited, ctx);
+      const html = await app.fetch(new Request(`${STREMIO}/configure`), limited, ctx);
       assert.equal(html.status, 200);
       const body = await html.text();
       assert.match(body, new RegExp(`${STREMIO.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/`));
       assert.equal(body.includes(`${DASH}/`), false);
 
       const posted = await app.fetch(
-        new Request(`${DASH}/configure`, {
+        new Request(`${STREMIO}/configure`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ catalogIds: ["movie_top250"] }),
