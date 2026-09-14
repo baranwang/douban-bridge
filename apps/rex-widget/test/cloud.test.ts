@@ -264,7 +264,7 @@ test("page 1 maps to skip 0 and page 2 maps to skip 20", async () => {
   assert.deepEqual(skips, ["0", "20"]);
 });
 
-test("offset is used directly as skip", async () => {
+test("page remains the only pagination input", async () => {
   let skip = "";
   const { widget } = install(async (url) => {
     skip = new URL(url).searchParams.get("skip") ?? "";
@@ -272,7 +272,7 @@ test("offset is used directly as skip", async () => {
   });
   globalThis.Widget = widget;
   await loadDefaultCatalog({ collectionId: "movie_top250", page: 3, offset: 7, sk: SK });
-  assert.equal(skip, "7");
+  assert.equal(skip, "40");
 });
 
 test("genre catalog uses only the selected parent's subcollection id", async () => {

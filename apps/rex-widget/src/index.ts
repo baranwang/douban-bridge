@@ -13,12 +13,11 @@ import { SUB_COLLECTIONS } from "./sub-collections";
 
 const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfies WidgetModuleParam;
 
-function queryFromParams(params: { collectionId: string; page?: string | number; offset?: string | number }) {
+function queryFromParams(params: { collectionId: string; page?: string | number }) {
   const page = Number(params.page ?? 1);
-  const skip = params.offset === undefined ? (page - 1) * 20 : Number(params.offset);
-  if (params.offset === undefined && (!Number.isSafeInteger(page) || page < 1)) throw new Error("Invalid page");
+  if (!Number.isSafeInteger(page) || page < 1) throw new Error("Invalid page");
   const subCollectionId = Reflect.get(params, `subCollectionId_${params.collectionId}`);
-  return catalogQuerySchema.parse({ collectionId: subCollectionId || params.collectionId, skip });
+  return catalogQuerySchema.parse({ collectionId: subCollectionId || params.collectionId, skip: (page - 1) * 20 });
 }
 
 function toHostItem(item: BridgeItem) {
@@ -39,7 +38,6 @@ const loadCatalogForWidget = async (
   params: DoubanBridge.GlobalParams & {
     collectionId: string;
     page?: string | number;
-    offset?: string | number;
   },
 ) => {
   const items = await loadCatalog(queryFromParams(params), (params.sk ?? "").trim());
