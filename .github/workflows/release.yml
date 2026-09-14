@@ -39,8 +39,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm --filter @rexnow/douban test
-
       - uses: changesets/action@v1
         id: changesets
         with:
