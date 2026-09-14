@@ -11,7 +11,6 @@ import { authenticateApiKey } from "@/libs/api-key";
 import { contextStorage } from "@/libs/middleware";
 import { getCatalogPage } from "@/services/catalog";
 import { getCloudMeta } from "@/services/metadata";
-import { imageProxyRoute } from "./image-proxy";
 
 type ApiAccount = Awaited<ReturnType<typeof authenticateApiKey>>;
 
@@ -48,8 +47,6 @@ internalApi.onError((err, c) => {
   console.error("internal_error");
   return c.json({ error: "internal_error" }, 500);
 });
-
-internalApi.route("/image-proxy", imageProxyRoute);
 
 internalApi.get("/v1/catalog/:collectionId", async (c) => {
   const raw = c.req.queries();

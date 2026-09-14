@@ -4,7 +4,7 @@ import { api } from "../src/libs/api";
 import { getCloudMeta, getStremioMeta } from "../src/services/metadata";
 import { withTestContext } from "./context";
 
-const images = { providers: [], origin: "https://douban-bridge-api.baran.wang" };
+const images = { providers: [], origin: "https://douban-bridge.baran.wang" };
 
 const detail = {
   id: 1,

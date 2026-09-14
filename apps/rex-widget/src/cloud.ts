@@ -7,7 +7,7 @@ import {
 } from "@douban-bridge/contracts";
 import { getBasicCatalog, getBasicMeta } from "./basic";
 
-const API_ORIGIN = "https://douban-bridge-api.baran.wang";
+const API_ORIGIN = "https://douban-bridge.baran.wang";
 
 export async function loadCatalog(query: CatalogQuery, sk: string): Promise<BridgeItem[]> {
   if (sk) {

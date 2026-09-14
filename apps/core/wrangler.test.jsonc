@@ -24,7 +24,7 @@
   "vars": {
     "JWT_SECRET": "local-test-only-secret",
     "STREMIO_ORIGIN": "https://stremio-addon-douban.baran.wang",
-    "DASH_ORIGIN": "https://douban-bridge-core.baran.wang",
+    "DASH_ORIGIN": "https://douban-bridge.baran.wang",
     "GITHUB_CLIENT_ID": "stremio-gh-id"
   }
 }

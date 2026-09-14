@@ -10,7 +10,7 @@ import {
 import { version } from "../package.json";
 import { loadCatalog, loadMeta } from "./cloud";
 
-const API_ORIGIN = "https://douban-bridge-api.baran.wang";
+const API_ORIGIN = "https://douban-bridge.baran.wang";
 const SK_STORAGE = "douban.bridge.sk";
 const PAGE = { name: "page", title: "页码", type: "page" };
 

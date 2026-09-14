@@ -8,7 +8,6 @@ import { assertScheduledSafe } from "./scheduled-safe.mjs";
 
 const core = "http://localhost:8787";
 const stremio = "http://localhost:8788";
-const api = "http://localhost:8790";
 
 function timeout() {
   return AbortSignal.timeout(15000);
@@ -92,11 +91,11 @@ async function ensureLocalSchema(db) {
 
 async function waitForApiDenied() {
   for (let i = 0; i < 30; i++) {
-    const response = await get(`${api}/v1/catalog/movie_top250`);
+    const response = await get(`${core}/v1/catalog/movie_top250`);
     if (response.status === 401) return response;
     await delay(500);
   }
-  throw new Error("api Worker did not reconnect to local core");
+  throw new Error("core did not serve /v1");
 }
 
 const UNMAPPED_SQL =
@@ -116,9 +115,8 @@ async function deletePendingMappings(db) {
 await withLocalD1(ensureLocalSchema);
 await waitForApiDenied();
 
-assert.equal((await get(`${core}/v1/catalog/movie_top250`)).status, 404);
 assert.equal((await get(`${core}/stremio/manifest`)).status, 404);
-const denied = await get(`${api}/v1/catalog/movie_top250`);
+const denied = await get(`${core}/v1/catalog/movie_top250`);
 assert.equal(denied.status, 401);
 assert.equal(denied.headers.get("cache-control"), "private, no-store");
 const install = await get(`${stremio}/manifest.json`, { redirect: "manual" });
@@ -140,13 +138,10 @@ for (const pathname of new Set(assetPaths)) {
 }
 
 const stremioWrangler = readFileSync(resolve("apps/stremio/wrangler.jsonc"), "utf8");
-const apiWrangler = readFileSync(resolve("apps/api/wrangler.jsonc"), "utf8");
 const coreWrangler = readFileSync(resolve("apps/core/wrangler.jsonc"), "utf8");
 assert.equal(stremioWrangler.includes('"crons"'), false);
-assert.equal(apiWrangler.includes('"crons"'), false);
 assert.match(coreWrangler, /"0 \* \* \* \*"/);
 assert.equal(readFileSync(resolve("apps/stremio/src/index.ts"), "utf8").includes("scheduled"), false);
-assert.equal(readFileSync(resolve("apps/api/src/index.ts"), "utf8").includes("scheduled"), false);
 assert.match(readFileSync(resolve("apps/core/src/index.tsx"), "utf8"), /scheduled/);
 
 await withLocalD1(deletePendingMappings);
@@ -209,7 +204,7 @@ const testKeys = await withLocalD1(async (db) => {
 
 try {
   await waitForApiDenied();
-  const catalogUrl = `${api}/v1/catalog/movie_top250`;
+  const catalogUrl = `${core}/v1/catalog/movie_top250`;
   const pages = [];
   for (const { sk } of testKeys) {
     const response = await get(catalogUrl, { headers: { Authorization: `Bearer ${sk}` } });
@@ -224,7 +219,7 @@ try {
   }
   assert.notEqual(pages[0].items[0].images.poster, pages[1].items[0].images.poster);
 
-  const liveMeta = await get(`${api}/v1/meta/${pages[0].items[0].doubanId}`, {
+  const liveMeta = await get(`${core}/v1/meta/${pages[0].items[0].doubanId}`, {
     headers: { Authorization: `Bearer ${testKeys[0].sk}` },
   });
   assert.equal(liveMeta.status, 200);

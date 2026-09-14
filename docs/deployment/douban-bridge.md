@@ -1,6 +1,6 @@
 # Douban Bridge 部署与回滚
 
-本文记录三个 Worker 的资源归属、按顺序发布和回滚。**本轮未获授权执行生产部署、注册 OAuth App、写入生产 secrets、或发布 GitHub Release。** 下列命令在成品审阅并获得执行授权后再跑。不要把本文当成这些动作已经完成。
+本文记录两个 Worker 的资源归属、按顺序发布和回滚。**本轮未获授权执行生产部署、注册 OAuth App、写入生产 secrets、或发布 GitHub Release。** 下列命令在成品审阅并获得执行授权后再跑。不要把本文当成这些动作已经完成。
 
 本环境未登录 Cloudflare，因此 **未执行** `wrangler secret list` 与生产控制台核对。下表名称来自仓库 Wrangler 配置与代码引用；vars 与 secrets 不要把值抄进文档。
 
@@ -8,44 +8,40 @@
 
 | Worker | 资源与凭据 |
 | --- | --- |
-| core（`douban-bridge-core`，域名 `douban-bridge-core.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件；dash basic auth 读取 KV 键 `DASH_USER` / `DASH_PASS`）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *` |
+| core（Worker `douban-bridge-core`，域名 `douban-bridge.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件；dash basic auth 读取 KV 键 `DASH_USER` / `DASH_PASS`）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *`。公开 `/v1` 只认 Bearer `sk` |
 | stremio（`stremio-addon-douban`，旧 custom domain `stremio-addon-douban.baran.wang`） | `CORE_STREMIO` → `StremioEntrypoint`、`CORE_WEB` → 默认入口、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、旧 custom domain。无 D1 / KV / cron / 上游凭据 |
-| api（`douban-bridge-api`，新 custom domain `douban-bridge-api.baran.wang`） | `CORE_API` → `ApiEntrypoint`、`PUBLIC_RATE_LIMIT`、新 api custom domain。无 D1 / KV / cron / 上游凭据 |
 
 当前 `apps/core/wrangler.jsonc` 的 **vars**（明文配置，不是 secret）：`DOUBAN_API_KEY`、`TRAKT_CLIENT_ID`、`GITHUB_CLIENT_ID`、`STREMIO_ORIGIN`、`DASH_ORIGIN`。代码还读取以下名称，它们应作为 **secrets**（或尚未配置）：`JWT_SECRET`、`GITHUB_CLIENT_SECRET`、`TMDB_API_KEY`；可选 `FANART_API_KEY` / `TRAKT_CLIENT_SECRET`。获得授权后用下面命令核对实际存在的名称，**不要把值写入仓库或本文**：
 
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler secret list
 rtk proxy pnpm --filter @douban-bridge/stremio exec wrangler secret list
-rtk proxy pnpm --filter @douban-bridge/api exec wrangler secret list
 ```
 
-core 保持原 `JWT_SECRET`，使旧 cookie 仍能校验。不从部署日志恢复秘密。旧 Worker 切换完成后清除残留 secrets，确认 stremio 与 api **最终不再持有**上游 credentials。
+core 保持原 `JWT_SECRET`，使旧 cookie 仍能校验。不从部署日志恢复秘密。旧 Worker 切换完成后清除残留 secrets，确认 stremio **最终不再持有**上游 credentials。
 
 授权后核对 vars / secrets 时，以命令输出的名称为准；上表中部分上游 key 可能属于 vars。
 
 ## 本地联调（非生产）
 
-构建顺序：core → stremio → api → rex-widget。`pnpm deploy` **不会**一次部署全部 Worker，也不会应用远端 migration。
+构建顺序：core → stremio → rex-widget。`pnpm deploy` **不会**一次部署全部 Worker，也不会应用远端 migration。
 
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core build
 rtk proxy pnpm --filter @douban-bridge/stremio build
-rtk proxy pnpm --filter @douban-bridge/api build
 rtk proxy pnpm --filter @douban-bridge/rex-widget build
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations apply stremio-addon-douban --local --persist-to ../../.wrangler/bridge-smoke
 ```
 
-三个独立终端（均 `--persist-to ../../.wrangler/bridge-smoke`，禁止 remote bindings）：
+两个独立终端（均 `--persist-to ../../.wrangler/bridge-smoke`，禁止 remote bindings）：
 
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core preview
 rtk proxy pnpm --filter @douban-bridge/stremio preview
-rtk proxy pnpm --filter @douban-bridge/api preview
 rtk proxy node scripts/smoke.mjs
 ```
 
-core preview 使用 Vite 构建后 `.wrangler/deploy/config.json` 指向的配置，并覆盖 `STREMIO_ORIGIN=http://localhost:8788`、`DASH_ORIGIN=http://localhost:8787`。stremio / api 使用各自源 Wrangler 配置。本地 HTTP 只验证 router 与字段；真实 OAuth / Secure Cookie 在 HTTPS 环境验证，不宣称本地登录通过。
+core preview 使用 Vite 构建后 `.wrangler/deploy/config.json` 指向的配置，并覆盖 `STREMIO_ORIGIN=http://localhost:8788`、`DASH_ORIGIN=http://localhost:8787`。stremio 使用源 Wrangler 配置。本地 HTTP 只验证 router 与字段；真实 OAuth / Secure Cookie 在 HTTPS 环境验证，不宣称本地登录通过。
 
 `scripts/smoke.mjs` 使用本地 URL 与一次性 D1 账号，不打印 `sk`。其中带 Bearer 的 catalog / meta 请求会走公网豆瓣（若预览进程在跑）。包内 Node 测试使用 mock 数据源，二者不是同一种证据。
 
@@ -81,7 +77,7 @@ rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations apply st
 
 ### 3. 首次部署 core（禁用 cron）
 
-为 core 配置现有 D1 / KV / rate limits / ASSETS / 现有 secrets / 两个 origin。把 dash 基本认证写入 KV 键 `DASH_USER` 与 `DASH_PASS`（不要把值写入仓库或本文）。`verifyUser` 在二者任一缺失时 **fail-open**（返回 true，本地空 KV 仍能打开 dash）；生产必须两键都在，否则 dash 无密码可进。在**现有** GitHub OAuth App 上增加 callback `https://douban-bridge-core.baran.wang/auth/github/callback`（保留旧 Stremio callback），两个公开域名共用 `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`。
+为 core 配置现有 D1 / KV / rate limits / ASSETS / 现有 secrets / 两个 origin。把 dash 基本认证写入 KV 键 `DASH_USER` 与 `DASH_PASS`（不要把值写入仓库或本文）。`verifyUser` 在二者任一缺失时 **fail-open**（返回 true，本地空 KV 仍能打开 dash）；生产必须两键都在，否则 dash 无密码可进。在**现有** GitHub OAuth App 上增加 callback `https://douban-bridge.baran.wang/auth/github/callback`（保留旧 Stremio callback），两个公开域名共用 `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`。首次部署验证：无 Bearer 的 `/v1` 为 401 且 `Cache-Control: private, no-store`；cookie 不能代替 `sk`。
 
 首次 core 部署先把 `apps/core/wrangler.jsonc` 的 `triggers.crons` 设为空（或不部署该字段），**保留旧 Worker 的唯一 cron**，避免两个写入者重叠。上传 core 后验证：默认入口拒绝 `/v1/*` 与 `/stremio/manifest`；dash HTTPS、OAuth、`/icon.png` 与 `/assets/*` 正常；KV 中 `DASH_USER` 与 `DASH_PASS` 均已配置，未配置时 dash 会 fail-open。
 
@@ -111,21 +107,13 @@ rtk proxy pnpm --filter @douban-bridge/stremio exec wrangler secret list
 rtk proxy pnpm --filter @douban-bridge/core deploy
 ```
 
-### 7. 部署 api
-
-部署 api 与 custom domain。验证无 Bearer → 401、`Cache-Control: private, no-store`；有效 `sk` → 200；撤销或无 Star → 401/403；图片 URL 不带 Bearer 仍可加载；core 默认入口仍 404 内部路径。
-
-```bash
-rtk proxy pnpm --filter @douban-bridge/api deploy
-```
-
-### 8. Widget Release（须仓库已整合且获授权）
+### 7. Widget Release（须仓库已整合且获授权）
 
 为已验证并推到远端仓库的 commit 创建 `widget-v0.1.0` **draft** Release，上传 `apps/rex-widget/dist/douban-bridge.js`。核对构建 commit、包版本 `0.1.0` 和资源校验值后再发布。最后在 Rex 导入发布后的脚本 URL，并完成任务 9 实测矩阵。Release 发布前该 URL **404 是预期**；本地 `dist/` 存在不等于分发成功。本任务不创建 Release。
 
 ## 回滚
 
-1. 先停发新 Widget / api 流量（撤回或取消发布 Release；必要时下线 api 路由或 Worker）。
+1. 先停发新 Widget 流量（撤回或取消发布 Release；必要时停 `/v1` 或 Worker）。
 2. 若回滚旧 Stremio Worker 版本：先停 core cron（清空 `triggers.crons` 后 `rtk proxy pnpm --filter @douban-bridge/core deploy`），再恢复旧 Worker 部署及其旧绑定 / secrets / cron。
 3. 新加 `api_keys` 表可保留。**不能 DROP 原表**，也**不能用旧备份覆盖用户新配置**。
 4. 若旧 Worker secrets 已清理，从受控备份恢复后再回滚。

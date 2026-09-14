@@ -94,7 +94,7 @@ test("basic catalog uses public Douban paging and never calls the cloud API", as
   const requests = installWidget();
   const result = await getBasicCatalog({ collectionId: "movie_top250", skip: 20 });
   assert.equal(
-    requests.some((url) => url.includes("douban-bridge-api")),
+    requests.some((url) => url.includes("/v1/")),
     false,
   );
   assert.equal(
@@ -187,7 +187,7 @@ test("direct meta reads Douban actors without calling the cloud", async () => {
   assert.equal(item.tmdbId, 278);
   assert.equal(item.imdbId, null);
   assert.equal(
-    requests.some((url) => url.includes("douban-bridge-api")),
+    requests.some((url) => url.includes("/v1/")),
     false,
   );
 });

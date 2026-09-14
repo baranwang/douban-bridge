@@ -37,7 +37,7 @@ test("VM globals, 13 default modules, optional yearly params, empty cloud page",
       http: {
         get: async (url) => {
           const host = new URL(url).hostname;
-          if (host !== "douban-bridge-api.baran.wang") local += 1;
+          if (host !== "douban-bridge.baran.wang") local += 1;
           return { statusCode: 200, data: { items: [] } };
         },
       },
