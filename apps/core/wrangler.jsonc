@@ -40,7 +40,7 @@
   ],
   "vars": {
     "DOUBAN_API_KEY": "0ac44ae016490db2204ce0a042db2916",
-    "TRAKT_CLIENT_ID": "7100193031cd53fc7d2ec3eb22fe4162f30f0fb572d18c5b87fa1274c3dab80b",
+    "TRAKT_CLIENT_ID": "95pidRr4d15bGI__HJQtIsSRzv_GfTnznlFotZrFsew",
     "GITHUB_CLIENT_ID": "Ov23liAcIeCqxTwANWoZ",
     "STREMIO_ORIGIN": "https://stremio-addon-douban.baran.wang",
     "DASH_ORIGIN": "https://douban-bridge.baran.wang"
