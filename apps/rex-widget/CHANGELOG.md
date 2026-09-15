@@ -1,5 +1,12 @@
 # @rexnow/douban
 
+## 0.3.1
+
+### Patch Changes
+
+- 5d20f41: 「最新年度」直接映射到最新年份的子榜，不再重复一份 category tabs。
+- 201e329: catalog 直接返回 Rex VideoItem：去掉 description，类型走 genres，basic 有 TMDB 匹配时使用 tmdb id。
+
 ## 0.3.0
 
 ### Minor Changes
