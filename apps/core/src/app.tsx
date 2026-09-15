@@ -49,4 +49,5 @@ app.get("/assets/*", (c) => {
   return c.env.ASSETS.fetch(c.req.raw);
 });
 
+app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 app.notFound((c) => c.body(null, 404));

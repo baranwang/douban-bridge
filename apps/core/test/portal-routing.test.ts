@@ -61,4 +61,20 @@ describe("product entry routing", { concurrency: false }, () => {
       `${STREMIO}//evil.example/configure?from=bookmark`,
     );
   });
+
+  test("unmatched development assets fall through to the ASSETS binding", async () => {
+    await withTestContext(async (env, ctx) => {
+      const bindings = {
+        ...withOrigins(env),
+        ASSETS: {
+          fetch: async () => new Response("body { color: red; }", { headers: { "Content-Type": "text/css" } }),
+        },
+      } as CloudflareBindings;
+
+      const response = await app.fetch(new Request("http://localhost:5173/src/style.css"), bindings, ctx);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("Content-Type"), "text/css");
+      assert.equal(await response.text(), "body { color: red; }");
+    });
+  });
 });
