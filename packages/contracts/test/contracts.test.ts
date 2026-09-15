@@ -42,11 +42,11 @@ test("non-critical ids and images degrade without failing the page", () => {
     title: "霸王别姬",
     tmdbId: "bad",
     imdbId: "not-imdb",
-    images: { poster: "not-a-url", background: null, logo: "also-not-a-url" },
+    images: { poster: "/poster.jpg", background: null, logo: "https://cdn.example.com/logo.png" },
   });
   assert.equal(parsed.tmdbId, null);
   assert.equal(parsed.imdbId, null);
-  assert.deepEqual(parsed.images, { poster: null, background: null, logo: null });
+  assert.deepEqual(parsed.images, { poster: "/poster.jpg", background: null, logo: "https://cdn.example.com/logo.png" });
   assert.equal(bridgeItemSchema.safeParse({ mediaType: "movie", title: "x", images: {} }).success, false);
   assert.equal(doubanIdSchema.safeParse("0123").success, false);
   assert.equal(doubanIdSchema.parse("1291546"), 1291546);

@@ -1,4 +1,4 @@
-import { type BridgeItem, type CatalogQuery, catalogQuerySchema } from "@douban-bridge/contracts";
+import { type CatalogQuery, catalogQuerySchema } from "@douban-bridge/contracts";
 import { getLatestYearlyRanking } from "@douban-bridge/contracts/collections";
 import { type DoubanSubjectCollectionItem, doubanSubjectCollectionSchema } from "@douban-bridge/contracts/douban";
 import { z } from "zod/v4";
@@ -35,10 +35,6 @@ export type BasicTmdbSource = {
   year?: string | null;
 };
 
-function tmdbImage(path?: string | null): string | null {
-  return path ? `https://image.tmdb.org/t/p/original${path}` : null;
-}
-
 function projectImages(
   source: {
     cover?: string | null;
@@ -47,17 +43,11 @@ function projectImages(
     pic?: { large?: string | null; normal?: string | null } | null;
   },
   match: BasicTmdbMatch | null,
-): BridgeItem["images"] {
+) {
   return {
     poster:
-      tmdbImage(match?.poster_path) ??
-      source.cover ??
-      source.cover_url ??
-      source.pic?.large ??
-      source.pic?.normal ??
-      null,
-    background: tmdbImage(match?.backdrop_path) ?? source.photos?.[0] ?? null,
-    logo: null,
+      match?.poster_path ?? source.cover ?? source.cover_url ?? source.pic?.large ?? source.pic?.normal ?? undefined,
+    background: match?.backdrop_path ?? source.photos?.[0] ?? undefined,
   };
 }
 
@@ -87,27 +77,27 @@ export async function findBasicTmdb(source: BasicTmdbSource): Promise<BasicTmdbM
   }
 }
 
-async function toBridgeItem(item: DoubanSubjectCollectionItem): Promise<BridgeItem> {
+async function toVideoItem(item: DoubanSubjectCollectionItem): Promise<VideoItem> {
   const match = await findBasicTmdb({
     type: item.type,
     title: item.title,
     original_title: item.original_title,
     year: item.year,
   }).catch(() => null);
+  const images = projectImages(item, match);
   return {
-    doubanId: item.id,
+    id: String(match?.id ?? item.id),
+    type: match ? "tmdb" : "douban",
     mediaType: item.type,
     title: item.title,
-    description: item.description ?? undefined,
-    year: item.year ?? undefined,
-    rating: item.rating?.value ?? undefined,
-    tmdbId: match?.id ?? null,
-    imdbId: null,
-    images: projectImages(item, match),
+    releaseDate: item.year,
+    rating: item.rating?.value === undefined ? undefined : String(item.rating.value),
+    posterPath: images.poster,
+    backdropPath: images.background,
   };
 }
 
-export async function getBasicCatalog(query: CatalogQuery): Promise<BridgeItem[]> {
+export async function getBasicCatalog(query: CatalogQuery): Promise<VideoItem[]> {
   const parsed = catalogQuerySchema.parse(query);
   const collectionId = getLatestYearlyRanking(parsed.collectionId)?.id ?? parsed.collectionId;
   const response = await rexFetch
@@ -124,5 +114,5 @@ export async function getBasicCatalog(query: CatalogQuery): Promise<BridgeItem[]
   const data = response.data;
   const items = data.subject_collection_items;
   if (items.length === 0) return [];
-  return Promise.all(items.map((item) => toBridgeItem(item)));
+  return Promise.all(items.map((item) => toVideoItem(item)));
 }

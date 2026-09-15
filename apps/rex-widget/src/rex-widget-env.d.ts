@@ -452,11 +452,6 @@ interface MovieYearlyLoadYearlyCatalogParams extends DoubanBridge.GlobalParams {
     collectionId: '__movie_yearly_ranking__' | 'ECE472UNY' | 'ECBE7RX5A' | 'ECQ46F7XI' | 'ECKA55LSA' | 'ECWY6B2GQ' | 'EC2A5MRIY' | 'ECFYHQBWQ' | '2018_movie_1' | '2017_movie_chinese_score' | '2016_movie_451' | '2015_movie_3' | '2014_movie_2';
     /**
      * 分类
-     * @default '__movie_yearly_ranking__'
-     */
-    subCollectionId___movie_yearly_ranking__: '__movie_yearly_ranking__' | 'ECB5AE5EQ' | 'ECFM7Z3AA' | 'ECNI724YA' | 'EC45ABN2Y' | 'ECANAAAGY' | 'ECM5AC2HQ' | 'ECNA72CVA' | 'ECKU74SFA' | 'ECDBAETMY';
-    /**
-     * 分类
      * @default 'ECE472UNY'
      */
     subCollectionId_ECE472UNY: 'ECE472UNY' | 'ECB5AE5EQ' | 'ECFM7Z3AA' | 'ECNI724YA' | 'EC45ABN2Y' | 'ECANAAAGY' | 'ECM5AC2HQ' | 'ECNA72CVA' | 'ECKU74SFA' | 'ECDBAETMY';
@@ -532,11 +527,6 @@ interface MovieYearlyLoadYearlyCatalogReturnType extends Array<VideoItem> {
 interface TvYearlyLoadYearlyCatalogParams extends DoubanBridge.GlobalParams {
     /** 年度 */
     collectionId: '__tv_yearly_ranking__' | 'EC2FACYKQ' | 'ECYA7RAZQ' | 'ECTE6EOZA' | 'ECWU56XUI' | 'ECOY56I6Y' | 'ECCM5TXSI' | 'ECR4HOW3I' | '2018_tv_23' | '2017_tv_domestic_score' | '2016_tv_478' | '2015_tv_6' | '2014_tv_14';
-    /**
-     * 分类
-     * @default '__tv_yearly_ranking__'
-     */
-    subCollectionId___tv_yearly_ranking__: '__tv_yearly_ranking__' | 'ECHNAB4LY' | 'ECWQ7ZJGY' | 'ECPNAHZ2A' | 'EC7VAFY4Q' | 'EC647Z33A' | 'ECQM7YUOQ' | 'ECIM7ZJCI' | 'EC2RAB7MY';
     /**
      * 分类
      * @default 'EC2FACYKQ'
