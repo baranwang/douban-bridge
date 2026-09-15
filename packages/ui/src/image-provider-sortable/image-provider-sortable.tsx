@@ -73,7 +73,7 @@ export const ImageProviderSortable: React.FC<ImageProviderSortableProps> = ({ va
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={displayOrder} strategy={verticalListSortingStrategy}>
-        {sortedConfigs.map((config, index) => {
+        {sortedConfigs.map((config) => {
           const provider = value.find((item) => item.provider === config.id);
           const isEnabled = !!provider;
           // 合并默认 extra，确保客户端动态默认值被应用
@@ -97,7 +97,6 @@ export const ImageProviderSortable: React.FC<ImageProviderSortableProps> = ({ va
               onToggle={(enabled) => handleToggle(config.id, enabled, defaultExtra)}
               onExtraChange={(extra) => handleExtraChange(config.id, extra)}
               disabled={disabled}
-              showSeparator={index < sortedConfigs.length - 1}
             />
           );
         })}

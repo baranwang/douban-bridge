@@ -177,7 +177,7 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
                 icon={<Image className="size-4 text-muted-foreground" />}
                 footer="拖动排序调整优先级，排在前面的图片来源将优先使用"
               >
-                <ItemGroup className="rounded-lg border">
+                <ItemGroup>
                   <form.Field name="imageProviders" mode="array">
                     {(field) => (
                       <ImageProviderSortable

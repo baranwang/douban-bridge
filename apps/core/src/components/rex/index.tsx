@@ -66,7 +66,7 @@ export function Rex({ user, imageProviders: initialImageProviders }: RexProps) {
               icon={<ImageIcon className="size-4 text-muted-foreground" />}
               footer="拖动排序调整优先级，排在前面的图片来源将优先使用"
             >
-              <ItemGroup className="gap-0 rounded-lg border">
+              <ItemGroup>
                 <ImageProviderSortable value={imageProviders} onChange={setImageProviders} />
               </ItemGroup>
             </SettingSection>
