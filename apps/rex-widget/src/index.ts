@@ -20,15 +20,21 @@ function queryFromParams(params: { collectionId: string; page?: string | number 
   return catalogQuerySchema.parse({ collectionId: subCollectionId || params.collectionId, skip: (page - 1) * 20 });
 }
 
+const TMDB_ORIGINAL = "https://image.tmdb.org/t/p/original";
+
+function hostImagePath(url?: string | null) {
+  return url?.startsWith(TMDB_ORIGINAL) ? url.slice(TMDB_ORIGINAL.length) : (url ?? undefined);
+}
+
 function toHostItem(item: BridgeItem) {
   return {
-    id: item.tmdbId ? `${item.mediaType}.${item.tmdbId}` : String(item.imdbId ?? item.doubanId),
+    id: String(item.tmdbId ?? item.imdbId ?? item.doubanId),
     type: item.tmdbId ? "tmdb" : item.imdbId ? "imdb" : "douban",
     title: item.title,
     description: item.description,
     mediaType: item.mediaType,
-    posterPath: item.images.poster ?? undefined,
-    backdropPath: item.images.background ?? undefined,
+    posterPath: hostImagePath(item.images.poster),
+    backdropPath: hostImagePath(item.images.background),
     rating: item.rating === undefined ? undefined : String(item.rating),
     releaseDate: item.year,
   } satisfies VideoItem;
@@ -159,6 +165,7 @@ WidgetMetadata = {
             ...enumOptions(YEARLY_RANKINGS[MOVIE_YEARLY_RANKING_ID]),
           ],
         },
+        ...subCollectionParams([{ id: MOVIE_YEARLY_RANKING_ID }, ...YEARLY_RANKINGS[MOVIE_YEARLY_RANKING_ID]]),
         PAGE,
       ],
     },
@@ -177,6 +184,7 @@ WidgetMetadata = {
             ...enumOptions(YEARLY_RANKINGS[TV_YEARLY_RANKING_ID]),
           ],
         },
+        ...subCollectionParams([{ id: TV_YEARLY_RANKING_ID }, ...YEARLY_RANKINGS[TV_YEARLY_RANKING_ID]]),
         PAGE,
       ],
     },

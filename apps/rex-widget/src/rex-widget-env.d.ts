@@ -451,6 +451,71 @@ interface MovieYearlyLoadYearlyCatalogParams extends DoubanBridge.GlobalParams {
     /** 年度 */
     collectionId: '__movie_yearly_ranking__' | 'ECE472UNY' | 'ECBE7RX5A' | 'ECQ46F7XI' | 'ECKA55LSA' | 'ECWY6B2GQ' | 'EC2A5MRIY' | 'ECFYHQBWQ' | '2018_movie_1' | '2017_movie_chinese_score' | '2016_movie_451' | '2015_movie_3' | '2014_movie_2';
     /**
+     * 分类
+     * @default '__movie_yearly_ranking__'
+     */
+    subCollectionId___movie_yearly_ranking__: '__movie_yearly_ranking__' | 'ECB5AE5EQ' | 'ECFM7Z3AA' | 'ECNI724YA' | 'EC45ABN2Y' | 'ECANAAAGY' | 'ECM5AC2HQ' | 'ECNA72CVA' | 'ECKU74SFA' | 'ECDBAETMY';
+    /**
+     * 分类
+     * @default 'ECE472UNY'
+     */
+    subCollectionId_ECE472UNY: 'ECE472UNY' | 'ECB5AE5EQ' | 'ECFM7Z3AA' | 'ECNI724YA' | 'EC45ABN2Y' | 'ECANAAAGY' | 'ECM5AC2HQ' | 'ECNA72CVA' | 'ECKU74SFA' | 'ECDBAETMY';
+    /**
+     * 分类
+     * @default 'ECBE7RX5A'
+     */
+    subCollectionId_ECBE7RX5A: 'ECBE7RX5A' | 'ECBQ7RNSA' | 'ECSE7P7GQ' | 'ECRY73E2Q' | 'ECBM7NLJA' | 'ECLE7RV6Y' | 'ECHU7QOYQ' | 'ECKY7RPLQ' | 'ECZA7V7AA' | 'ECS47YXRQ';
+    /**
+     * 分类
+     * @default 'ECQ46F7XI'
+     */
+    subCollectionId_ECQ46F7XI: 'ECQ46F7XI' | 'ECFA6FLWQ' | 'ECMY6GCCA' | 'ECCU6MRTY' | 'EC4Y6ALRA' | 'ECCI6H3TA' | 'EC3A56FJA' | 'ECYI6DWVQ' | 'ECHU6BXBI' | 'ECRM6A2JA';
+    /**
+     * 分类
+     * @default 'ECKA55LSA'
+     */
+    subCollectionId_ECKA55LSA: 'ECKA55LSA' | 'ECQU6DFQA' | 'ECSQ6DBYA' | 'ECEA6ANKY' | 'ECHM6DG7Y' | 'EC4Y54ORI' | 'ECYU6IHKI' | 'ECRI53OUQ' | 'EC4M6ACVQ' | 'ECGY527GY';
+    /**
+     * 分类
+     * @default 'ECWY6B2GQ'
+     */
+    subCollectionId_ECWY6B2GQ: 'ECWY6B2GQ' | 'ECNE54UQI' | 'ECRA53WMI' | 'ECJM6BMEA' | 'EC6A575FI' | 'ECBM5YQVA' | 'ECOY6BCBI' | 'ECLY57EVQ';
+    /**
+     * 分类
+     * @default 'EC2A5MRIY'
+     */
+    subCollectionId_EC2A5MRIY: 'EC2A5MRIY' | 'ECIU5HIEQ' | 'ECGY5FDUA' | 'ECCA5MMHI' | 'EC3A5GQ5A' | 'ECM45Q7VI' | 'ECBA5UC6Q' | 'EC7U5TVBY' | 'ECMY5PBHI' | 'EC4Q5SGKQ';
+    /**
+     * 分类
+     * @default 'ECFYHQBWQ'
+     */
+    subCollectionId_ECFYHQBWQ: 'ECFYHQBWQ' | 'ECFQHXCTQ' | 'ECOUHS3TY' | 'ECBU6ENLI' | 'ECSY52PSI' | 'EC7E57OPQ' | 'ECYQ6G4WI';
+    /**
+     * 分类
+     * @default '2018_movie_1'
+     */
+    subCollectionId_2018_movie_1: '2018_movie_1' | '2018_movie_0' | '2018_movie_14' | '2018_movie_5' | '2018_movie_4' | '2018_movie_16' | '2018_movie_17' | '2018_movie_19' | '2018_movie_20' | '2018_movie_21';
+    /**
+     * 分类
+     * @default '2017_movie_chinese_score'
+     */
+    subCollectionId_2017_movie_chinese_score: '2017_movie_chinese_score' | '2017_movie_foreign_score' | '2017_movie_dark_horse' | '2017_movie_696' | '2017_movie_695' | '2017_movie_699' | '2017_movie_700' | '2017_movie_702' | '2017_movie_686';
+    /**
+     * 分类
+     * @default '2016_movie_451'
+     */
+    subCollectionId_2016_movie_451: '2016_movie_451' | '2016_movie_272' | '2016_movie_456' | '2016_movie_459' | '2016_movie_458' | '2016_movie_465' | '2016_movie_466' | '2016_movie_468' | '2016_movie_469' | '2016_movie_470';
+    /**
+     * 分类
+     * @default '2015_movie_3'
+     */
+    subCollectionId_2015_movie_3: '2015_movie_3' | '2015_movie_2' | '2015_movie_43' | '2015_movie_45' | '2015_movie_44' | '2015_movie_54' | '2015_movie_55';
+    /**
+     * 分类
+     * @default '2014_movie_2'
+     */
+    subCollectionId_2014_movie_2: '2014_movie_2' | '2014_movie_1' | '2014_movie_5' | '2014_movie_7' | '2014_movie_6' | '2014_movie_9' | '2014_movie_10';
+    /**
      * 页码
      * @default '1'
      */
@@ -467,6 +532,71 @@ interface MovieYearlyLoadYearlyCatalogReturnType extends Array<VideoItem> {
 interface TvYearlyLoadYearlyCatalogParams extends DoubanBridge.GlobalParams {
     /** 年度 */
     collectionId: '__tv_yearly_ranking__' | 'EC2FACYKQ' | 'ECYA7RAZQ' | 'ECTE6EOZA' | 'ECWU56XUI' | 'ECOY56I6Y' | 'ECCM5TXSI' | 'ECR4HOW3I' | '2018_tv_23' | '2017_tv_domestic_score' | '2016_tv_478' | '2015_tv_6' | '2014_tv_14';
+    /**
+     * 分类
+     * @default '__tv_yearly_ranking__'
+     */
+    subCollectionId___tv_yearly_ranking__: '__tv_yearly_ranking__' | 'ECHNAB4LY' | 'ECWQ7ZJGY' | 'ECPNAHZ2A' | 'EC7VAFY4Q' | 'EC647Z33A' | 'ECQM7YUOQ' | 'ECIM7ZJCI' | 'EC2RAB7MY';
+    /**
+     * 分类
+     * @default 'EC2FACYKQ'
+     */
+    subCollectionId_EC2FACYKQ: 'EC2FACYKQ' | 'ECHNAB4LY' | 'ECWQ7ZJGY' | 'ECPNAHZ2A' | 'EC7VAFY4Q' | 'EC647Z33A' | 'ECQM7YUOQ' | 'ECIM7ZJCI' | 'EC2RAB7MY';
+    /**
+     * 分类
+     * @default 'ECYA7RAZQ'
+     */
+    subCollectionId_ECYA7RAZQ: 'ECYA7RAZQ' | 'EC5U7O7WY' | 'ECOY7WR4I' | 'ECRE7PJSQ' | 'ECMM7RKRA' | 'ECTE7TV3Y' | 'ECHQ7SAPY' | 'ECDM74KXY';
+    /**
+     * 分类
+     * @default 'ECTE6EOZA'
+     */
+    subCollectionId_ECTE6EOZA: 'ECTE6EOZA' | 'ECUI6CVAI' | 'ECM46I42A' | 'ECPE6B6NI' | 'EC246FT6Y' | 'EC7I6GR6A' | 'EC3Q6JTOQ' | 'ECCU6NNCI';
+    /**
+     * 分类
+     * @default 'ECWU56XUI'
+     */
+    subCollectionId_ECWU56XUI: 'ECWU56XUI' | 'ECQY6HRQQ' | 'ECMU6H5VY' | 'ECRY6I6FA' | 'EC2Y6BEGQ' | 'EC4U6BXLA' | 'ECRI533KQ' | 'ECR455GTQ';
+    /**
+     * 分类
+     * @default 'ECOY56I6Y'
+     */
+    subCollectionId_ECOY56I6Y: 'ECOY56I6Y' | 'EC5U5X5FA' | 'ECEI6A5ZI' | 'ECZQ6AD6Y' | 'ECNI5ZBSQ' | 'ECGA6CUPA' | 'ECPY52QZY';
+    /**
+     * 分类
+     * @default 'ECCM5TXSI'
+     */
+    subCollectionId_ECCM5TXSI: 'ECCM5TXSI' | 'ECSA5PTFI' | 'ECZU5SJAI' | 'ECBI5KPKY' | 'ECJM5OL6Y';
+    /**
+     * 分类
+     * @default 'ECR4HOW3I'
+     */
+    subCollectionId_ECR4HOW3I: 'ECR4HOW3I' | 'ECS4HX5JI' | 'ECS4HX6GQ' | 'EC2AHUXEA' | 'ECR4HO7JA';
+    /**
+     * 分类
+     * @default '2018_tv_23'
+     */
+    subCollectionId_2018_tv_23: '2018_tv_23' | '2018_tv_24' | '2018_tv_25' | '2018_tv_26' | '2018_tv_27' | '2018_tv_28' | '2018_tv_29';
+    /**
+     * 分类
+     * @default '2017_tv_domestic_score'
+     */
+    subCollectionId_2017_tv_domestic_score: '2017_tv_domestic_score' | '2017_tv_american_score' | '2017_tv_743' | '2017_tv_740' | '2017_tv_741' | '2017_tv_706' | '2017_tv_707';
+    /**
+     * 分类
+     * @default '2016_tv_478'
+     */
+    subCollectionId_2016_tv_478: '2016_tv_478' | '2016_tv_472' | '2016_tv_474' | '2016_tv_482' | '2016_tv_481' | '2016_tv_486' | '2016_tv_487';
+    /**
+     * 分类
+     * @default '2015_tv_6'
+     */
+    subCollectionId_2015_tv_6: '2015_tv_6' | '2015_tv_7' | '2015_tv_13' | '2015_tv_14' | '2015_tv_15' | '2015_tv_60';
+    /**
+     * 分类
+     * @default '2014_tv_14'
+     */
+    subCollectionId_2014_tv_14: '2014_tv_14' | '2014_tv_13' | '2014_tv_12' | '2014_tv_16' | '2014_tv_15';
     /**
      * 页码
      * @default '1'
