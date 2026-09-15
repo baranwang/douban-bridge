@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@douban-bridge/ui/component
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -40,9 +41,11 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>{user.githubLogin}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={submitLogout}>退出登录</DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{user.githubLogin}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={submitLogout}>退出登录</DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

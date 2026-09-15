@@ -11,7 +11,6 @@ import {
 import { ChevronRight } from "lucide-react";
 import { Github } from "@/components/github-icon";
 import { PageShell } from "@/components/page-shell";
-import { UserMenu } from "@/components/user-menu";
 import type { PublicUser } from "@/libs/public-user";
 
 export interface PortalProps {
@@ -26,7 +25,7 @@ export function Portal({ user, stremioConfigureUrl }: PortalProps) {
       description="把豆瓣目录接入你正在使用的播放器"
       actions={
         user ? (
-          <UserMenu user={user} />
+          <div id="user-menu" className="size-8" />
         ) : (
           <Button variant="ghost" size="sm" render={<a href="/auth/github" />}>
             <Github className="size-4" />
