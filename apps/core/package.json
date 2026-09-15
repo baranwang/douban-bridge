@@ -6,7 +6,8 @@
     "dev": "NODE_ENV=development vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "node scripts/preview.mjs",
-    "deploy": "npm run build && wrangler d1 migrations apply STREMIO_ADDON_DOUBAN --remote && wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply STREMIO_ADDON_DOUBAN --remote",
+    "deploy": "wrangler d1 migrations apply STREMIO_ADDON_DOUBAN --remote && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "test": "node ../../scripts/test.mjs"
   },
