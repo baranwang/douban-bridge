@@ -23,6 +23,7 @@ apiKeysRoute.onError((err, c) => {
     res.headers.set("Cache-Control", "private, no-store");
     return res;
   }
+  console.error("api-keys route failed", err);
   return c.body(null, 500);
 });
 
