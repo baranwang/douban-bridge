@@ -5,7 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import { sign } from "hono/jwt";
 import { app } from "../src/app";
 import { getDrizzle, userConfigs, users } from "../src/db";
-import { authenticateApiKey, replaceApiKey, revokeApiKey } from "../src/libs/api-key";
+import { authenticateApiKey, getApiKey, replaceApiKey, revokeApiKey } from "../src/libs/api-key";
 import { configSchema } from "../src/libs/config";
 import { withTestContext } from "./context";
 
@@ -35,6 +35,7 @@ async function insertUser(
       githubAvatarUrl: "https://example.com/a.png",
       githubAccessToken: GITHUB_TOKEN,
       hasStarred: true,
+      starCheckedAt: new Date(),
       ...overrides,
     });
   return userId;
@@ -49,25 +50,24 @@ async function fetchApiKeys(env: CloudflareBindings, ctx: ExecutionContext, requ
   return app.fetch(request, withRateLimits(env), ctx);
 }
 
-describe("api key digest auth", { concurrency: false }, () => {
-  test("replace rotates keys, stores only hashes, and revoke invalidates", async () => {
+describe("api key auth", { concurrency: false }, () => {
+  test("replace rotates keys, keeps the plaintext readable, and revoke invalidates", async () => {
     await withTestContext(async (env) => {
       const userId = await insertUser(env);
       const first = await replaceApiKey(env, userId);
       assert.match(first, /^sk_[0-9a-f]{64}$/);
       assert.equal((await authenticateApiKey(env, `Bearer ${first}`)).userId, userId);
+      // 明文入库，界面才能随时回看
+      assert.equal((await getApiKey(env, userId))?.key, first);
       const second = await replaceApiKey(env, userId);
       await assert.rejects(
         authenticateApiKey(env, `Bearer ${first}`),
         (error: unknown) => error instanceof HTTPException && error.status === 401,
       );
       assert.equal((await authenticateApiKey(env, `Bearer ${second}`)).userId, userId);
-      const rows = await env.STREMIO_ADDON_DOUBAN.prepare("SELECT * FROM api_keys").all();
-      const dumped = JSON.stringify(rows);
-      assert.equal(dumped.includes("sk_"), false);
-      assert.equal(dumped.includes(first), false);
-      assert.equal(dumped.includes(second), false);
+      assert.equal((await getApiKey(env, userId))?.key, second);
       await revokeApiKey(env, userId);
+      assert.equal(await getApiKey(env, userId), null);
       await assert.rejects(authenticateApiKey(env, `Bearer ${second}`));
     });
   });
@@ -223,11 +223,14 @@ describe("api-keys session routes", { concurrency: false }, () => {
         );
         assert.equal(created.status, 200);
         assert.equal(created.headers.get("Cache-Control"), "private, no-store");
-        const body = (await created.json()) as { sk: string };
-        assert.match(body.sk, /^sk_[0-9a-f]{64}$/);
+        const body = (await created.json()) as { key: string };
+        assert.match(body.key, /^sk_[0-9a-f]{64}$/);
         const listed = await fetchApiKeys(env, ctx, new Request(`${origin}/api-keys`, { headers: { Cookie: cookie } }));
         assert.equal(listed.status, 200);
-        assert.deepEqual(await listed.json(), { hasKey: true });
+        const listedBody = (await listed.json()) as { key: string | null; createdAt: string | null };
+        // 明文取得回来，界面直接显示，不用「只显示一次」那套说辞
+        assert.equal(listedBody.key, body.key);
+        assert.match(listedBody.createdAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
         assert.equal(listed.headers.get("Cache-Control"), "private, no-store");
       }
     });

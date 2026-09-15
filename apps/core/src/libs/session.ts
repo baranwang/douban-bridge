@@ -3,6 +3,7 @@ import type { Context, Env, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { sign, verify } from "hono/jwt";
 import { getDrizzle, type User, users } from "@/db";
+import { ensureFreshStarStatus } from "@/libs/star";
 
 const JWT_COOKIE_NAME = "token";
 const JWT_TTL = 60 * 60 * 24 * 30; // 30 天
@@ -79,8 +80,9 @@ export async function getCurrentUser(c: Context<Env>): Promise<User | null> {
 
   const db = getDrizzle(c.env);
   const user = await db.query.users.findFirst({ where: eq(users.id, payload.sub) });
+  if (!user) return null;
 
-  return user ?? null;
+  return ensureFreshStarStatus(c.env, user);
 }
 
 // 扩展 Hono 的 Context 类型

@@ -2,22 +2,25 @@ import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { apiKeys, getDrizzle, userConfigs, users } from "@/db";
 import { type Config, configSchema } from "./config";
-
-export async function hashApiKey(raw: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
-}
+import { ensureFreshStarStatus } from "./star";
 
 export async function replaceApiKey(env: CloudflareBindings, userId: string): Promise<string> {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
-  const sk = `sk_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
-  const keyHash = await hashApiKey(sk);
+  const key = `sk_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
   const createdAt = new Date();
   await getDrizzle(env)
     .insert(apiKeys)
-    .values({ userId, keyHash, createdAt })
-    .onConflictDoUpdate({ target: apiKeys.userId, set: { keyHash, createdAt } });
-  return sk;
+    .values({ userId, key, createdAt })
+    .onConflictDoUpdate({ target: apiKeys.userId, set: { key, createdAt } });
+  return key;
+}
+
+export async function getApiKey(
+  env: CloudflareBindings,
+  userId: string,
+): Promise<{ key: string; createdAt: Date } | null> {
+  const row = await getDrizzle(env).query.apiKeys.findFirst({ where: eq(apiKeys.userId, userId) });
+  return row ? { key: row.key, createdAt: row.createdAt } : null;
 }
 
 export async function revokeApiKey(env: CloudflareBindings, userId: string): Promise<void> {
@@ -32,13 +35,13 @@ export async function authenticateApiKey(
 ): Promise<{ userId: string; config: Config }> {
   const match = header?.match(bearerPattern);
   if (!match) throw new HTTPException(401);
-  const keyHash = await hashApiKey(match[1]);
   try {
     const db = getDrizzle(env);
-    const keyRow = await db.query.apiKeys.findFirst({ where: eq(apiKeys.keyHash, keyHash) });
+    const keyRow = await db.query.apiKeys.findFirst({ where: eq(apiKeys.key, match[1]) });
     if (!keyRow) throw new HTTPException(401);
-    const user = await db.query.users.findFirst({ where: eq(users.id, keyRow.userId) });
-    if (!user) throw new HTTPException(401);
+    const row = await db.query.users.findFirst({ where: eq(users.id, keyRow.userId) });
+    if (!row) throw new HTTPException(401);
+    const user = await ensureFreshStarStatus(env, row);
     if (user.hasStarred !== true) throw new HTTPException(403);
     const configRow = await db.query.userConfigs.findFirst({ where: eq(userConfigs.userId, user.id) });
     if (!configRow) return { userId: user.id, config: configSchema.parse({}) };

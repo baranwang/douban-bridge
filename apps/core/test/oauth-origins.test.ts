@@ -48,6 +48,7 @@ async function insertUser(env: CloudflareBindings): Promise<string> {
       githubAvatarUrl: "https://example.com/a.png",
       githubAccessToken: "ghp_TEST_TOKEN_DO_NOT_LEAK_abc123",
       hasStarred: true,
+      starCheckedAt: new Date(),
     });
   return userId;
 }

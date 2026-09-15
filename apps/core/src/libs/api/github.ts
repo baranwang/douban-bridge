@@ -68,9 +68,12 @@ export class GitHubAPI {
         repo: GITHUB_REPO_NAME,
       });
       return true;
-    } catch {
-      // 404 表示未 star
-      return false;
+    } catch (error) {
+      // 404 未 star；401 token 已失效，同样无法认定为已 star
+      const status = (error as { status?: number }).status;
+      if (status === 404 || status === 401) return false;
+      // 限流、网络故障等交给调用方决定，不能一律当成未 star
+      throw error;
     }
   }
 }

@@ -6,27 +6,31 @@ import {
   InputGroupInput,
 } from "@douban-bridge/ui/components/input-group";
 import { toast } from "@douban-bridge/ui/components/toast";
-import { Copy, KeyRound } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound } from "lucide-react";
 import { type FC, useCallback, useEffect, useState } from "react";
 import { SettingSection } from "@/components/setting-section";
 import type { PublicUser } from "@/libs/public-user";
 import { apiKeyActionUi } from "./api-key-action";
 
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString("zh-CN");
+
 export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
-  const [hasKey, setHasKey] = useState(false);
-  const [sk, setSk] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
-  const { disabled, label, showRetry } = apiKeyActionUi({ loaded, hasKey, busy, loadFailed });
+  const { disabled, label, showRetry } = apiKeyActionUi({ loaded, hasKey: !!apiKey, busy, loadFailed });
 
   const loadStatus = useCallback(async (signal?: { cancelled: boolean }) => {
     try {
       const response = await fetch("/api-keys", { credentials: "same-origin" });
       if (!response.ok) throw new Error("key request failed");
-      const data = (await response.json()) as { hasKey: boolean };
+      const data = (await response.json()) as { key: string | null; createdAt: string | null };
       if (signal?.cancelled) return;
-      setHasKey(data.hasKey);
+      setApiKey(data.key);
+      setCreatedAt(data.createdAt);
       setLoaded(true);
       setLoadFailed(false);
     } catch {
@@ -58,9 +62,10 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
           body: "{}",
         });
         if (!response.ok) throw new Error("key request failed");
-        const { sk: next } = (await response.json()) as { sk: string };
-        setSk(next);
-        setHasKey(true);
+        const { key } = (await response.json()) as { key: string };
+        setApiKey(key);
+        setCreatedAt(new Date().toISOString());
+        setRevealed(true);
       } catch {
         toast.add({ title: "操作失败，请重试", type: "error" });
       } finally {
@@ -69,8 +74,18 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
     })();
   }, [disabled]);
 
+  const copy = useCallback(async () => {
+    if (!apiKey) return;
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      toast.add({ title: "密钥已复制到剪贴板", type: "success" });
+    } catch {
+      toast.add({ title: "操作失败，请重试", type: "error" });
+    }
+  }, [apiKey]);
+
   if (!user) return null;
-  if (!user.hasStarred && !hasKey && !sk) return null;
+  if (!user.hasStarred && !apiKey) return null;
 
   return (
     <SettingSection
@@ -79,30 +94,36 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
       footer="重新生成后，旧密钥立即失效"
     >
       <div className="flex flex-col gap-3">
-        {sk ? (
-          <InputGroup>
-            <InputGroupInput id="account-api-key" type="password" readOnly value={sk} autoComplete="off" />
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                disabled={busy}
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(sk);
-                    toast.add({ title: "密钥已复制到剪贴板", type: "success" });
-                  } catch {
-                    toast.add({ title: "操作失败，请重试", type: "error" });
-                  }
-                }}
-              >
-                <Copy />
-                复制
-              </InputGroupButton>
-            </InputGroupAddon>
-          </InputGroup>
+        {apiKey ? (
+          <>
+            <InputGroup>
+              <InputGroupInput
+                id="account-api-key"
+                type={revealed ? "text" : "password"}
+                readOnly
+                value={apiKey}
+                autoComplete="off"
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  aria-label={revealed ? "隐藏密钥" : "显示密钥"}
+                  size="icon-xs"
+                  onClick={() => setRevealed((v) => !v)}
+                >
+                  {revealed ? <EyeOff /> : <Eye />}
+                </InputGroupButton>
+                <InputGroupButton onClick={copy}>
+                  <Copy />
+                  复制
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+            {createdAt ? <p className="text-muted-foreground text-sm">生成于 {formatDate(createdAt)}</p> : null}
+          </>
         ) : null}
         <div className="flex gap-2">
           {user.hasStarred ? (
-            <Button type="button" variant={sk ? "outline" : "default"} disabled={disabled} onClick={generate}>
+            <Button type="button" variant={apiKey ? "outline" : "default"} disabled={disabled} onClick={generate}>
               {label}
             </Button>
           ) : null}

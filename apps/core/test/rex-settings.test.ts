@@ -35,6 +35,7 @@ async function insertUser(
       githubAvatarUrl: "https://example.com/a.png",
       githubAccessToken: GITHUB_TOKEN,
       hasStarred: true,
+      starCheckedAt: new Date(),
       ...overrides,
     });
   return userId;
