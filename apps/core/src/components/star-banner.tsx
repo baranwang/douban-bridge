@@ -1,8 +1,7 @@
 import { Button } from "@douban-bridge/ui/components/button";
-import { Spinner } from "@douban-bridge/ui/components/spinner";
 import { hc } from "hono/client";
 import { Check, Star } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import { Github } from "@/components/github-icon";
 import type { PublicUser } from "@/libs/public-user";
@@ -10,12 +9,10 @@ import type { AuthRoute } from "@/routes/auth";
 
 const client = hc<AuthRoute>("/auth");
 
-interface StarBannerProps {
-  user?: PublicUser;
-  context: "rex" | "stremio";
-}
+export type StarContext = "rex" | "stremio";
 
-export const StarBanner: React.FC<StarBannerProps> = ({ user, context }) => {
+/** Star 状态轮询：点击「去 Star」后开始检查，确认后跳回目标页。 */
+export function useStarCheck(context: StarContext) {
   const [hasClicked, setHasClicked] = useState(false);
   const $get = client["check-star"].$get;
 
@@ -33,94 +30,80 @@ export const StarBanner: React.FC<StarBannerProps> = ({ user, context }) => {
     },
   );
 
-  const handleClick = useCallback(() => {
-    setHasClicked(true);
-  }, []);
+  const starred = data?.hasStarred === true && Boolean(data.userId);
 
-  const alert = useMemo(() => {
-    if (user?.hasStarred) {
-      return null;
-    }
-    const benefits =
-      context === "rex"
-        ? ["解锁云端完整列表与详情", "保存图片来源与语言偏好", "支持项目持续开发与维护"]
-        : ["配置云同步，修改后无需更换 Manifest 链接", "保存图片来源与语言偏好", "支持项目持续开发与维护"];
-    return (
-      <div className="-mx-2 relative mt-3 overflow-hidden rounded-xl bg-neutral-900 p-4">
-        {/* 装饰性星星 */}
-        <div className="-right-4 -top-4 pointer-events-none absolute text-neutral-700/50">
-          <Star className="size-24" fill="currentColor" />
-        </div>
-        <div className="pointer-events-none absolute right-16 bottom-2 text-neutral-700/30">
-          <Star className="size-8" fill="currentColor" />
-        </div>
-
-        <div className="relative z-10 flex items-start gap-4">
-          {/* 内容区域 */}
-          <div className="flex flex-1 flex-col gap-2">
-            <span className="font-bold text-neutral-100">✨ Star 项目解锁专属特权</span>
-            <ul className="flex flex-col gap-1.5 text-neutral-400 text-xs">
-              {benefits.map((text) => (
-                <li key={text} className="flex items-center gap-2">
-                  <Check className="size-3.5 shrink-0 text-neutral-300" />
-                  <span>{text}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* CTA 按钮 */}
-          <Button
-            size="sm"
-            className="shrink-0 bg-neutral-100 font-semibold text-neutral-900 hover:bg-white"
-            render={
-              user ? (
-                <a
-                  href="https://github.com/baranwang/douban-bridge"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleClick}
-                />
-              ) : (
-                <a href="/auth/github" />
-              )
-            }
-          >
-            {user ? (
-              <>
-                <Star className="size-4" />
-                <span>去 Star 解锁</span>
-              </>
-            ) : (
-              <>
-                <Github className="size-4" />
-                <span>GitHub 登录</span>
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    );
-  }, [user, handleClick, context]);
-
-  // 如果已 Star，跳转到新 URL
-  if (data?.hasStarred && data?.userId) {
+  useEffect(() => {
+    if (!starred || !data?.userId) return;
     window.location.href = context === "rex" ? "/rex" : `/${data.userId}/configure`;
-    return null;
-  }
+  }, [starred, data?.userId, context]);
+
+  return {
+    checking: isValidating || starred,
+    onStarClick: useCallback(() => setHasClicked(true), []),
+  };
+}
+
+interface StarBannerProps {
+  user?: PublicUser;
+  context: StarContext;
+}
+
+export const StarBanner: React.FC<StarBannerProps> = ({ user, context }) => {
+  const { checking, onStarClick } = useStarCheck(context);
+
+  if (user?.hasStarred) return null;
+
+  const benefits =
+    context === "rex"
+      ? ["解锁完整列表与详情", "保存图片来源与语言偏好", "支持项目持续开发与维护"]
+      : ["配置云同步，修改后无需更换 Manifest 链接", "保存图片来源与语言偏好", "支持项目持续开发与维护"];
 
   return (
-    <>
-      {/* Loading 遮罩 */}
-      {isValidating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="flex items-center gap-3 rounded-lg bg-background p-4 shadow-lg">
-            <Spinner />
-          </div>
+    <div className="mt-3 rounded-xl border bg-card p-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="flex flex-1 flex-col gap-2">
+          <span className="font-medium text-sm">Star 项目解锁完整能力</span>
+          <ul className="flex flex-col gap-1.5 text-muted-foreground text-sm">
+            {benefits.map((text) => (
+              <li key={text} className="flex items-start gap-2">
+                <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                <span>{text}</span>
+              </li>
+            ))}
+          </ul>
         </div>
-      )}
-
-      {alert}
-    </>
+        <StarCta user={user} checking={checking} onStarClick={onStarClick} className="w-full sm:w-auto" />
+      </div>
+    </div>
   );
 };
+
+interface StarCtaProps {
+  user?: PublicUser;
+  checking: boolean;
+  onStarClick: () => void;
+  className?: string;
+}
+
+/** 未登录 → 去登录；已登录未 Star → 去 GitHub Star，回到本页后自动确认。 */
+export const StarCta: React.FC<StarCtaProps> = ({ user, checking, onStarClick, className }) => (
+  <Button
+    className={className}
+    disabled={checking}
+    render={
+      user ? (
+        <a
+          href="https://github.com/baranwang/douban-bridge"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onStarClick}
+        />
+      ) : (
+        <a href="/auth/github" />
+      )
+    }
+  >
+    {user ? <Star className="size-4" /> : <Github className="size-4" />}
+    {user ? (checking ? "确认中…" : "去 Star 解锁") : "GitHub 登录"}
+  </Button>
+);

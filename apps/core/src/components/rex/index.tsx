@@ -9,10 +9,11 @@ import { Image as ImageIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import type { PublicUser } from "@/libs/public-user";
+import { PageShell } from "../page-shell";
 import { SettingSection } from "../setting-section";
-import { StarBanner } from "../star-banner";
 import { UserMenu } from "../user-menu";
 import { ApiKeySettings } from "./api-key-settings";
+import { ModeComparison } from "./mode-comparison";
 
 export interface RexProps {
   user?: PublicUser;
@@ -48,63 +49,47 @@ export function Rex({ user, imageProviders: initialImageProviders }: RexProps) {
   };
 
   return (
-    <div className="min-h-dvh bg-muted/30">
-      <div className="page-container flex min-h-dvh flex-col px-4 py-8 sm:py-12">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-balance font-bold text-2xl tracking-tight sm:text-3xl">Rex 设置</h1>
-            <p className="mt-2 text-balance text-muted-foreground">管理 Rex 密钥与所有播放器共用的图片来源。</p>
+    <PageShell
+      title="Rex 设置"
+      description="管理 Rex 密钥与所有播放器共用的图片来源"
+      actions={<UserMenu user={user} />}
+    >
+      {isStarred ? (
+        <div className="mt-9 flex flex-col gap-10">
+          <div data-section="rex-key-settings">
+            <ApiKeySettings user={user} />
           </div>
-          {user ? <UserMenu user={user} /> : null}
-        </header>
 
-        <main className="flex-1 py-8">
-          {isStarred ? (
-            <div className="space-y-8">
-              <div data-section="rex-key-settings">
-                <ApiKeySettings user={user} />
-              </div>
-
-              <form data-section="image-provider-settings" onSubmit={saveImageProviders}>
-                <SettingSection
-                  title="图片来源"
-                  icon={<ImageIcon className="size-4 text-muted-foreground" />}
-                  footer="拖动排序调整优先级，排在前面的图片来源将优先使用"
-                >
-                  <ItemGroup className="rounded-lg border">
-                    <ImageProviderSortable value={imageProviders} onChange={setImageProviders} />
-                  </ItemGroup>
-                </SettingSection>
-                <Button
-                  className="mt-4 w-full sm:w-auto"
-                  type="submit"
-                  disabled={saving || isEqual(imageProviders, savedImageProviders)}
-                >
-                  {saving ? (
-                    <>
-                      <Spinner />
-                      保存中…
-                    </>
-                  ) : (
-                    "保存图片设置"
-                  )}
-                </Button>
-              </form>
-            </div>
-          ) : (
-            <section aria-labelledby="rex-cloud-access-title">
-              <h2 id="rex-cloud-access-title" className="font-semibold text-lg">
-                启用 Rex 云端能力
-              </h2>
-              <p className="mt-1 max-w-prose text-muted-foreground text-sm">
-                登录并 Star 项目后，即可创建 Rex 密钥，并在云端保存所有播放器共用的图片设置。
-              </p>
-              <StarBanner user={user} context="rex" />
-            </section>
-          )}
-        </main>
-      </div>
+          <form data-section="image-provider-settings" onSubmit={saveImageProviders}>
+            <SettingSection
+              title="图片来源"
+              icon={<ImageIcon className="size-4 text-muted-foreground" />}
+              footer="拖动排序调整优先级，排在前面的图片来源将优先使用"
+            >
+              <ItemGroup className="gap-0 rounded-lg border">
+                <ImageProviderSortable value={imageProviders} onChange={setImageProviders} />
+              </ItemGroup>
+            </SettingSection>
+            <Button
+              className="mt-4 w-full sm:w-auto"
+              type="submit"
+              disabled={saving || isEqual(imageProviders, savedImageProviders)}
+            >
+              {saving ? (
+                <>
+                  <Spinner />
+                  保存中…
+                </>
+              ) : (
+                "保存图片设置"
+              )}
+            </Button>
+          </form>
+        </div>
+      ) : (
+        <ModeComparison user={user} />
+      )}
       <Toaster />
-    </div>
+    </PageShell>
   );
 }
