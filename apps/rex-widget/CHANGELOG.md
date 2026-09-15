@@ -1,5 +1,11 @@
 # @rexnow/douban
 
+## 0.3.0
+
+### Minor Changes
+
+- 9fa92d6: 年度电影/剧集榜补上豆瓣分类子榜，并把 TMDB original 图片前缀剥掉交给 Rex 内部图片策略。
+
 ## 0.2.1
 
 ### Patch Changes
