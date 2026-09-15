@@ -35,6 +35,7 @@ async function insertUser(
       githubAvatarUrl: "https://example.com/a.png",
       githubAccessToken: GITHUB_TOKEN,
       hasStarred: true,
+      starCheckedAt: new Date(),
       ...overrides,
     });
   return userId;
@@ -227,7 +228,10 @@ describe("api-keys session routes", { concurrency: false }, () => {
         assert.match(body.sk, /^sk_[0-9a-f]{64}$/);
         const listed = await fetchApiKeys(env, ctx, new Request(`${origin}/api-keys`, { headers: { Cookie: cookie } }));
         assert.equal(listed.status, 200);
-        assert.deepEqual(await listed.json(), { hasKey: true });
+        const listedBody = (await listed.json()) as { hasKey: boolean; createdAt: string | null };
+        assert.equal(listedBody.hasKey, true);
+        // 只存哈希，明文取不回来，界面靠 createdAt 说明「什么时候生成的那把」
+        assert.match(listedBody.createdAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
         assert.equal(listed.headers.get("Cache-Control"), "private, no-store");
       }
     });

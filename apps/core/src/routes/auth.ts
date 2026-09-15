@@ -58,8 +58,8 @@ export const authRoute = new Hono<Env>()
       // 获取用户信息
       const githubUser = await github.getUser(accessToken);
 
-      // 检查 star 状态
-      const hasStarred = await github.checkStarStatus(accessToken);
+      // 检查 star 状态：登录不该因为 GitHub 抖动而失败
+      const hasStarred = await github.checkStarStatus(accessToken).catch(() => false);
 
       const db = getDrizzle(c.env);
 

@@ -30,7 +30,7 @@ apiKeysRoute.onError((err, c) => {
 apiKeysRoute.get("/", async (c) => {
   const user = requireWebSession(c);
   const row = await getDrizzle(c.env).query.apiKeys.findFirst({ where: eq(apiKeys.userId, user.id) });
-  return c.json({ hasKey: !!row });
+  return c.json({ hasKey: !!row, createdAt: row?.createdAt.toISOString() ?? null });
 });
 
 apiKeysRoute.post("/", async (c) => {

@@ -12,8 +12,11 @@ import { SettingSection } from "@/components/setting-section";
 import type { PublicUser } from "@/libs/public-user";
 import { apiKeyActionUi } from "./api-key-action";
 
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString("zh-CN");
+
 export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
   const [hasKey, setHasKey] = useState(false);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [sk, setSk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -24,9 +27,10 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
     try {
       const response = await fetch("/api-keys", { credentials: "same-origin" });
       if (!response.ok) throw new Error("key request failed");
-      const data = (await response.json()) as { hasKey: boolean };
+      const data = (await response.json()) as { hasKey: boolean; createdAt: string | null };
       if (signal?.cancelled) return;
       setHasKey(data.hasKey);
+      setCreatedAt(data.createdAt);
       setLoaded(true);
       setLoadFailed(false);
     } catch {
@@ -61,6 +65,7 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
         const { sk: next } = (await response.json()) as { sk: string };
         setSk(next);
         setHasKey(true);
+        setCreatedAt(new Date().toISOString());
       } catch {
         toast.add({ title: "操作失败，请重试", type: "error" });
       } finally {
@@ -99,6 +104,12 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
+        ) : null}
+        {hasKey && !sk ? (
+          <p className="text-muted-foreground text-sm">
+            {createdAt ? `密钥生成于 ${formatDate(createdAt)}，` : "密钥已生成，"}
+            只在生成的那一次显示，之后连服务端也取不回明文。忘了就重新生成一把。
+          </p>
         ) : null}
         <div className="flex gap-2">
           {user.hasStarred ? (

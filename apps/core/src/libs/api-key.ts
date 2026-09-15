@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { apiKeys, getDrizzle, userConfigs, users } from "@/db";
 import { type Config, configSchema } from "./config";
+import { ensureFreshStarStatus } from "./star";
 
 export async function hashApiKey(raw: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
@@ -37,8 +38,9 @@ export async function authenticateApiKey(
     const db = getDrizzle(env);
     const keyRow = await db.query.apiKeys.findFirst({ where: eq(apiKeys.keyHash, keyHash) });
     if (!keyRow) throw new HTTPException(401);
-    const user = await db.query.users.findFirst({ where: eq(users.id, keyRow.userId) });
-    if (!user) throw new HTTPException(401);
+    const row = await db.query.users.findFirst({ where: eq(users.id, keyRow.userId) });
+    if (!row) throw new HTTPException(401);
+    const user = await ensureFreshStarStatus(env, row);
     if (user.hasStarred !== true) throw new HTTPException(403);
     const configRow = await db.query.userConfigs.findFirst({ where: eq(userConfigs.userId, user.id) });
     if (!configRow) return { userId: user.id, config: configSchema.parse({}) };
