@@ -10,7 +10,7 @@
     "dev": "pnpm --filter @douban-bridge/core dev",
     "build": "turbo build",
     "preview": "pnpm --filter @douban-bridge/core preview",
-    "deploy": "pnpm --filter @douban-bridge/core deploy",
+    "deploy": "pnpm build && pnpm --filter @douban-bridge/core deploy",
     "cf-typegen": "turbo cf-typegen",
     "test": "turbo test",
     "smoke": "node scripts/smoke.mjs",
