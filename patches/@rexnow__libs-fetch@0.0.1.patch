@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index 69d70a03f72a791ff81265245715c8f709bff2b9..eab0d4395be5b0b5e98a2a097521fc9a0b2c8550 100644
+--- a/package.json
++++ b/package.json
+@@ -15,7 +15,7 @@
+   "dependencies": {
+     "es-toolkit": "^1.39.9",
+     "querystringify": "^2.2.0",
+-    "zod": "4.0.17"
++    "zod": "4.6.5"
+   },
+   "devDependencies": {
+     "@rexnow/libs": "3.0.0",

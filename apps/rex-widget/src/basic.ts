@@ -2,6 +2,7 @@ import { type BridgeItem, type CatalogQuery, catalogQuerySchema } from "@douban-
 import { getLatestYearlyRanking } from "@douban-bridge/contracts/collections";
 import { type DoubanSubjectCollectionItem, doubanSubjectCollectionSchema } from "@douban-bridge/contracts/douban";
 import { z } from "zod/v4";
+import { rexFetch } from "./http";
 
 const DOUBAN_BASE = "https://m.douban.com/rexxar/api/v2";
 const DOUBAN_HEADERS = {
@@ -33,12 +34,6 @@ export type BasicTmdbSource = {
   original_title?: string | null;
   year?: string | null;
 };
-
-async function doubanGet(path: string): Promise<unknown> {
-  const response = await Widget.http.get(`${DOUBAN_BASE}/${path}`, { headers: DOUBAN_HEADERS });
-  if (response.statusCode < 200 || response.statusCode >= 300) throw new Error("Douban request failed");
-  return response.data;
-}
 
 function tmdbImage(path?: string | null): string | null {
   return path ? `https://image.tmdb.org/t/p/original${path}` : null;
@@ -115,9 +110,18 @@ async function toBridgeItem(item: DoubanSubjectCollectionItem): Promise<BridgeIt
 export async function getBasicCatalog(query: CatalogQuery): Promise<BridgeItem[]> {
   const parsed = catalogQuerySchema.parse(query);
   const collectionId = getLatestYearlyRanking(parsed.collectionId)?.id ?? parsed.collectionId;
-  const data = doubanSubjectCollectionSchema.parse(
-    await doubanGet(`subject_collection/${collectionId}/items?start=${parsed.skip}&count=20`),
-  );
+  const response = await rexFetch
+    .get(`${DOUBAN_BASE}/subject_collection/${collectionId}/items`, {
+      params: { start: parsed.skip, count: 20 },
+      headers: DOUBAN_HEADERS,
+      successStatus: [200],
+      schema: doubanSubjectCollectionSchema,
+    })
+    .catch(() => {
+      throw new Error("Douban request failed");
+    });
+  if (!response.data) throw new Error("Douban request failed");
+  const data = response.data;
   const items = data.subject_collection_items;
   if (items.length === 0) return [];
   return Promise.all(items.map((item) => toBridgeItem(item)));

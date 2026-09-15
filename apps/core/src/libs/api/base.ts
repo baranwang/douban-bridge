@@ -22,6 +22,7 @@ export class BaseAPI {
         ...config?.headers,
       },
       ...config,
+      fetchOptions: { cache: "no-store" },
     });
 
     this.axios.interceptors.request.use((config) => {

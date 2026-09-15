@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MOVIE_YEARLY_RANKING_ID } from "@douban-bridge/contracts/collections";
-import { findBasicTmdb, getBasicCatalog } from "../src/basic";
 
 type TestWidget = {
   http: {
@@ -35,38 +34,43 @@ const TMDB = {
   results: [{ id: 278, title: "肖申克的救赎", release_date: "1994-09-23", poster_path: "/test.jpg" }],
 };
 
+const widget: TestWidget = {
+  http: { get: async () => ({ statusCode: 200, data: SOURCE, headers: {} }) },
+  tmdb: { get: async () => TMDB },
+  storage: {
+    get: async () => null,
+    set: async () => {},
+    remove: async () => {},
+  },
+};
+globalThis.Widget = widget;
+const { findBasicTmdb, getBasicCatalog } = await import("../src/basic");
+
 function installWidget(opts?: {
   http?: (url: string) => { statusCode: number; data: unknown };
   tmdb?: (path: string) => unknown;
 }) {
   const requests: string[] = [];
   const storage = new Map<string, string>();
-  const widget: TestWidget = {
-    http: {
-      get: async (url) => {
-        requests.push(url);
-        if (opts?.http) return opts.http(url);
-        return { statusCode: 200, data: SOURCE };
-      },
+  widget.http.get = async (url) => {
+    requests.push(url);
+    const response = opts?.http ? opts.http(url) : { statusCode: 200, data: SOURCE };
+    return { ...response, headers: {} };
+  };
+  widget.tmdb.get = async (path) => {
+    requests.push(path);
+    if (opts?.tmdb) return opts.tmdb(path);
+    return TMDB;
+  };
+  widget.storage = {
+    get: async (key) => storage.get(key) ?? null,
+    set: async (key, value) => {
+      storage.set(key, value);
     },
-    tmdb: {
-      get: async (path) => {
-        requests.push(path);
-        if (opts?.tmdb) return opts.tmdb(path);
-        return TMDB;
-      },
-    },
-    storage: {
-      get: async (key) => storage.get(key) ?? null,
-      set: async (key, value) => {
-        storage.set(key, value);
-      },
-      remove: async (key) => {
-        storage.delete(key);
-      },
+    remove: async (key) => {
+      storage.delete(key);
     },
   };
-  globalThis.Widget = widget;
   return requests;
 }
 

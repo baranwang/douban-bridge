@@ -104,11 +104,11 @@ WidgetMetadata = {
   title: "豆瓣榜单",
   description: "豆瓣电影、剧集排行榜",
   author: "Baran",
-  site: "https://github.com/baranwang/douban-bridge",
+  site: "https://douban-bridge.baran.wang/rex",
   version,
   requiredVersion: "0.0.1",
   iconurl: "https://fastly.jsdelivr.net/gh/baranwang/douban-bridge@main/icon.png",
-  globalParams: [{ name: "sk", title: "密钥", type: "input" }],
+  globalParams: [{ name: "sk", title: "密钥", description: "点击上方网站获取密钥，开启完整功能", type: "input" }],
   i18n,
   modules: [
     ...COLLECTION_CONFIGS.filter((item) => item.isDefault).map<WidgetModule>((item) => ({
