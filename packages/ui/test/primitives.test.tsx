@@ -12,11 +12,11 @@ import { InputGroup } from "@douban-bridge/ui/components/input-group";
 import { Item } from "@douban-bridge/ui/components/item";
 import { NativeSelect } from "@douban-bridge/ui/components/native-select";
 import { Separator } from "@douban-bridge/ui/components/separator";
-import { Toaster } from "@douban-bridge/ui/components/sonner";
 import { Spinner } from "@douban-bridge/ui/components/spinner";
 import { Switch } from "@douban-bridge/ui/components/switch";
 import { Table } from "@douban-bridge/ui/components/table";
 import { Textarea } from "@douban-bridge/ui/components/textarea";
+import { Toaster } from "@douban-bridge/ui/components/toast";
 
 test("exports every shared primitive family", () => {
   for (const component of [
