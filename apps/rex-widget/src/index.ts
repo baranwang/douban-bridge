@@ -1,6 +1,7 @@
 import { type BridgeItem, catalogQuerySchema } from "@douban-bridge/contracts";
 import {
   COLLECTION_CONFIGS,
+  getLatestYearlyRanking,
   MOVIE_GENRE_CONFIGS,
   MOVIE_YEARLY_RANKING_ID,
   TV_GENRE_CONFIGS,
@@ -16,8 +17,9 @@ const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfi
 function queryFromParams(params: { collectionId: string; page?: string | number }) {
   const page = Number(params.page ?? 1);
   if (!Number.isSafeInteger(page) || page < 1) throw new Error("Invalid page");
-  const subCollectionId = Reflect.get(params, `subCollectionId_${params.collectionId}`);
-  return catalogQuerySchema.parse({ collectionId: subCollectionId || params.collectionId, skip: (page - 1) * 20 });
+  const collectionId = getLatestYearlyRanking(params.collectionId)?.id ?? params.collectionId;
+  const subCollectionId = Reflect.get(params, `subCollectionId_${collectionId}`);
+  return catalogQuerySchema.parse({ collectionId: subCollectionId || collectionId, skip: (page - 1) * 20 });
 }
 
 const TMDB_ORIGINAL = "https://image.tmdb.org/t/p/original";
@@ -56,8 +58,8 @@ function enumOptions(items: { id: string; name: string }[]) {
   return items.map((item) => ({ title: item.name, value: item.id }));
 }
 
-function subCollectionParams(collections: { id: string }[]) {
-  return collections.flatMap<WidgetModuleParam>(({ id }) => {
+function subCollectionParams(collections: { id: string }[], latestId?: string) {
+  return collections.flatMap<WidgetModuleParam>(({ id }, index) => {
     const items = SUB_COLLECTIONS[id as keyof typeof SUB_COLLECTIONS];
     return items
       ? [
@@ -66,7 +68,7 @@ function subCollectionParams(collections: { id: string }[]) {
             title: "分类",
             type: "enumeration",
             value: id,
-            belongTo: { paramName: "collectionId", value: [id] },
+            belongTo: { paramName: "collectionId", value: index === 0 && latestId ? [latestId, id] : [id] },
             enumOptions: enumOptions([...items]),
           },
         ]
@@ -165,7 +167,7 @@ WidgetMetadata = {
             ...enumOptions(YEARLY_RANKINGS[MOVIE_YEARLY_RANKING_ID]),
           ],
         },
-        ...subCollectionParams([{ id: MOVIE_YEARLY_RANKING_ID }, ...YEARLY_RANKINGS[MOVIE_YEARLY_RANKING_ID]]),
+        ...subCollectionParams(YEARLY_RANKINGS[MOVIE_YEARLY_RANKING_ID], MOVIE_YEARLY_RANKING_ID),
         PAGE,
       ],
     },
@@ -184,7 +186,7 @@ WidgetMetadata = {
             ...enumOptions(YEARLY_RANKINGS[TV_YEARLY_RANKING_ID]),
           ],
         },
-        ...subCollectionParams([{ id: TV_YEARLY_RANKING_ID }, ...YEARLY_RANKINGS[TV_YEARLY_RANKING_ID]]),
+        ...subCollectionParams(YEARLY_RANKINGS[TV_YEARLY_RANKING_ID], TV_YEARLY_RANKING_ID),
         PAGE,
       ],
     },

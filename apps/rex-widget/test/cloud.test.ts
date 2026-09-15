@@ -311,7 +311,7 @@ test("yearly catalog uses the selected year's subcollection id", async () => {
 
   await load({
     collectionId: MOVIE_YEARLY_RANKING_ID,
-    [`subCollectionId_${MOVIE_YEARLY_RANKING_ID}`]: "ECB5AE5EQ",
+    subCollectionId_ECE472UNY: "ECB5AE5EQ",
     sk: SK,
   });
   assert.equal(new URL(requested).pathname, "/v1/catalog/ECB5AE5EQ");
@@ -523,37 +523,29 @@ test("WidgetMetadata exposes 13 defaults plus genre and yearly modules", () => {
     movieYearly.params.find((param: { name: string }) => param.name === "collectionId").enumOptions[0].title,
     "最新年度",
   );
-  const movieLatestCategory = movieYearly.params.find(
-    (param: { name: string }) => param.name === `subCollectionId_${MOVIE_YEARLY_RANKING_ID}`,
+  assert.equal(
+    movieYearly.params.some((param: { name: string }) => param.name === `subCollectionId_${MOVIE_YEARLY_RANKING_ID}`),
+    false,
   );
-  assert.equal(movieLatestCategory.title, "分类");
-  assert.equal(movieLatestCategory.value, MOVIE_YEARLY_RANKING_ID);
-  assert.deepEqual(movieLatestCategory.belongTo, { paramName: "collectionId", value: [MOVIE_YEARLY_RANKING_ID] });
-  assert.deepEqual(movieLatestCategory.enumOptions.slice(0, 3), [
-    { title: "华语", value: MOVIE_YEARLY_RANKING_ID },
-    { title: "外语", value: "ECB5AE5EQ" },
-    { title: "冷门佳片", value: "ECFM7Z3AA" },
-  ]);
   const movie2025Category = movieYearly.params.find(
     (param: { name: string }) => param.name === "subCollectionId_ECE472UNY",
   );
   assert.equal(movie2025Category.value, "ECE472UNY");
-  assert.deepEqual(movie2025Category.belongTo, { paramName: "collectionId", value: ["ECE472UNY"] });
+  assert.deepEqual(movie2025Category.belongTo, {
+    paramName: "collectionId",
+    value: [MOVIE_YEARLY_RANKING_ID, "ECE472UNY"],
+  });
   assert.deepEqual(movie2025Category.enumOptions.slice(0, 3), [
     { title: "华语", value: "ECE472UNY" },
     { title: "外语", value: "ECB5AE5EQ" },
     { title: "冷门佳片", value: "ECFM7Z3AA" },
   ]);
-  const tvLatestCategory = tvYearly.params.find(
-    (param: { name: string }) => param.name === `subCollectionId_${TV_YEARLY_RANKING_ID}`,
+  assert.equal(
+    tvYearly.params.some((param: { name: string }) => param.name === `subCollectionId_${TV_YEARLY_RANKING_ID}`),
+    false,
   );
-  assert.equal(tvLatestCategory.value, TV_YEARLY_RANKING_ID);
-  assert.deepEqual(tvLatestCategory.enumOptions.slice(0, 3), [
-    { title: "华语剧集", value: TV_YEARLY_RANKING_ID },
-    { title: "英美新剧", value: "ECHNAB4LY" },
-    { title: "英美续订", value: "ECWQ7ZJGY" },
-  ]);
   const tv2025Category = tvYearly.params.find((param: { name: string }) => param.name === "subCollectionId_EC2FACYKQ");
+  assert.deepEqual(tv2025Category.belongTo, { paramName: "collectionId", value: [TV_YEARLY_RANKING_ID, "EC2FACYKQ"] });
   assert.deepEqual(tv2025Category.enumOptions.slice(0, 3), [
     { title: "华语剧集", value: "EC2FACYKQ" },
     { title: "英美新剧", value: "ECHNAB4LY" },

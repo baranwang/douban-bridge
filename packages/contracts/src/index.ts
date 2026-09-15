@@ -16,9 +16,9 @@ export const bridgeItemSchema = z.object({
     .nullable()
     .catch(null),
   images: z.object({
-    poster: z.url().nullable().catch(null),
-    background: z.url().nullable().catch(null),
-    logo: z.url().nullable().catch(null),
+    poster: z.string().nullable().catch(null),
+    background: z.string().nullable().catch(null),
+    logo: z.string().nullable().catch(null),
   }),
 });
 export const bridgeDetailSchema = bridgeItemSchema.extend({
