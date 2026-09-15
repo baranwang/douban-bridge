@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MOVIE_YEARLY_RANKING_ID } from "@douban-bridge/contracts/collections";
-import { findBasicTmdb, getBasicCatalog, getBasicMeta } from "../src/basic";
+import { findBasicTmdb, getBasicCatalog } from "../src/basic";
 
 type TestWidget = {
-  http: { get: (url: string, options?: { headers?: Record<string, string> }) => Promise<{ statusCode: number; data: unknown }> };
+  http: {
+    get: (
+      url: string,
+      options?: { headers?: Record<string, string> },
+    ) => Promise<{ statusCode: number; data: unknown }>;
+  };
   tmdb: { get: (path: string, options?: { params?: Record<string, string> }) => Promise<unknown> };
   storage: {
     get: (key: string) => Promise<string | null>;
@@ -28,31 +33,6 @@ const SOURCE = {
 
 const TMDB = {
   results: [{ id: 278, title: "肖申克的救赎", release_date: "1994-09-23", poster_path: "/test.jpg" }],
-};
-
-const DETAIL = {
-  id: 1291546,
-  type: "movie",
-  title: "肖申克的救赎",
-  intro: "一个银行家的故事",
-  cover_url: "https://img1.doubanio.com/test.jpg",
-  year: "1994",
-  actors: [{ name: "Tim Robbins" }, { name: "Morgan Freeman" }],
-  directors: [{ name: "Frank Darabont" }],
-  genres: ["剧情", "犯罪"],
-  rating: { value: 9.7 },
-};
-
-const CATEGORY = {
-  category_tabs: [
-    {
-      category: "类型",
-      items: [
-        { current: true, id: "movie_comedy", name: "全部" },
-        { current: false, id: "film_genre_27", name: "剧情" },
-      ],
-    },
-  ],
 };
 
 function installWidget(opts?: {
@@ -172,27 +152,7 @@ test("a real empty Douban page returns an empty list", async () => {
   assert.equal(requests.includes("search/movie"), false);
 });
 
-test("direct meta reads Douban actors without calling the cloud", async () => {
-  const requests = installWidget({
-    http: (url) => {
-      if (url.includes("/subject/1291546")) return { statusCode: 200, data: DETAIL };
-      return { statusCode: 404, data: null };
-    },
-  });
-  const item = await getBasicMeta(1291546);
-  assert.deepEqual(item.actors, ["Tim Robbins", "Morgan Freeman"]);
-  assert.deepEqual(item.directors, ["Frank Darabont"]);
-  assert.deepEqual(item.genres, ["剧情", "犯罪"]);
-  assert.equal(item.description, "一个银行家的故事");
-  assert.equal(item.tmdbId, 278);
-  assert.equal(item.imdbId, null);
-  assert.equal(
-    requests.some((url) => url.includes("/v1/")),
-    false,
-  );
-});
-
-test("yearly ranking and genre use the same collection mapping", async () => {
+test("yearly rankings resolve the latest id and subcollections load directly", async () => {
   const yearly = installWidget();
   await getBasicCatalog({ collectionId: MOVIE_YEARLY_RANKING_ID, skip: 0 });
   assert.equal(
@@ -200,38 +160,20 @@ test("yearly ranking and genre use the same collection mapping", async () => {
     true,
   );
 
-  const genre = installWidget({
+  const subcollection = installWidget({
     http: (url) => {
-      if (url.includes("for_mobile=1")) return { statusCode: 200, data: CATEGORY };
-      if (url.includes("subject_collection/film_genre_27/items")) return { statusCode: 200, data: SOURCE };
+      if (url.includes("subject_collection/ECOIOTUGY/items")) return { statusCode: 200, data: SOURCE };
       throw new Error(`unexpected url ${url}`);
     },
   });
-  const result = await getBasicCatalog({ collectionId: "movie_comedy", skip: 0, genre: "剧情" });
+  const result = await getBasicCatalog({ collectionId: "ECOIOTUGY", skip: 0 });
   assert.equal(result[0].doubanId, 1291546);
   assert.equal(
-    genre.some((url) => url.includes("subject_collection/movie_comedy") && url.includes("for_mobile=1")),
+    subcollection.some((url) => url.includes("subject_collection/ECOIOTUGY/items")),
     true,
   );
   assert.equal(
-    genre.some((url) => url.includes("subject_collection/film_genre_27/items")),
-    true,
-  );
-
-  const unknown = installWidget({
-    http: (url) => {
-      if (url.includes("for_mobile=1")) return { statusCode: 200, data: CATEGORY };
-      if (url.includes("subject_collection/movie_comedy/items")) return { statusCode: 200, data: SOURCE };
-      throw new Error(`unexpected url ${url}`);
-    },
-  });
-  await getBasicCatalog({ collectionId: "movie_comedy", skip: 0, genre: "不存在" });
-  assert.equal(
-    unknown.some((url) => url.includes("subject_collection/movie_comedy/items")),
-    true,
-  );
-  assert.equal(
-    unknown.some((url) => url.includes("film_genre_27/items")),
+    subcollection.some((url) => url.includes("for_mobile=1")),
     false,
   );
 });

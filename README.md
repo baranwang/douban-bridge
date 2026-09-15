@@ -73,15 +73,17 @@ https://stremio-addon-douban.baran.wang/configure
 ### Rex Widget
 
 1. 打开 https://douban-bridge.baran.wang/rex，登录并 Star 后生成 sk，同时可设置共用的图片来源。
-2. 在 Rex 导入 Widget 脚本（发布后）：
+2. 在 Rex 导入 Widget 脚本（发布到 npm 后）：
 
 ```
-https://github.com/baranwang/douban-bridge/releases/download/widget-v0.1.0/douban-bridge.js
+https://unpkg.com/@rexnow/douban
 ```
 
 3. 在模块参数 **密钥**（`sk`）中粘贴该值。Widget 把它记在 `douban.bridge.sk`。清空 `sk` 后回到本地基础列表；详情链接不携带密钥。
 
-`widget-v0.1.0` 尚未发布时上述 URL 为 404，这是预期。不要把本地 `apps/rex-widget/dist/` 当成已分发。
+尚未 `changeset publish` 时上述 URL 为 404，这是预期。不要把本地 `apps/rex-widget/dist/` 当成已分发。
+
+Widget 发版与 [rex-widget](https://github.com/baranwang/rex-widget) 相同：根目录 `pnpm changeset`，合并进 `main` 后由 [Release workflow](.github/workflows/release.yml) 开版本 PR 或发布到 npm。根目录 `pnpm deploy` 只部署 core Worker，不会发 Widget。
 
 ### 自行部署
 
