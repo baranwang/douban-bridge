@@ -11,7 +11,7 @@ const idsSchema = z
     tmdb: z.number().nullable().optional(),
     imdb: z.string().nullable().optional(),
   })
-  .passthrough();
+  .loose();
 
 const titleSchema = z
   .object({
@@ -20,11 +20,11 @@ const titleSchema = z
     year: z.number().optional(),
     ids: idsSchema.optional(),
   })
-  .passthrough();
+  .loose();
 
 const searchResultResponseSchemaWithEpisode = z.union([
-  z.object({ type: z.literal("movie"), movie: titleSchema.optional(), score: z.number().optional() }).passthrough(),
-  z.object({ type: z.literal("show"), show: titleSchema.optional(), score: z.number().optional() }).passthrough(),
+  z.object({ type: z.literal("movie"), movie: titleSchema.optional(), score: z.number().optional() }).loose(),
+  z.object({ type: z.literal("show"), show: titleSchema.optional(), score: z.number().optional() }).loose(),
   z
     .object({
       type: z.literal("episode"),
@@ -32,7 +32,7 @@ const searchResultResponseSchemaWithEpisode = z.union([
       episode: z.unknown().optional(),
       score: z.number().optional(),
     })
-    .passthrough(),
+    .loose(),
 ]);
 
 export type SearchResultResponse = z.output<typeof searchResultResponseSchemaWithEpisode>;

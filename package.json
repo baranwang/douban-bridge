@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "version": "1.1.0",
-  "packageManager": "pnpm@10.33.3",
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
     "dev": "pnpm --filter @douban-bridge/core dev",
     "build": "turbo build",
@@ -27,10 +27,5 @@
     "tsx": "^4.23.13",
     "turbo": "^2.10.12",
     "wrangler": "^4.131.1"
-  },
-  "pnpm": {
-    "overrides": {
-      "@jsr/trakt__api>zod": "3.25.76"
-    }
   }
 }

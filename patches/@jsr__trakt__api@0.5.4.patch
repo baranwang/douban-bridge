@@ -1,0 +1,110 @@
+diff --git a/package.json b/package.json
+index 410e92064567ebc3c08d308ccd1f081be785d7db..291fa3b95c45c21b65be09381442532f527c529f 100644
+--- a/package.json
++++ b/package.json
+@@ -6,7 +6,7 @@
+   "dependencies": {
+     "@anatine/zod-openapi": "^2.2.6",
+     "@ts-rest/core": "^3.52.1",
+-    "zod": "^3.24.1"
++    "zod": "4.6.5"
+   },
+   "exports": {
+     ".": {
+diff --git a/src/contracts/_internal/response/listedMediaResponseSchema.js b/src/contracts/_internal/response/listedMediaResponseSchema.js
+index 9fb8c49d187c8c911966218e7c0d1c41afad5591..eeae4a466aa6b98cc153699b4d2f83168f7fb8d6 100644
+--- a/src/contracts/_internal/response/listedMediaResponseSchema.js
++++ b/src/contracts/_internal/response/listedMediaResponseSchema.js
+@@ -1,4 +1,4 @@
+-import { z } from "zod";
++import { z } from "zod/v3";
+ import { seasonResponseSchema } from "../../shows/index.js";
+ import { episodeResponseSchema } from "./episodeResponseSchema.js";
+ import { listMetadataResponseSchema } from "./listMetadataResponseSchema.js";
+diff --git a/src/contracts/_internal/response/listedMediaResponseSchema.ts b/src/contracts/_internal/response/listedMediaResponseSchema.ts
+index 20065c962783048862bfca3fca6a28463cf950b2..5e3a8d88dc6dda0597721eaf47b473aa0ec1addd 100644
+--- a/src/contracts/_internal/response/listedMediaResponseSchema.ts
++++ b/src/contracts/_internal/response/listedMediaResponseSchema.ts
+@@ -1,4 +1,4 @@
+-import { z } from 'zod';
++import { z } from 'zod/v3';
+ import { seasonResponseSchema } from '../../shows/index.js';
+ import { episodeResponseSchema } from './episodeResponseSchema.js';
+ import { listMetadataResponseSchema } from './listMetadataResponseSchema.js';
+diff --git a/src/contracts/_internal/z.js b/src/contracts/_internal/z.js
+index 4d6a74b2cb85a33ff3209e0d281b2a1a451108d4..bd57d8780f007903e1b2e609dcf822d41158bf98 100644
+--- a/src/contracts/_internal/z.js
++++ b/src/contracts/_internal/z.js
+@@ -1,5 +1,5 @@
+ import { extendZodWithOpenApi } from "@anatine/zod-openapi";
+-import { z } from "zod";
++import { z } from "zod/v3";
+ // Extend zod with the OpenAPI capabilities
+ extendZodWithOpenApi(z);
+ /**
+diff --git a/src/contracts/_internal/z.ts b/src/contracts/_internal/z.ts
+index 175a009fb922e88437c85d724bcaea7555b96b0c..0976f3c15c5a44e04f51591904d1619cf78553d3 100644
+--- a/src/contracts/_internal/z.ts
++++ b/src/contracts/_internal/z.ts
+@@ -1,2 +1,2 @@
+ import { extendZodWithOpenApi } from '@anatine/zod-openapi';
+-import { z } from 'zod';
++import { z } from 'zod/v3';
+diff --git a/src/contracts/sync/schema/response/movieProgressResponseSchema.js b/src/contracts/sync/schema/response/movieProgressResponseSchema.js
+index e4c0b47baa5e013aa7c6c2085aea0898948d8dcc..1ad42eec785d16cff4d3e2011319345f0a2a7cfd 100644
+--- a/src/contracts/sync/schema/response/movieProgressResponseSchema.js
++++ b/src/contracts/sync/schema/response/movieProgressResponseSchema.js
+@@ -1,4 +1,4 @@
+-import { z } from "zod";
++import { z } from "zod/v3";
+ import { float, int64 } from "../../../_internal/z.js";
+ import { movieResponseSchema } from "../../../movies/index.js";
+ /** Zod schema for the movie progress response. */ export const movieProgressResponseSchema = z.object({
+diff --git a/src/contracts/sync/schema/response/movieProgressResponseSchema.ts b/src/contracts/sync/schema/response/movieProgressResponseSchema.ts
+index 54a0fdbc7b834cb69df994231bafdd47fadd33c7..b0b53d513359e76d53aa36f55c3ef1e5ad1d88cd 100644
+--- a/src/contracts/sync/schema/response/movieProgressResponseSchema.ts
++++ b/src/contracts/sync/schema/response/movieProgressResponseSchema.ts
+@@ -1,3 +1,3 @@
+-import { z } from 'zod';
++import { z } from 'zod/v3';
+ import { float, int64 } from '../../../_internal/z.js';
+ import { movieResponseSchema } from '../../../movies/index.js';
+diff --git a/src/contracts/sync/schema/response/upNextResponseSchema.js b/src/contracts/sync/schema/response/upNextResponseSchema.js
+index aaeaf44a9119c7bc3cdc91508e61a7a4731c004d..fa13bbf33948656b13ed33d1d3a9d238dba8e8a5 100644
+--- a/src/contracts/sync/schema/response/upNextResponseSchema.js
++++ b/src/contracts/sync/schema/response/upNextResponseSchema.js
+@@ -1,4 +1,4 @@
+-import { z } from "zod";
++import { z } from "zod/v3";
+ import { progressResponseSchema } from "../../../_internal/response/progressResponseSchema.js";
+ import { showResponseSchema } from "../../../_internal/response/showResponseSchema.js";
+ /** Zod schema for the up next response. */ export const upNextResponseSchema = z.object({
+diff --git a/src/contracts/sync/schema/response/upNextResponseSchema.ts b/src/contracts/sync/schema/response/upNextResponseSchema.ts
+index daa0ac9c3e294a2609dcb26c1e5f994f1126198f..85ed6788badea825df5e3820f9ed020ac9d09423 100644
+--- a/src/contracts/sync/schema/response/upNextResponseSchema.ts
++++ b/src/contracts/sync/schema/response/upNextResponseSchema.ts
+@@ -1,3 +1,3 @@
+-import { z } from 'zod';
++import { z } from 'zod/v3';
+ import { progressResponseSchema } from '../../../_internal/response/progressResponseSchema.js';
+ import { showResponseSchema } from '../../../_internal/response/showResponseSchema.js';
+diff --git a/src/contracts/users/schema/response/settingsResponseSchema.js b/src/contracts/users/schema/response/settingsResponseSchema.js
+index 13c13592f11bfa6527d867e1e5f88cfc985154da..2548fd97db158cc91371e5ff05802969e5b050c2 100644
+--- a/src/contracts/users/schema/response/settingsResponseSchema.js
++++ b/src/contracts/users/schema/response/settingsResponseSchema.js
+@@ -1,4 +1,4 @@
+-import { z } from "zod";
++import { z } from "zod/v3";
+ import { genreEnumSchema } from "../../../_internal/response/genreEnumSchema.js";
+ import { sortDirectionSchema } from "../../../_internal/response/sortDirectionSchema.js";
+ import { upNextSortBySchema } from "../../../_internal/response/upNextSortBySchema.js";
+diff --git a/src/contracts/users/schema/response/settingsResponseSchema.ts b/src/contracts/users/schema/response/settingsResponseSchema.ts
+index 2aed2cd7bbbb91ab682772cb15bc86d1ddcc057e..c6ada7a65671adc46de59afd576fb588a8a10383 100644
+--- a/src/contracts/users/schema/response/settingsResponseSchema.ts
++++ b/src/contracts/users/schema/response/settingsResponseSchema.ts
+@@ -1,4 +1,4 @@
+-import { z } from 'zod';
++import { z } from 'zod/v3';
+ import { genreEnumSchema } from '../../../_internal/response/genreEnumSchema.js';
+ import { sortDirectionSchema } from '../../../_internal/response/sortDirectionSchema.js';
+ import { upNextSortBySchema } from '../../../_internal/response/upNextSortBySchema.js';

@@ -13,7 +13,7 @@
     "@douban-bridge/contracts": "workspace:*",
     "hono": "^4.13.7",
     "path-to-regexp": "^8.4.2",
-    "zod": "4.6.5"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@stremio-addon/sdk": "^1.0.0",

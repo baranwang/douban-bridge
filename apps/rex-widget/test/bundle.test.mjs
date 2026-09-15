@@ -30,15 +30,13 @@ test("VM globals, 13 default modules, optional yearly params, empty cloud page",
   let local = 0;
   const storage = new Map();
   const context = createContext({
-    URL,
-    URLSearchParams,
     console,
     Widget: {
       http: {
-        get: async (url) => {
-          const host = new URL(url).hostname;
-          if (host !== "douban-bridge.baran.wang") local += 1;
-          return { statusCode: 200, data: { items: [] } };
+        get: async (url, options) => {
+          if (!url.startsWith("https://douban-bridge.baran.wang/")) local += 1;
+          assert.equal(options.headers.Authorization, "Bearer sk_test");
+          return { statusCode: 200, data: { items: [] }, headers: {} };
         },
       },
       tmdb: {

@@ -17,9 +17,7 @@ export default defineConfig({
       dts: false,
       output: {
         target: "web",
-        filename: {
-          js: "douban-bridge.js",
-        },
+        minify: true,
         autoExternal: false,
       },
     },

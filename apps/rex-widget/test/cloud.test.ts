@@ -8,14 +8,39 @@ import {
   TV_YEARLY_RANKING_ID,
   YEARLY_RANKINGS,
 } from "@douban-bridge/contracts/collections";
-import { loadCatalog } from "../src/cloud";
 
+type TestWidget = {
+  http: {
+    get: (
+      url: string,
+      options?: { headers?: Record<string, string> },
+    ) => Promise<{ statusCode: number; data: unknown }>;
+  };
+  tmdb: { get: (path: string, options?: { params?: Record<string, string> }) => Promise<unknown> };
+  storage: {
+    get: (key: string) => Promise<string | null>;
+    set: (key: string, value: string) => Promise<void>;
+    remove: (key: string) => Promise<void>;
+  };
+};
+
+const runtimeWidget = {
+  http: { get: async () => ({ statusCode: 200, data: {}, headers: {} }) },
+  tmdb: { get: async () => ({}) },
+  storage: {
+    get: async () => null,
+    set: async () => {},
+    remove: async () => {},
+  },
+} as TestWidget;
+globalThis.Widget = runtimeWidget;
 Object.assign(globalThis, {
   WidgetMetadata: undefined,
   loadDefaultCatalog: undefined,
   loadGenreCatalog: undefined,
   loadYearlyCatalog: undefined,
 });
+const { loadCatalog } = await import("../src/cloud");
 await import("../src/index");
 
 test("metadata translates broad labels to English", () => {
@@ -47,21 +72,6 @@ test("metadata translates broad labels to English", () => {
   assert.equal(metadata.i18n?.en?.电影类型榜, "Movies by Genre");
   assert.equal(metadata.i18n?.en?.豆瓣年度评分最高电影, "Douban's Top-Rated Movies by Year");
 });
-
-type TestWidget = {
-  http: {
-    get: (
-      url: string,
-      options?: { headers?: Record<string, string> },
-    ) => Promise<{ statusCode: number; data: unknown }>;
-  };
-  tmdb: { get: (path: string, options?: { params?: Record<string, string> }) => Promise<unknown> };
-  storage: {
-    get: (key: string) => Promise<string | null>;
-    set: (key: string, value: string) => Promise<void>;
-    remove: (key: string) => Promise<void>;
-  };
-};
 
 const DOUBAN_SOURCE = {
   subject_collection_items: [
@@ -131,29 +141,46 @@ function install(
     const host = new URL(url).hostname;
     if (host === "douban-bridge.baran.wang") {
       counts.cloud += 1;
-      return handler(url, options);
+      return handler(url, options).then((response) => ({ ...response, headers: {} }));
     }
     counts.basic += 1;
-    return { statusCode: 200, data: DOUBAN_SOURCE };
+    return { statusCode: 200, data: DOUBAN_SOURCE, headers: {} };
   };
-  globalThis.Widget = widget;
-  return { widget, counts };
+  runtimeWidget.http.get = widget.http.get;
+  runtimeWidget.tmdb = widget.tmdb;
+  runtimeWidget.storage = widget.storage;
+  return { widget: runtimeWidget, counts };
 }
 
 test("valid empty cloud page never calls local sources", async () => {
   let calls = 0;
-  globalThis.Widget = {
-    ...hostFixture(),
-    http: {
-      get: async (url) => {
-        calls += 1;
-        assert.equal(new URL(url).hostname, "douban-bridge.baran.wang");
-        return { statusCode: 200, data: { items: [] } };
-      },
-    },
+  runtimeWidget.http.get = async (url) => {
+    calls += 1;
+    assert.equal(new URL(url).hostname, "douban-bridge.baran.wang");
+    return { statusCode: 200, data: { items: [] }, headers: {} };
   };
   assert.deepEqual(await loadCatalog({ collectionId: "movie_top250", skip: 0 }, "sk_test"), []);
   assert.equal(calls, 1);
+});
+
+test("cloud catalog works without a global URL constructor", async () => {
+  const originalURL = globalThis.URL;
+  let requested = "";
+  let authorization = "";
+  runtimeWidget.http.get = async (url, options) => {
+    requested = url;
+    authorization = options?.headers?.Authorization ?? "";
+    return { statusCode: 200, data: { items: [CLOUD_ITEM] }, headers: {} };
+  };
+  Reflect.set(globalThis, "URL", undefined);
+  try {
+    const result = await loadCatalog({ collectionId: "movie_top250", skip: 20 }, SK);
+    assert.equal(requested, "https://douban-bridge.baran.wang/v1/catalog/movie_top250?skip=20");
+    assert.equal(authorization, `Bearer ${SK}`);
+    assert.equal(result[0].title, "云端标题");
+  } finally {
+    Reflect.set(globalThis, "URL", originalURL);
+  }
 });
 
 test("empty sk uses basic catalog only", async () => {
@@ -246,7 +273,7 @@ test("cloud and basic catalog failure rejects to the host", async () => {
     counts.basic += 1;
     throw new Error("douban down");
   };
-  globalThis.Widget = widget;
+  runtimeWidget.http.get = widget.http.get;
   await assert.rejects(() => loadCatalog({ collectionId: "movie_top250", skip: 0 }, SK));
   assert.equal(counts.cloud, 1);
   assert.equal(counts.basic, 1);
@@ -254,11 +281,10 @@ test("cloud and basic catalog failure rejects to the host", async () => {
 
 test("page maps to skip", async () => {
   const skips: string[] = [];
-  const { widget } = install(async (url) => {
+  install(async (url) => {
     skips.push(new URL(url).searchParams.get("skip") ?? "");
     return { statusCode: 200, data: { items: [] } };
   });
-  globalThis.Widget = widget;
   await loadDefaultCatalog({ collectionId: "movie_top250", page: 1, sk: SK });
   await loadDefaultCatalog({ collectionId: "movie_top250", page: "2", sk: SK });
   await loadDefaultCatalog({ collectionId: "movie_top250", page: 3, sk: SK });
@@ -267,11 +293,10 @@ test("page maps to skip", async () => {
 
 test("genre catalog uses only the selected parent's subcollection id", async () => {
   let requested = "";
-  const { widget } = install(async (url) => {
+  install(async (url) => {
     requested = url;
     return { statusCode: 200, data: { items: [] } };
   });
-  globalThis.Widget = widget;
   const load = Reflect.get(globalThis, "loadGenreCatalog") as (
     params: Record<string, string | number>,
   ) => Promise<VideoItem[]>;
@@ -334,7 +359,6 @@ test("toHostItem uses imdb then douban when tmdb is missing", async () => {
     statusCode: 200,
     data: { items: [{ ...CLOUD_ITEM, tmdbId: null }] },
   }));
-  globalThis.Widget = widget;
   const [imdb] = await loadDefaultCatalog({ collectionId: "movie_top250", sk: SK });
   assert.equal(imdb.id, "tt0111161");
   assert.equal(imdb.type, "imdb");
@@ -342,6 +366,7 @@ test("toHostItem uses imdb then douban when tmdb is missing", async () => {
   widget.http.get = async () => ({
     statusCode: 200,
     data: { items: [{ ...CLOUD_ITEM, tmdbId: null, imdbId: null }] },
+    headers: {},
   });
   const [douban] = await loadDefaultCatalog({ collectionId: "movie_top250", sk: SK });
   assert.equal(douban.id, "1291546");

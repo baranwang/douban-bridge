@@ -1,7 +1,10 @@
 /// <reference types='@rexnow/libs/env' />
 declare namespace DoubanBridge {
     interface GlobalParams {
-        /** 密钥 */
+        /**
+         * 密钥
+         * @description 点击上方网站获取密钥，开启完整功能
+         */
         sk: string;
     }
 }
