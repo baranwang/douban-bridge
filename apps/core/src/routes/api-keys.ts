@@ -1,8 +1,6 @@
-import { eq } from "drizzle-orm";
 import { type Env, Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { apiKeys, getDrizzle } from "@/db";
-import { replaceApiKey, revokeApiKey } from "@/libs/api-key";
+import { getApiKey, replaceApiKey, revokeApiKey } from "@/libs/api-key";
 import { requireWebSession } from "@/libs/require-web-session";
 
 const isEmptyJsonObject = (value: unknown): value is Record<string, never> =>
@@ -29,8 +27,8 @@ apiKeysRoute.onError((err, c) => {
 
 apiKeysRoute.get("/", async (c) => {
   const user = requireWebSession(c);
-  const row = await getDrizzle(c.env).query.apiKeys.findFirst({ where: eq(apiKeys.userId, user.id) });
-  return c.json({ hasKey: !!row, createdAt: row?.createdAt.toISOString() ?? null });
+  const row = await getApiKey(c.env, user.id);
+  return c.json({ key: row?.key ?? null, createdAt: row?.createdAt.toISOString() ?? null });
 });
 
 apiKeysRoute.post("/", async (c) => {
@@ -45,7 +43,7 @@ apiKeysRoute.post("/", async (c) => {
   }
   if (!isEmptyJsonObject(body)) throw new HTTPException(400);
   const sk = await replaceApiKey(c.env, user.id);
-  return c.json({ sk });
+  return c.json({ key: sk });
 });
 
 apiKeysRoute.delete("/", async (c) => {
