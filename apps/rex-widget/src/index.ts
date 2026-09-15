@@ -40,7 +40,7 @@ const loadCatalogForWidget = async (
     page?: string | number;
   },
 ) => {
-  const items = await loadCatalog(queryFromParams(params), (params.sk ?? "").trim());
+  const items = await loadCatalog(queryFromParams(params), (params.sk ?? "").trim(), params.userId ?? "");
   return items.map(toHostItem);
 };
 loadDefaultCatalog = loadCatalogForWidget;
@@ -108,7 +108,14 @@ WidgetMetadata = {
   version,
   requiredVersion: "0.0.1",
   iconurl: "https://fastly.jsdelivr.net/gh/baranwang/douban-bridge@main/icon.png",
-  globalParams: [{ name: "sk", title: "密钥", description: "点击上方网站获取密钥，开启完整功能", type: "input" }],
+  globalParams: [
+    { name: "sk", title: "密钥", description: "点击上方网站获取密钥，开启完整功能", type: "input" },
+    {
+      name: "userId",
+      title: "用户 ID",
+      type: "userId",
+    },
+  ],
   i18n,
   modules: [
     ...COLLECTION_CONFIGS.filter((item) => item.isDefault).map<WidgetModule>((item) => ({

@@ -36,6 +36,7 @@ test("VM globals, 13 default modules, optional yearly params, empty cloud page",
         get: async (url, options) => {
           if (!url.startsWith("https://douban-bridge.baran.wang/")) local += 1;
           assert.equal(options.headers.Authorization, "Bearer sk_test");
+          assert.equal(options.headers["X-User-Id"], "user-1");
           return { statusCode: 200, data: { items: [] }, headers: {} };
         },
       },
@@ -77,7 +78,7 @@ test("VM globals, 13 default modules, optional yearly params, empty cloud page",
       .params.find((param) => param.name === "collectionId")
       .enumOptions.some((option) => option.value === TV_YEARLY_RANKING_ID),
   );
-  const items = await context.loadDefaultCatalog({ collectionId: "movie_top250", sk: "sk_test" });
+  const items = await context.loadDefaultCatalog({ collectionId: "movie_top250", sk: "sk_test", userId: "user-1" });
   assert.equal(items.length, 0);
   assert.equal(local, 0);
 });

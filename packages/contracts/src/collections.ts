@@ -115,8 +115,9 @@ export const TV_GENRE_CONFIGS: IdName[] = [
   { id: "ECBE5CBEI", name: "韩剧榜" },
   { id: "ECVM47WUA", name: "港剧榜" },
   { id: "ECBI5EL6A", name: "台剧榜" },
-  { id: "ECRM5BIFQ", name: "泰剧榜" },
+  { id: "EC2Y5FJTY", name: "泰剧榜" },
   { id: "EC6I5FYHA", name: "欧洲剧榜" },
+  { id: "ECR4CRXHA", name: "动画剧集榜" },
 ];
 
 //#endregion

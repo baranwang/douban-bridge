@@ -6,6 +6,8 @@ declare namespace DoubanBridge {
          * @description 点击上方网站获取密钥，开启完整功能
          */
         sk: string;
+        /** 用户 ID */
+        userId: string;
     }
 }
 
@@ -390,7 +392,7 @@ interface MovieGenreLoadGenreCatalogReturnType extends Array<VideoItem> {
 /** Params of 剧集类型榜 */
 interface TvGenreLoadGenreCatalogParams extends DoubanBridge.GlobalParams {
     /** 榜单 */
-    collectionId: 'EC74443FY' | 'ECFA5DI7Q' | 'ECVACXBWI' | 'ECNA46YBA' | 'ECBE5CBEI' | 'ECVM47WUA' | 'ECBI5EL6A' | 'ECRM5BIFQ' | 'EC6I5FYHA';
+    collectionId: 'EC74443FY' | 'ECFA5DI7Q' | 'ECVACXBWI' | 'ECNA46YBA' | 'ECBE5CBEI' | 'ECVM47WUA' | 'ECBI5EL6A' | 'EC2Y5FJTY' | 'EC6I5FYHA' | 'ECR4CRXHA';
     /**
      * 分类
      * @default 'EC74443FY'

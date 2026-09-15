@@ -4,12 +4,16 @@ import { rexFetch } from "./http";
 
 const API_ORIGIN = "https://douban-bridge.baran.wang";
 
-export async function loadCatalog(query: CatalogQuery, sk: string): Promise<BridgeItem[]> {
+export async function loadCatalog(query: CatalogQuery, sk: string, userId = ""): Promise<BridgeItem[]> {
   if (sk) {
     try {
+      const user = userId.trim();
       const response = await rexFetch.get(`${API_ORIGIN}/v1/catalog/${encodeURIComponent(query.collectionId)}`, {
         params: { skip: query.skip },
-        headers: { Authorization: `Bearer ${sk}` },
+        headers: {
+          Authorization: `Bearer ${sk}`,
+          ...(user ? { "X-User-Id": user } : {}),
+        },
         successStatus: [200],
         schema: catalogResponseSchema,
       });

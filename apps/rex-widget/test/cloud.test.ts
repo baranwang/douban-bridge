@@ -332,6 +332,22 @@ test("catalog sk comes only from current params", async () => {
   assert.equal(counts.basic, 0);
 });
 
+test("catalog userId is sent as X-User-Id and not required", async () => {
+  let headers: Record<string, string> | undefined;
+  const { counts } = install(async (_url, options) => {
+    headers = options?.headers;
+    return { statusCode: 200, data: { items: [] } };
+  });
+  await loadDefaultCatalog({ collectionId: "movie_top250", sk: SK, userId: " user-1 " });
+  assert.equal(headers?.Authorization, `Bearer ${SK}`);
+  assert.equal(headers?.["X-User-Id"], "user-1");
+  await loadDefaultCatalog({ collectionId: "movie_top250", sk: SK });
+  assert.equal(headers?.Authorization, `Bearer ${SK}`);
+  assert.equal(headers?.["X-User-Id"], undefined);
+  assert.equal(counts.cloud, 2);
+  assert.equal(counts.basic, 0);
+});
+
 test("empty sk uses basic only", async () => {
   const { counts } = install(async () => {
     throw new Error("cloud should not be called");
@@ -402,6 +418,15 @@ test("WidgetMetadata exposes 13 defaults plus genre and yearly modules", () => {
   assert.deepEqual(
     tvGenreIds,
     TV_GENRE_CONFIGS.map((item) => item.id),
+  );
+  assert.ok(tvGenreIds.includes("ECR4CRXHA"));
+  assert.equal(
+    tvGenre.params.some((param: { name: string }) => param.name === "subCollectionId_ECR4CRXHA"),
+    false,
+  );
+  assert.equal(
+    tvGenre.params.some((param: { name: string }) => param.name === "subCollectionId_EC2Y5FJTY"),
+    false,
   );
   const loveCategory = movieGenre.params.find((param: { name: string }) => param.name === "subCollectionId_movie_love");
   assert.equal(loveCategory.title, "分类");
