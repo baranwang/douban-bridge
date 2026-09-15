@@ -1,5 +1,10 @@
 import { Button } from "@douban-bridge/ui/components/button";
-import { Input } from "@douban-bridge/ui/components/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@douban-bridge/ui/components/input-group";
 import { Copy, KeyRound } from "lucide-react";
 import { type FC, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -64,26 +69,6 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
     })();
   }, [disabled]);
 
-  const revoke = useCallback(() => {
-    if (disabled) return;
-    setBusy(true);
-    void (async () => {
-      try {
-        const response = await fetch("/api-keys", {
-          method: "DELETE",
-          credentials: "same-origin",
-        });
-        if (!response.ok) throw new Error("key request failed");
-        setSk(null);
-        setHasKey(false);
-      } catch {
-        toast.error("操作失败，请重试");
-      } finally {
-        setBusy(false);
-      }
-    })();
-  }, [disabled]);
-
   if (!user) return null;
   if (!user.hasStarred && !hasKey && !sk) return null;
 
@@ -93,17 +78,12 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
       icon={<KeyRound className="size-4 text-muted-foreground" />}
       footer="重新生成后，旧密钥立即失效"
     >
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {sk ? (
-          <div className="space-y-2">
-            <label className="font-medium text-sm" htmlFor="account-api-key">
-              密钥
-            </label>
-            <div className="flex gap-2">
-              <Input id="account-api-key" type="password" readOnly value={sk} autoComplete="off" />
-              <Button
-                type="button"
-                variant="outline"
+          <InputGroup>
+            <InputGroupInput id="account-api-key" type="password" readOnly value={sk} autoComplete="off" />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
                 disabled={busy}
                 onClick={async () => {
                   try {
@@ -116,13 +96,13 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
               >
                 <Copy />
                 复制
-              </Button>
-            </div>
-          </div>
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
         ) : null}
         <div className="flex gap-2">
           {user.hasStarred ? (
-            <Button type="button" disabled={disabled} onClick={generate}>
+            <Button type="button" variant={sk ? "outline" : "default"} disabled={disabled} onClick={generate}>
               {label}
             </Button>
           ) : null}
@@ -137,11 +117,6 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
               }}
             >
               重试
-            </Button>
-          ) : null}
-          {hasKey ? (
-            <Button type="button" variant="outline" disabled={disabled} onClick={revoke}>
-              撤销密钥
             </Button>
           ) : null}
         </div>
