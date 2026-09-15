@@ -16,7 +16,6 @@ export const app = new Hono();
 
 app.use(logger());
 app.use(cors());
-app.use(rateLimit);
 app.use(contextStorage);
 app.use(async (c, next) => {
   if (new URL(c.req.url).pathname.startsWith("/v1/")) return next();
@@ -32,6 +31,7 @@ app.route("/rex", rexRoute);
 app.route("/configure", configureRoute);
 app.route("/:config/configure", configureRoute);
 
+app.use("/image-proxy/*", rateLimit);
 app.route("/image-proxy", imageProxyRoute);
 
 app.route("/dash", dashRoute);

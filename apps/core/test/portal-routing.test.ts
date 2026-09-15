@@ -77,4 +77,38 @@ describe("product entry routing", { concurrency: false }, () => {
       assert.equal(await response.text(), "body { color: red; }");
     });
   });
+
+  test("Rex and Core pages stay available when the public limiter is exhausted", async () => {
+    await withTestContext(async (env, ctx) => {
+      const bindings = {
+        ...withOrigins(env),
+        PUBLIC_RATE_LIMIT: { limit: async () => ({ success: false }) },
+        USER_RATE_LIMIT: { limit: async () => ({ success: false }) },
+      };
+
+      const rex = await app.fetch(new Request(`${CORE}/rex`), bindings, ctx);
+      assert.equal(rex.status, 200);
+      assert.notEqual(rex.status, 429);
+
+      const home = await app.fetch(new Request(`${CORE}/`), bindings, ctx);
+      assert.equal(home.status, 200);
+      assert.notEqual(home.status, 429);
+      const body = await home.text();
+      assert.ok(body.includes('src="/rex-mark.png"'));
+      assert.ok(body.includes('src="/stremio-logo.png"'));
+
+      const css = await app.fetch(
+        new Request("http://localhost:5173/src/style.css"),
+        {
+          ...bindings,
+          ASSETS: {
+            fetch: async () => new Response("body { color: red; }", { headers: { "Content-Type": "text/css" } }),
+          },
+        } as CloudflareBindings,
+        ctx,
+      );
+      assert.equal(css.status, 200);
+      assert.notEqual(css.status, 429);
+    });
+  });
 });

@@ -1,6 +1,5 @@
 import { Button } from "@douban-bridge/ui/components/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@douban-bridge/ui/components/card";
-import { PanelsTopLeft, Tv } from "lucide-react";
 import { Github } from "@/components/github-icon";
 import type { PublicUser } from "@/libs/public-user";
 
@@ -33,8 +32,8 @@ export function Portal({ user, stremioConfigureUrl }: PortalProps) {
         <main className="flex flex-1 flex-col justify-center">
           <div className="space-y-4">
             <Card data-product="rex" className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="mx-6 mt-6 flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:mr-0 sm:mb-6">
-                <PanelsTopLeft aria-hidden="true" />
+              <div className="mx-6 mt-6 flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 sm:mr-0 sm:mb-6">
+                <img src="/rex-mark.png" alt="" className="size-7" />
               </div>
               <CardHeader className="min-w-0 flex-1">
                 <CardTitle>Rex</CardTitle>
@@ -50,8 +49,8 @@ export function Portal({ user, stremioConfigureUrl }: PortalProps) {
             </Card>
 
             <Card data-product="stremio" className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="mx-6 mt-6 flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground sm:mr-0 sm:mb-6">
-                <Tv aria-hidden="true" />
+              <div className="mx-6 mt-6 flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted sm:mr-0 sm:mb-6">
+                <img src="/stremio-logo.png" alt="" className="size-7" />
               </div>
               <CardHeader className="min-w-0 flex-1">
                 <CardTitle>Stremio</CardTitle>

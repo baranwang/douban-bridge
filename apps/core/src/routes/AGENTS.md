@@ -31,7 +31,7 @@ routes/
 
 ## CONVENTIONS
 
-- `src/index.tsx` middleware order is `logger -> cors -> rateLimit -> contextStorage -> authMiddleware`.
+- `src/app.tsx` middleware order is `logger -> cors -> contextStorage -> authMiddleware`; `rateLimit` is mounted only on `/image-proxy/*`. `/v1` keeps its own user limiter.
 - Public addon handlers usually mount both direct and `/:config` variants.
 - `catalog` and `meta` handlers must use `matchResourceRoute()` rather than ad hoc path splitting.
 - Stremio cache fields (`cacheMaxAge`, `staleRevalidate`, `staleError`) belong in route JSON responses where supported.

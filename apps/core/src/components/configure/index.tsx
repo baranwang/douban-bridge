@@ -305,7 +305,7 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
                         复制链接
                       </DropdownMenuItem>
                       <DropdownMenuItem render={<a href={manifestUrlConfigs.stremio} />} onClick={handleImport}>
-                        <img className="size-4" src="https://www.stremio.com/website/stremio-logo-small.png" />
+                        <img className="size-4" src="/stremio-logo.png" />
                         导入 Stremio
                       </DropdownMenuItem>
                       <DropdownMenuItem render={<a href={manifestUrlConfigs.forward} />} onClick={handleImport}>
