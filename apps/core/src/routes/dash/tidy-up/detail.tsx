@@ -1,12 +1,19 @@
+import { Badge } from "@douban-bridge/ui/components/badge";
+import { Button } from "@douban-bridge/ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@douban-bridge/ui/components/card";
+import { Input } from "@douban-bridge/ui/components/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@douban-bridge/ui/components/table";
 import { eq } from "drizzle-orm";
 import { uniqBy } from "es-toolkit";
 import { type Env, Hono } from "hono";
 import { ArrowLeft, Check, Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { doubanMapping, doubanMappingSchema } from "@/db";
 import { api } from "@/libs/api";
 import { TmdbAPI } from "@/libs/api/tmdb";

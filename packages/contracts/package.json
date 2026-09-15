@@ -11,6 +11,7 @@
     "./addon": "./src/addon.ts",
     "./collections": "./src/collections.ts",
     "./douban": "./src/douban.ts",
+    "./image-providers": "./src/image-providers.ts",
     "./stremio": "./src/stremio.ts"
   },
   "dependencies": {

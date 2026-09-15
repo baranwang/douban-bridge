@@ -7,7 +7,7 @@ async function collect(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) files.push(...(await collect(path)));
-    else if (/\.test\.(ts|mjs)$/.test(entry.name)) files.push(path);
+    else if (/\.test\.(tsx?|mjs)$/.test(entry.name)) files.push(path);
   }
   return files.sort();
 }

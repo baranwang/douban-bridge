@@ -56,23 +56,23 @@
 https://stremio-addon-douban.baran.wang/manifest.json
 ```
 
-已安装用户无需更换地址。自定义目录：
+已安装用户无需更换地址。
+
+Douban Bridge 入口：
+
+```
+https://douban-bridge.baran.wang/
+```
+
+Stremio 配置始终位于：
 
 ```
 https://stremio-addon-douban.baran.wang/configure
 ```
 
-同一配置页也在网页后台提供：
-
-```
-https://douban-bridge.baran.wang/configure
-```
-
-安装链接始终指向 `stremio-addon-douban.baran.wang`。登录并 Star 仓库后，可在配置页生成 / 替换 / 撤销 API 密钥（`sk_` 前缀）。密钥只显示一次，不要写进目录 URL。
-
 ### Rex Widget
 
-1. 在配置页生成 `sk`。
+1. 打开 https://douban-bridge.baran.wang/rex，登录并 Star 后生成 sk，同时可设置共用的图片来源。
 2. 在 Rex 导入 Widget 脚本（发布到 npm 后）：
 
 ```

@@ -1,9 +1,10 @@
-import { useForm } from "@tanstack/react-form";
-import { isEqual } from "es-toolkit";
-import { hc } from "hono/client";
-import { Copy, Film, Image, Settings, Tv } from "lucide-react";
-import { type FC, Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { Button } from "@douban-bridge/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@douban-bridge/ui/components/dropdown-menu";
 import {
   Item,
   ItemActions,
@@ -12,9 +13,17 @@ import {
   ItemGroup,
   ItemSeparator,
   ItemTitle,
-} from "@/components/ui/item";
-import { Toaster } from "@/components/ui/sonner";
-import { Switch } from "@/components/ui/switch";
+} from "@douban-bridge/ui/components/item";
+import { Toaster } from "@douban-bridge/ui/components/sonner";
+import { Spinner } from "@douban-bridge/ui/components/spinner";
+import { Switch } from "@douban-bridge/ui/components/switch";
+import { ImageProviderSortable } from "@douban-bridge/ui/image-providers";
+import { useForm } from "@tanstack/react-form";
+import { isEqual } from "es-toolkit";
+import { hc } from "hono/client";
+import { Copy, Film, Image, Settings, Tv } from "lucide-react";
+import { type FC, Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   COLLECTION_CONFIGS,
   isYearlyRankingId,
@@ -27,13 +36,8 @@ import type { Config } from "@/libs/config";
 import type { PublicUser } from "@/libs/public-user";
 import type { ConfigureRoute } from "@/routes/configure";
 import { GenreDrawer } from "../genre-drawer";
-import { ImageProviderSortable } from "../image-provider-sortable";
 import { SettingSection } from "../setting-section";
-import { Button } from "../ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { Spinner } from "../ui/spinner";
 import { YearlyRankingDrawer } from "../yearly-ranking-drawer";
-import { ApiKeySettings } from "./api-key-settings";
 import { ConfigureContext } from "./context";
 
 export interface ConfigureProps {
@@ -167,8 +171,6 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
                 </ItemGroup>
               </SettingSection>
 
-              <ApiKeySettings user={user} />
-
               {/* 图片提供商模块 */}
               <SettingSection
                 title="图片来源"
@@ -197,18 +199,16 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
                   const renderCatalogItems = (items: typeof movieConfigs) =>
                     items.map((item, index, array) => (
                       <Fragment key={item.id}>
-                        <Item size="sm" asChild>
-                          <label>
-                            <ItemContent>
-                              <ItemTitle>{item.name}</ItemTitle>
-                            </ItemContent>
-                            <ItemActions>
-                              <Switch
-                                checked={field.state.value.includes(item.id)}
-                                onCheckedChange={(checked) => handleChange(item.id, checked)}
-                              />
-                            </ItemActions>
-                          </label>
+                        <Item size="sm" render={<label />}>
+                          <ItemContent>
+                            <ItemTitle>{item.name}</ItemTitle>
+                          </ItemContent>
+                          <ItemActions>
+                            <Switch
+                              checked={field.state.value.includes(item.id)}
+                              onCheckedChange={(checked) => handleChange(item.id, checked)}
+                            />
+                          </ItemActions>
                         </Item>
                         {index !== array.length - 1 && <ItemSeparator />}
                       </Fragment>
@@ -296,27 +296,21 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
                     )}
                   </Button>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="lg" className="flex-1">
-                        安装
-                      </Button>
+                    <DropdownMenuTrigger render={<Button variant="outline" size="lg" className="flex-1" />}>
+                      安装
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => copyToClipboard(manifestUrl)}>
                         <Copy />
                         复制链接
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild onClick={handleImport}>
-                        <a href={manifestUrlConfigs.stremio}>
-                          <img className="size-4" src="https://www.stremio.com/website/stremio-logo-small.png" />
-                          导入 Stremio
-                        </a>
+                      <DropdownMenuItem render={<a href={manifestUrlConfigs.stremio} />} onClick={handleImport}>
+                        <img className="size-4" src="/stremio-logo.png" />
+                        导入 Stremio
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild onClick={handleImport}>
-                        <a href={manifestUrlConfigs.forward}>
-                          <img className="size-4" src="https://forward.inch.red/favicon.ico" />
-                          导入 Forward
-                        </a>
+                      <DropdownMenuItem render={<a href={manifestUrlConfigs.forward} />} onClick={handleImport}>
+                        <img className="size-4" src="https://forward.inch.red/favicon.ico" />
+                        导入 Forward
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

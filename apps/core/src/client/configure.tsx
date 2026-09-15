@@ -13,7 +13,7 @@ if (root) {
 
 const starBannerRoot = document.getElementById("star-banner");
 if (starBannerRoot) {
-  createRoot(starBannerRoot).render(<StarBanner user={initialData.user} />);
+  createRoot(starBannerRoot).render(<StarBanner user={initialData.user} context="stremio" />);
 }
 
 // 渲染用户菜单

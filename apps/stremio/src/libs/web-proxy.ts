@@ -26,7 +26,8 @@ function isConfigConfigure(pathname: string): boolean {
 export function isWebCompatibilityRoute(method: string, pathname: string): boolean {
   const verb = method.toUpperCase();
   if (verb === "GET" || verb === "HEAD") {
-    if (pathname === "/" || pathname === "/configure" || pathname === "/icon.png") return true;
+    if (pathname === "/" || pathname === "/configure" || pathname === "/icon.png" || pathname === "/stremio-logo.png")
+      return true;
     if (isConfigConfigure(pathname) || isSafeAsset(pathname) || match("/image-proxy/:userId")(pathname)) return true;
   }
   if (verb === "POST" && (pathname === "/configure" || isConfigConfigure(pathname))) return true;
@@ -44,5 +45,5 @@ export function isWebCompatibilityRoute(method: string, pathname: string): boole
     if (isTidyUpItem(pathname)) return true;
   }
   if (verb === "POST" && (pathname === "/auth/logout" || isTidyUpItem(pathname))) return true;
-  return (verb === "GET" || verb === "POST" || verb === "DELETE") && pathname === "/api-keys";
+  return false;
 }

@@ -154,6 +154,18 @@ describe("image proxy", { concurrency: false }, () => {
     });
   });
 
+  test("rate-limits image proxy when the limiter is exhausted", async () => {
+    await withTestContext(async (env, ctx) => {
+      const userId = await insertUser(env);
+      const limited = {
+        ...withRateLimits(env),
+        PUBLIC_RATE_LIMIT: { limit: async () => ({ success: false }) },
+      };
+      const response = await app.fetch(new Request(imageUrl(PUBLIC, userId, POSTER)), limited, ctx);
+      assert.equal(response.status, 429);
+    });
+  });
+
   test("upstream image errors keep their status", async () => {
     await withTestContext(async (env, ctx) => {
       try {

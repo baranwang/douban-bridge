@@ -88,9 +88,9 @@ describe("web compatibility allowlist", () => {
     assert.equal(isWebCompatibilityRoute("GET", "/auth/me"), true);
     assert.equal(isWebCompatibilityRoute("GET", "/auth/check-star"), true);
     assert.equal(isWebCompatibilityRoute("POST", "/auth/logout"), true);
-    assert.equal(isWebCompatibilityRoute("GET", "/api-keys"), true);
-    assert.equal(isWebCompatibilityRoute("POST", "/api-keys"), true);
-    assert.equal(isWebCompatibilityRoute("DELETE", "/api-keys"), true);
+    assert.equal(isWebCompatibilityRoute("GET", "/api-keys"), false);
+    assert.equal(isWebCompatibilityRoute("POST", "/api-keys"), false);
+    assert.equal(isWebCompatibilityRoute("DELETE", "/api-keys"), false);
     assert.equal(isWebCompatibilityRoute("GET", `/image-proxy/${USER}`), true);
     assert.equal(isWebCompatibilityRoute("HEAD", `/image-proxy/${USER}`), true);
     assert.equal(isWebCompatibilityRoute("GET", "/dash/tidy-up"), true);
@@ -99,6 +99,8 @@ describe("web compatibility allowlist", () => {
     assert.equal(isWebCompatibilityRoute("POST", "/dash/tidy-up/1291546"), true);
     assert.equal(isWebCompatibilityRoute("GET", "/icon.png"), true);
     assert.equal(isWebCompatibilityRoute("HEAD", "/icon.png"), true);
+    assert.equal(isWebCompatibilityRoute("GET", "/stremio-logo.png"), true);
+    assert.equal(isWebCompatibilityRoute("HEAD", "/stremio-logo.png"), true);
     assert.equal(isWebCompatibilityRoute("GET", "/assets/style-abc.css"), true);
     assert.equal(isWebCompatibilityRoute("HEAD", "/assets/configure.js"), true);
 

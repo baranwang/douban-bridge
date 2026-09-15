@@ -81,6 +81,11 @@ rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations apply st
 
 首次 core 部署先把 `apps/core/wrangler.jsonc` 的 `triggers.crons` 设为空（或不部署该字段），**保留旧 Worker 的唯一 cron**，避免两个写入者重叠。上传 core 后验证：默认入口拒绝 `/v1/*` 与 `/stremio/manifest`；dash HTTPS、OAuth、`/icon.png` 与 `/assets/*` 正常；KV 中 `DASH_USER` 与 `DASH_PASS` 均已配置，未配置时 dash 会 fail-open。
 
+- Core `/` 返回 200，Rex 入口在 Stremio 入口之前。
+- Core `/configure` 返回到 Stremio 域名的 307；Stremio `/configure` 返回 200。
+- Core `/rex` 按 session/Star 状态显示密钥与图片设置；Stremio 域名不代理 `/rex` 或 `/api-keys`。
+- `/v1` 继续只接受 Bearer `sk`，不使用网页 cookie。
+
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler secret bulk  # 仅当授权写入 secrets
 rtk proxy pnpm --filter @douban-bridge/core deploy

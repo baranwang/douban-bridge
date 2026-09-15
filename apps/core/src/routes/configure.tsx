@@ -1,18 +1,26 @@
-import { ADDON } from "@douban-bridge/contracts/addon";
-import { reactRenderer } from "@hono/react-renderer";
 import { zValidator } from "@hono/zod-validator";
 import { type Env, Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { Heart } from "lucide-react";
-import { Github } from "@/components/github-icon";
-import { Link, Script, ViteClient } from "vite-ssr-components/react";
+import { Script } from "vite-ssr-components/react";
 import { Configure, type ConfigureProps } from "@/components/configure";
+import { Github } from "@/components/github-icon";
 import { DEFAULT_COLLECTION_IDS } from "@/libs/collections";
 import { configSchema, decodeConfig, encodeConfig, getConfig, isUserId, saveUserConfig } from "@/libs/config";
-import { getStremioOrigin } from "@/libs/public-origins";
+import { getStremioOrigin, isStremioWebRequest, toStremioWebUrl } from "@/libs/public-origins";
 import { toPublicUser } from "@/libs/public-user";
+import { webRenderer } from "@/routes/web-renderer";
 
-export const configureRoute = new Hono<Env>().post("/", zValidator("json", configSchema), async (c) => {
+export const configureRoute = new Hono<Env>();
+
+configureRoute.use("*", async (c, next) => {
+  if (!isStremioWebRequest(c.env, c.req.url)) {
+    return c.redirect(toStremioWebUrl(c.env, c.req.url), 307);
+  }
+  await next();
+});
+
+configureRoute.post("/", zValidator("json", configSchema), async (c) => {
   const config = c.req.valid("json");
   const user = c.get("user");
   const origin = getStremioOrigin(c.env);
@@ -38,27 +46,7 @@ export const configureRoute = new Hono<Env>().post("/", zValidator("json", confi
 
 export type ConfigureRoute = typeof configureRoute;
 
-configureRoute.get(
-  "*",
-  reactRenderer(({ c, children }) => {
-    const userAgent = c.req.header("User-Agent");
-    const isSafari = userAgent?.includes("Safari") && !userAgent?.includes("Chrome");
-    return (
-      <html lang="zh" className={isSafari ? "safari" : ""}>
-        <head>
-          <ViteClient />
-          <Link rel="stylesheet" href="/src/style.css" />
-          <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-          />
-          <link rel="icon" href="/icon.png" />
-        </head>
-        <body>{children}</body>
-      </html>
-    );
-  }),
-);
+configureRoute.get("*", webRenderer);
 
 // GET 显示配置页面
 configureRoute.get("/", async (c) => {
@@ -111,8 +99,8 @@ configureRoute.get("/", async (c) => {
         <header className="page-container shrink-0 px-4 pt-6 pb-2">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-balance font-bold text-xl tracking-tight">{ADDON.description}</h1>
-              <p className="text-muted-foreground text-sm">选择要显示的目录，生成你的专属配置</p>
+              <h1 className="text-balance font-bold text-xl tracking-tight">Douban for Stremio</h1>
+              <p className="text-muted-foreground text-sm">选择目录并生成你的 Stremio Manifest</p>
             </div>
             {!!user && <div id="user-menu" />}
           </div>

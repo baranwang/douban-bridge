@@ -5,7 +5,7 @@ import { type Env, Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { getDrizzle, users } from "@/db";
 import { GitHubAPI } from "@/libs/api/github";
-import { getOAuthCredentials } from "@/libs/public-origins";
+import { getOAuthCredentials, getSignedInPath, getSignedOutPath } from "@/libs/public-origins";
 import { createSession, deleteSession } from "@/libs/session";
 
 export const authRoute = new Hono<Env>()
@@ -101,7 +101,7 @@ export const authRoute = new Hono<Env>()
       // 创建 session
       await createSession(c, user.id);
 
-      return c.redirect(`/${user.id}/configure`);
+      return c.redirect(getSignedInPath(c.env, origin, user.id));
     } catch (error) {
       console.error("OAuth callback error:", error);
       return c.text("Authentication failed", 500);
@@ -112,8 +112,9 @@ export const authRoute = new Hono<Env>()
    * POST /auth/logout - 登出
    */
   .post("/logout", (c) => {
+    const origin = new URL(c.req.url).origin;
     deleteSession(c);
-    return c.redirect("/configure");
+    return c.redirect(getSignedOutPath(c.env, origin));
   })
 
   /**

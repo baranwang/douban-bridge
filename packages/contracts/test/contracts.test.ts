@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { DEFAULT_COLLECTION_IDS, getLatestYearlyRanking, MOVIE_YEARLY_RANKING_ID } from "../src/collections";
 import { doubanSubjectCollectionSchema } from "../src/douban";
+import { imageProviderSchema, imageProvidersSchema, TMDB_IMAGE_LANGUAGE } from "../src/image-providers";
 import {
   bridgeItemSchema,
   catalogQuerySchema,
@@ -9,6 +10,21 @@ import {
   doubanIdSchema,
   metaResponseSchema,
 } from "../src/index";
+
+test("image provider contract accepts supported providers and rejects unknown providers", () => {
+  assert.deepEqual(TMDB_IMAGE_LANGUAGE, ["zh", "en", "ja", "ko", "null"]);
+  assert.equal(imageProviderSchema.safeParse({ provider: "douban", extra: {} }).success, true);
+  assert.equal(imageProviderSchema.safeParse({ provider: "fanart", extra: { apiKey: "fanart-key" } }).success, true);
+  assert.equal(
+    imageProviderSchema.safeParse({
+      provider: "tmdb",
+      extra: { apiKey: "tmdb-token", imageLanguages: ["zh", "en", "null"] },
+    }).success,
+    true,
+  );
+  assert.equal(imageProviderSchema.safeParse({ provider: "unknown", extra: {} }).success, false);
+  assert.equal(imageProvidersSchema.safeParse([]).success, true);
+});
 
 test("pagination and empty pages have different meanings from failures", () => {
   assert.equal(catalogQuerySchema.parse({ collectionId: "movie_top250", skip: "20" }).skip, 20);

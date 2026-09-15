@@ -36,3 +36,4 @@ lerna-debug.log*
 .DS_Store
 
 .omo/
+.worktrees/

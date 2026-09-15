@@ -1,10 +1,10 @@
+import { Badge } from "@douban-bridge/ui/components/badge";
+import { Button } from "@douban-bridge/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@douban-bridge/ui/components/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@douban-bridge/ui/components/table";
 import { isNull } from "drizzle-orm";
 import { type Env, Hono } from "hono";
 import { AlertTriangle, CheckCircle, Hash, Pencil } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
 import { tidyUpDetailRoute } from "./detail";

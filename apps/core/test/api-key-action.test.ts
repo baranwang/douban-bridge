@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test, { describe } from "node:test";
-import { apiKeyActionUi } from "../src/components/configure/api-key-action";
+import { apiKeyActionUi } from "../src/components/rex/api-key-action";
 
 describe("api key generate/revoke ui", () => {
   test("disables generate until GET status has loaded", () => {

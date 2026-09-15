@@ -1,10 +1,10 @@
+import { Button } from "@douban-bridge/ui/components/button";
+import { Spinner } from "@douban-bridge/ui/components/spinner";
 import { hc } from "hono/client";
 import { Check, Star } from "lucide-react";
-import { Github } from "@/components/github-icon";
 import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { Github } from "@/components/github-icon";
 import type { PublicUser } from "@/libs/public-user";
 import type { AuthRoute } from "@/routes/auth";
 
@@ -12,9 +12,10 @@ const client = hc<AuthRoute>("/auth");
 
 interface StarBannerProps {
   user?: PublicUser;
+  context: "rex" | "stremio";
 }
 
-export const StarBanner: React.FC<StarBannerProps> = ({ user }) => {
+export const StarBanner: React.FC<StarBannerProps> = ({ user, context }) => {
   const [hasClicked, setHasClicked] = useState(false);
   const $get = client["check-star"].$get;
 
@@ -40,6 +41,10 @@ export const StarBanner: React.FC<StarBannerProps> = ({ user }) => {
     if (user?.hasStarred) {
       return null;
     }
+    const benefits =
+      context === "rex"
+        ? ["解锁云端完整列表与详情", "保存图片来源与语言偏好", "支持项目持续开发与维护"]
+        : ["配置云同步，修改后无需更换 Manifest 链接", "保存图片来源与语言偏好", "支持项目持续开发与维护"];
     return (
       <div className="-mx-2 relative mt-3 overflow-hidden rounded-xl bg-neutral-900 p-4">
         {/* 装饰性星星 */}
@@ -55,11 +60,7 @@ export const StarBanner: React.FC<StarBannerProps> = ({ user }) => {
           <div className="flex flex-1 flex-col gap-2">
             <span className="font-bold text-neutral-100">✨ Star 项目解锁专属特权</span>
             <ul className="flex flex-col gap-1.5 text-neutral-400 text-xs">
-              {[
-                "配置云同步，修改后无需更换 Manifest 链接",
-                "更高的 API 请求限额，减少限流等待时间",
-                "支持项目持续开发与维护",
-              ].map((text) => (
+              {benefits.map((text) => (
                 <li key={text} className="flex items-center gap-2">
                   <Check className="size-3.5 shrink-0 text-neutral-300" />
                   <span>{text}</span>
@@ -69,32 +70,42 @@ export const StarBanner: React.FC<StarBannerProps> = ({ user }) => {
           </div>
 
           {/* CTA 按钮 */}
-          <Button size="sm" className="shrink-0 bg-neutral-100 font-semibold text-neutral-900 hover:bg-white" asChild>
+          <Button
+            size="sm"
+            className="shrink-0 bg-neutral-100 font-semibold text-neutral-900 hover:bg-white"
+            render={
+              user ? (
+                <a
+                  href="https://github.com/baranwang/douban-bridge"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleClick}
+                />
+              ) : (
+                <a href="/auth/github" />
+              )
+            }
+          >
             {user ? (
-              <a
-                href="https://github.com/baranwang/douban-bridge"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleClick}
-              >
+              <>
                 <Star className="size-4" />
                 <span>去 Star 解锁</span>
-              </a>
+              </>
             ) : (
-              <a href="/auth/github">
+              <>
                 <Github className="size-4" />
                 <span>GitHub 登录</span>
-              </a>
+              </>
             )}
           </Button>
         </div>
       </div>
     );
-  }, [user, handleClick]);
+  }, [user, handleClick, context]);
 
   // 如果已 Star，跳转到新 URL
   if (data?.hasStarred && data?.userId) {
-    window.location.href = `/${data.userId}/configure`;
+    window.location.href = context === "rex" ? "/rex" : `/${data.userId}/configure`;
     return null;
   }
 

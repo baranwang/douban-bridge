@@ -1,6 +1,6 @@
+import { TMDB_IMAGE_LANGUAGE } from "@douban-bridge/contracts/image-providers";
 import { SECONDS_PER_WEEK } from "@/libs/constants";
 import { BaseAPI, CacheType } from "../base";
-import { TMDB_IMAGE_LANGUAGE } from "./constants";
 import { tmdbFindResultSchema, tmdbSearchResultSchema, tmdbSubjectImagesSchema } from "./schema";
 
 export class TmdbAPI extends BaseAPI {
