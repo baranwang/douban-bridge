@@ -85,12 +85,11 @@ test("basic catalog uses public Douban paging and never calls the cloud API", as
     requests.some((url) => url.includes("start=20") && url.includes("count=20")),
     true,
   );
-  assert.equal(result[0].doubanId, 1291546);
-  assert.equal(result[0].tmdbId, 278);
+  assert.equal(result[0].id, "278");
+  assert.equal(result[0].type, "tmdb");
   assert.equal(result[0].title, "肖申克的救赎");
-  assert.equal(result[0].imdbId, null);
-  assert.equal(result[0].images.poster, "https://image.tmdb.org/t/p/original/test.jpg");
-  assert.equal(result[0].images.logo, null);
+  assert.equal(result[0].posterPath, "/test.jpg");
+  assert.equal("description" in result[0], false);
   assert.equal(
     requests.some((url) => url.includes("/subject/1291546") && !url.includes("subject_collection")),
     false,
@@ -104,9 +103,9 @@ test("TMDB failure keeps Douban id and cover", async () => {
     },
   });
   const result = await getBasicCatalog({ collectionId: "movie_top250", skip: 0 });
-  assert.equal(result[0].doubanId, 1291546);
-  assert.equal(result[0].tmdbId, null);
-  assert.equal(result[0].images.poster, "https://img1.doubanio.com/test.jpg");
+  assert.equal(result[0].id, "1291546");
+  assert.equal(result[0].type, "douban");
+  assert.equal(result[0].posterPath, "https://img1.doubanio.com/test.jpg");
 });
 
 test("multiple TMDB candidates do not match", async () => {
@@ -119,7 +118,8 @@ test("multiple TMDB candidates do not match", async () => {
     }),
   });
   const result = await getBasicCatalog({ collectionId: "movie_top250", skip: 0 });
-  assert.equal(result[0].tmdbId, null);
+  assert.equal(result[0].type, "douban");
+  assert.equal(result[0].id, "1291546");
   assert.equal(await findBasicTmdb({ type: "movie", title: "肖申克的救赎", year: "1994" }), null);
 });
 
@@ -140,7 +140,8 @@ test("movie and TV with the same title do not search across type", async () => {
   const tv = await getBasicCatalog({ collectionId: "tv_hot", skip: 0 });
   assert.equal(tvRequests.includes("search/tv"), true);
   assert.equal(tvRequests.includes("search/movie"), false);
-  assert.equal(tv[0].tmdbId, 1396);
+  assert.equal(tv[0].id, "1396");
+  assert.equal(tv[0].type, "tmdb");
 });
 
 test("Douban source failure rejects", async () => {
@@ -171,7 +172,8 @@ test("yearly rankings resolve the latest id and subcollections load directly", a
     },
   });
   const result = await getBasicCatalog({ collectionId: "ECOIOTUGY", skip: 0 });
-  assert.equal(result[0].doubanId, 1291546);
+  assert.equal(result[0].id, "278");
+  assert.equal(result[0].type, "tmdb");
   assert.equal(
     subcollection.some((url) => url.includes("subject_collection/ECOIOTUGY/items")),
     true,

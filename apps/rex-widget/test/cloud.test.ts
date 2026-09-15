@@ -190,8 +190,10 @@ test("empty sk uses basic catalog only", async () => {
   const result = await loadCatalog({ collectionId: "movie_top250", skip: 0 }, "");
   assert.equal(counts.cloud, 0);
   assert.equal(counts.basic, 1);
-  assert.equal(result[0].doubanId, 1291546);
+  assert.equal(result[0].id, "1291546");
+  assert.equal(result[0].type, "douban");
   assert.equal(result[0].title, "肖申克的救赎");
+  assert.equal("description" in result[0], false);
 });
 
 test("complete cloud catalog never calls basic and keeps original images", async () => {
@@ -206,8 +208,9 @@ test("complete cloud catalog never calls basic and keeps original images", async
   assert.equal(counts.cloud, 1);
   assert.equal(counts.basic, 0);
   assert.equal(result[0].title, "云端标题");
-  assert.equal(result[0].images.poster, "https://cdn.example.com/poster.jpg");
-  assert.equal(result[0].tmdbId, 278);
+  assert.equal(result[0].posterPath, "https://cdn.example.com/poster.jpg");
+  assert.equal(result[0].id, "278");
+  assert.equal("description" in result[0], false);
 });
 
 test("cloud item with null tmdbId stays on the cloud item", async () => {
@@ -218,9 +221,9 @@ test("cloud item with null tmdbId stays on the cloud item", async () => {
   const result = await loadCatalog({ collectionId: "movie_top250", skip: 0 }, SK);
   assert.equal(counts.cloud, 1);
   assert.equal(counts.basic, 0);
-  assert.equal(result[0].tmdbId, null);
-  assert.equal(result[0].doubanId, 1291546);
-  assert.equal(result[0].images.poster, "https://cdn.example.com/poster.jpg");
+  assert.equal(result[0].id, "1291546");
+  assert.equal(result[0].type, "douban");
+  assert.equal(result[0].posterPath, "https://cdn.example.com/poster.jpg");
 });
 
 test("missing items falls back to basic", async () => {
@@ -396,28 +399,31 @@ test("TMDB catalog ids use the tmdb id", async () => {
   assert.equal(counts.basic, 0);
 });
 
-test("toHostItem strips TMDB original image prefixes", async () => {
+test("catalog items omit description and keep host image paths", async () => {
+  const [item] = await loadDefaultCatalog({ collectionId: "movie_top250", sk: SK });
+  assert.equal("description" in item, false);
+  assert.equal(item.posterPath, "https://cdn.example.com/poster.jpg");
+});
+
+test("catalog genreTitle comes from genres not description", async () => {
   install(async () => ({
     statusCode: 200,
     data: {
       items: [
         {
           ...CLOUD_ITEM,
-          images: {
-            poster: "https://image.tmdb.org/t/p/original/poster.jpg",
-            background: "https://image.tmdb.org/t/p/original/bg.jpg",
-            logo: null,
-          },
+          description: "一场警察与特务的较量，却展开满是烟火与温情的百姓人生。",
+          genres: ["剧情", "喜剧"],
         },
       ],
     },
   }));
   const [item] = await loadDefaultCatalog({ collectionId: "movie_top250", sk: SK });
-  assert.equal(item.posterPath, "/poster.jpg");
-  assert.equal(item.backdropPath, "/bg.jpg");
+  assert.equal(item.genreTitle, "剧情, 喜剧");
+  assert.equal("description" in item, false);
 });
 
-test("toHostItem uses imdb then douban when tmdb is missing", async () => {
+test("catalog items keep imdb then douban ids", async () => {
   const { widget } = install(async () => ({
     statusCode: 200,
     data: { items: [{ ...CLOUD_ITEM, tmdbId: null }] },

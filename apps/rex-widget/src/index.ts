@@ -1,4 +1,4 @@
-import { type BridgeItem, catalogQuerySchema } from "@douban-bridge/contracts";
+import { catalogQuerySchema } from "@douban-bridge/contracts";
 import {
   COLLECTION_CONFIGS,
   getLatestYearlyRanking,
@@ -12,8 +12,6 @@ import { version } from "../package.json";
 import { loadCatalog } from "./cloud";
 import { SUB_COLLECTIONS } from "./sub-collections";
 
-const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfies WidgetModuleParam;
-
 function queryFromParams(params: { collectionId: string; page?: string | number }) {
   const page = Number(params.page ?? 1);
   if (!Number.isSafeInteger(page) || page < 1) throw new Error("Invalid page");
@@ -21,43 +19,19 @@ function queryFromParams(params: { collectionId: string; page?: string | number 
   const subCollectionId = Reflect.get(params, `subCollectionId_${collectionId}`);
   return catalogQuerySchema.parse({ collectionId: subCollectionId || collectionId, skip: (page - 1) * 20 });
 }
-
-const TMDB_ORIGINAL = "https://image.tmdb.org/t/p/original";
-
-function hostImagePath(url?: string | null) {
-  return url?.startsWith(TMDB_ORIGINAL) ? url.slice(TMDB_ORIGINAL.length) : (url ?? undefined);
-}
-
-function toHostItem(item: BridgeItem) {
-  return {
-    id: String(item.tmdbId ?? item.imdbId ?? item.doubanId),
-    type: item.tmdbId ? "tmdb" : item.imdbId ? "imdb" : "douban",
-    title: item.title,
-    description: item.description,
-    mediaType: item.mediaType,
-    posterPath: hostImagePath(item.images.poster),
-    backdropPath: hostImagePath(item.images.background),
-    rating: item.rating === undefined ? undefined : String(item.rating),
-    releaseDate: item.year,
-  } satisfies VideoItem;
-}
-
 const loadCatalogForWidget = async (
   params: DoubanBridge.GlobalParams & {
     collectionId: string;
     page?: string | number;
   },
-) => {
-  const items = await loadCatalog(queryFromParams(params), (params.sk ?? "").trim(), params.userId ?? "");
-  return items.map(toHostItem);
-};
+) => loadCatalog(queryFromParams(params), (params.sk ?? "").trim(), params.userId ?? "");
 loadDefaultCatalog = loadCatalogForWidget;
 loadGenreCatalog = loadCatalogForWidget;
 loadYearlyCatalog = loadCatalogForWidget;
+
 function enumOptions(items: { id: string; name: string }[]) {
   return items.map((item) => ({ title: item.name, value: item.id }));
 }
-
 function subCollectionParams(collections: { id: string }[], latestId?: string) {
   return collections.flatMap<WidgetModuleParam>(({ id }, index) => {
     const items = SUB_COLLECTIONS[id as keyof typeof SUB_COLLECTIONS];
@@ -106,6 +80,8 @@ const i18n = {
     豆瓣年度评分最高剧集: "Douban's Top-Rated TV Shows by Year",
   },
 };
+
+const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfies WidgetModuleParam;
 
 WidgetMetadata = {
   id: "douban.bridge",
