@@ -1,13 +1,12 @@
 import type { ImageProvider } from "@douban-bridge/contracts/image-providers";
 import { Button } from "@douban-bridge/ui/components/button";
 import { ItemGroup } from "@douban-bridge/ui/components/item";
-import { Toaster } from "@douban-bridge/ui/components/sonner";
 import { Spinner } from "@douban-bridge/ui/components/spinner";
+import { Toaster, toast } from "@douban-bridge/ui/components/toast";
 import { ImageProviderSortable } from "@douban-bridge/ui/image-providers";
 import { isEqual } from "es-toolkit";
 import { Image as ImageIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { toast } from "sonner";
 import type { PublicUser } from "@/libs/public-user";
 import { PageShell } from "../page-shell";
 import { SettingSection } from "../setting-section";
@@ -40,9 +39,9 @@ export function Rex({ user, imageProviders: initialImageProviders }: RexProps) {
       const saved = (await response.json()) as { success: true; imageProviders: ImageProvider[] };
       setImageProviders(saved.imageProviders);
       setSavedImageProviders(saved.imageProviders);
-      toast.success("图片设置已保存");
+      toast.add({ title: "图片设置已保存", type: "success" });
     } catch {
-      toast.error("保存失败，请稍后重试");
+      toast.add({ title: "保存失败，请稍后重试", type: "error" });
     } finally {
       setSaving(false);
     }
@@ -66,7 +65,7 @@ export function Rex({ user, imageProviders: initialImageProviders }: RexProps) {
               icon={<ImageIcon className="size-4 text-muted-foreground" />}
               footer="拖动排序调整优先级，排在前面的图片来源将优先使用"
             >
-              <ItemGroup className="gap-0 rounded-lg border">
+              <ItemGroup>
                 <ImageProviderSortable value={imageProviders} onChange={setImageProviders} />
               </ItemGroup>
             </SettingSection>

@@ -5,9 +5,9 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@douban-bridge/ui/components/input-group";
+import { toast } from "@douban-bridge/ui/components/toast";
 import { Copy, KeyRound } from "lucide-react";
 import { type FC, useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { SettingSection } from "@/components/setting-section";
 import type { PublicUser } from "@/libs/public-user";
 import { apiKeyActionUi } from "./api-key-action";
@@ -33,7 +33,7 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
       if (signal?.cancelled) return;
       setLoaded(false);
       setLoadFailed(true);
-      toast.error("操作失败，请重试");
+      toast.add({ title: "操作失败，请重试", type: "error" });
     }
   }, []);
 
@@ -62,7 +62,7 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
         setSk(next);
         setHasKey(true);
       } catch {
-        toast.error("操作失败，请重试");
+        toast.add({ title: "操作失败，请重试", type: "error" });
       } finally {
         setBusy(false);
       }
@@ -88,9 +88,9 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(sk);
-                    toast.success("密钥已复制到剪贴板");
+                    toast.add({ title: "密钥已复制到剪贴板", type: "success" });
                   } catch {
-                    toast.error("操作失败，请重试");
+                    toast.add({ title: "操作失败，请重试", type: "error" });
                   }
                 }}
               >

@@ -14,16 +14,15 @@ import {
   ItemSeparator,
   ItemTitle,
 } from "@douban-bridge/ui/components/item";
-import { Toaster } from "@douban-bridge/ui/components/sonner";
 import { Spinner } from "@douban-bridge/ui/components/spinner";
 import { Switch } from "@douban-bridge/ui/components/switch";
+import { Toaster, toast } from "@douban-bridge/ui/components/toast";
 import { ImageProviderSortable } from "@douban-bridge/ui/image-providers";
 import { useForm } from "@tanstack/react-form";
 import { isEqual } from "es-toolkit";
 import { hc } from "hono/client";
 import { Copy, Film, Image, Settings, Tv } from "lucide-react";
 import { type FC, Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import {
   COLLECTION_CONFIGS,
   isYearlyRankingId,
@@ -62,12 +61,12 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
         if (result.success && result.manifestUrl) {
           setManifestUrl(result.manifestUrl);
           setSavedConfig(value); // 更新已保存的配置
-          toast.success(isStarredUser ? "配置已保存" : "配置链接已生成");
+          toast.add({ title: isStarredUser ? "配置已保存" : "配置链接已生成", type: "success" });
         } else {
-          toast.error("保存失败");
+          toast.add({ title: "保存失败", type: "error" });
         }
       } catch {
-        toast.error("保存失败，请稍后重试");
+        toast.add({ title: "保存失败，请稍后重试", type: "error" });
       }
     },
   });
@@ -89,9 +88,9 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("链接已复制到剪贴板");
+      toast.add({ title: "链接已复制到剪贴板", type: "success" });
     } catch {
-      toast.error("复制失败");
+      toast.add({ title: "复制失败", type: "error" });
     }
   }, []);
 
@@ -107,7 +106,7 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
     setTimeout(() => {
       window.removeEventListener("blur", handleBlur);
       if (!didBlur) {
-        toast.error("未检测到支持的应用，请确保已安装兼容 stremio 协议的应用");
+        toast.add({ title: "未检测到支持的应用，请确保已安装兼容 stremio 协议的应用", type: "error" });
       }
     }, 1000);
   }, []);
@@ -177,7 +176,7 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
                 icon={<Image className="size-4 text-muted-foreground" />}
                 footer="拖动排序调整优先级，排在前面的图片来源将优先使用"
               >
-                <ItemGroup className="rounded-lg border">
+                <ItemGroup>
                   <form.Field name="imageProviders" mode="array">
                     {(field) => (
                       <ImageProviderSortable
