@@ -61,6 +61,14 @@
         "limit": 600,
         "period": 60
       }
+    },
+    {
+      "name": "IMAGE_RATE_LIMIT",
+      "namespace_id": "1003",
+      "simple": {
+        "limit": 1200,
+        "period": 60
+      }
     }
   ],
   "triggers": {
