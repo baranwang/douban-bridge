@@ -89,11 +89,14 @@
 
 | 字段 | 含义 |
 | --- | --- |
-| `checking` | 请求进行中或已确认 star（沿用现值） |
+| `opened` | 用户是否已点过「打开 GitHub 仓库」（即内部 `hasClicked`） |
+| `validating` | SWR 请求进行中 |
 | `checked` | 至少完成过一次检查（`data` 已存在） |
 | `starred` | 已 star |
 | `onStarClick` | 标记已点击，启用轮询 |
 | `recheck` | 手动触发重新校验（`mutate`） |
+
+原有的 `checking` 字段删除：它唯一的消费者是 `StarCta` 的 `disabled`，而改造后触发按钮刻意保持可点击——用户关掉弹层后要能重新打开它。进度改由弹层内部呈现。
 
 自动跳转的 `useEffect` 不变。
 
