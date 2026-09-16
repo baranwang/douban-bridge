@@ -166,3 +166,21 @@ export const doubanModulesSchema = z.object({
       .catch(() => null),
   ),
 });
+
+export const doubanSearchSchema = z.object({
+  items: z
+    .array(
+      z.unknown().transform((raw) => {
+        if (!raw || typeof raw !== "object") return null;
+        const item = raw as { layout?: unknown; target_type?: unknown; target?: unknown };
+        if (item.layout !== "subject" || (item.target_type !== "movie" && item.target_type !== "tv")) return null;
+        const result = doubanSubjectCollectionItemSchema.safeParse({
+          ...(item.target && typeof item.target === "object" ? item.target : {}),
+          type: item.target_type,
+        });
+        return result.success ? result.data : null;
+      }),
+    )
+    .transform((v) => v.filter((v) => v !== null)),
+  total: z.number().optional(),
+});

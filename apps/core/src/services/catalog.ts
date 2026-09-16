@@ -1,4 +1,5 @@
 import type { CatalogQuery } from "@douban-bridge/contracts";
+import type { DoubanSubjectCollectionItem } from "@douban-bridge/contracts/douban";
 import type { StremioCatalogItem } from "@douban-bridge/contracts/stremio";
 import axios from "axios";
 import { HTTPException } from "hono/http-exception";
@@ -51,10 +52,14 @@ export async function getCatalogPage(query: CatalogQuery, images: ImageContext):
     throw new HTTPException(404);
   }
 
-  const items = collectionData.subject_collection_items;
-  if (items.length === 0) {
-    return [];
-  }
+  return enrichCatalogItems(collectionData.subject_collection_items, images);
+}
+
+export async function enrichCatalogItems(
+  items: DoubanSubjectCollectionItem[],
+  images: ImageContext,
+): Promise<StremioCatalogItem[]> {
+  if (items.length === 0) return [];
 
   const sourceById = new Map(items.map((item) => [item.id, item]));
   const { mappingCache, missingIds } = await api.fetchIdMapping([...sourceById.keys()]);
@@ -102,5 +107,38 @@ export async function getCatalogPage(query: CatalogQuery, images: ImageContext):
         links: [{ name: `豆瓣评分：${item.rating?.value ?? "N/A"}`, category: "douban", url: item.url ?? "#" }],
       };
     }),
+  );
+}
+
+export async function getItemsByIds(ids: number[], images: ImageContext): Promise<StremioCatalogItem[]> {
+  const unique = [...new Set(ids)];
+  const sources = await Promise.all(
+    unique.map(async (id) => {
+      try {
+        const data = await api.doubanAPI.getSubjectDetail(id);
+        return {
+          id: data.id,
+          type: data.type,
+          title: data.title,
+          original_title: data.original_title,
+          year: data.year,
+          cover: data.cover_url || data.pic?.large || data.pic?.normal,
+          cover_url: data.cover_url,
+          pic: data.pic,
+          rating: data.rating,
+          url: data.url,
+        } as DoubanSubjectCollectionItem;
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) return null;
+        mapSourceError(error);
+      }
+    }),
+  );
+  const found = new Map(
+    sources.filter((item): item is DoubanSubjectCollectionItem => item !== null).map((item) => [item.id, item]),
+  );
+  return enrichCatalogItems(
+    ids.map((id) => found.get(id)).filter((item): item is DoubanSubjectCollectionItem => item !== undefined),
+    images,
   );
 }

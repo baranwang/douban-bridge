@@ -15,6 +15,11 @@ type TestWidget = {
       url: string,
       options?: { headers?: Record<string, string> },
     ) => Promise<{ statusCode: number; data: unknown }>;
+    post?: (
+      url: string,
+      body: unknown,
+      options?: { headers?: Record<string, string> },
+    ) => Promise<{ statusCode: number; data: unknown }>;
   };
   tmdb: { get: (path: string, options?: { params?: Record<string, string> }) => Promise<unknown> };
   storage: {
@@ -39,8 +44,9 @@ Object.assign(globalThis, {
   loadDefaultCatalog: undefined,
   loadGenreCatalog: undefined,
   loadYearlyCatalog: undefined,
+  loadSearch: undefined,
 });
-const { loadCatalog } = await import("../src/cloud");
+const { loadCatalog, loadSearch } = await import("../src/cloud");
 await import("../src/index");
 
 test("metadata translates broad labels to English", () => {
@@ -48,7 +54,11 @@ test("metadata translates broad labels to English", () => {
     description?: string;
     i18n?: { en?: Record<string, string> };
     modules: unknown[];
+    search?: { title: string; functionName: string; params: Array<{ name: string }> };
   };
+  assert.equal(metadata.search?.functionName, "loadSearch");
+  assert.equal(metadata.search?.title, "搜索");
+  assert.equal(typeof Reflect.get(globalThis, "loadSearch"), "function");
   assert.notEqual(metadata.description, "todo");
   assert.equal(WidgetMetadata.id, "douban.bridge");
   assert.equal(WidgetMetadata.iconurl, "https://fastly.jsdelivr.net/gh/baranwang/douban-bridge@main/icon.png");
@@ -57,6 +67,8 @@ test("metadata translates broad labels to English", () => {
     [
       "分类",
       "密钥",
+      "搜索",
+      "搜索关键词",
       "年度",
       "页码",
       "榜单",
@@ -569,4 +581,83 @@ test("WidgetMetadata exposes 13 defaults plus genre and yearly modules", () => {
       item.id,
     );
   }
+});
+
+const SEARCH_SOURCE = {
+  items: [
+    {
+      layout: "subject",
+      target_type: "movie",
+      target: { id: "1291546", title: "肖申克的救赎", year: "1994", cover_url: "https://img1.doubanio.com/test.jpg" },
+    },
+    {
+      layout: "subject",
+      target_type: "book",
+      target: { id: "1001", title: "一本书" },
+    },
+  ],
+  total: 2,
+};
+
+test("cloud search matches Douban ids through POST /v1/items", async () => {
+  const posts: Array<{ url: string; body: unknown; headers?: Record<string, string> }> = [];
+  runtimeWidget.http.get = async (url) => {
+    assert.equal(url.includes("frodo.douban.com/api/v2/search/weixin"), true);
+    return { statusCode: 200, data: SEARCH_SOURCE, headers: {} };
+  };
+  runtimeWidget.http.post = async (url, body, options) => {
+    posts.push({ url, body, headers: options?.headers });
+    return { statusCode: 200, data: { items: [CLOUD_ITEM] }, headers: {} };
+  };
+  const result = await loadSearch("肖申克", SK, "user-1");
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].url, "https://douban-bridge.baran.wang/v1/items");
+  assert.deepEqual(posts[0].body, { ids: [1291546] });
+  assert.equal(posts[0].headers?.Authorization, `Bearer ${SK}`);
+  assert.equal(posts[0].headers?.["X-User-Id"], "user-1");
+  assert.equal(result[0].id, "278");
+  assert.equal(result[0].title, "云端标题");
+});
+
+test("search without sk stays on Douban and never posts items", async () => {
+  let posted = 0;
+  runtimeWidget.http.get = async () => ({ statusCode: 200, data: SEARCH_SOURCE, headers: {} });
+  runtimeWidget.http.post = async () => {
+    posted += 1;
+    throw new Error("cloud should not be called");
+  };
+  const result = await loadSearch("肖申克", "");
+  assert.equal(posted, 0);
+  assert.equal(result[0].id, "1291546");
+  assert.equal(result[0].type, "douban");
+});
+
+test("partial cloud matching keeps unmatched search hits", async () => {
+  const extra = {
+    layout: "subject",
+    target_type: "movie",
+    target: { id: "1292064", title: "阿甘正传", year: "1994", cover_url: "https://img1.doubanio.com/forrest.jpg" },
+  };
+  runtimeWidget.http.get = async () => ({
+    statusCode: 200,
+    data: { items: [...SEARCH_SOURCE.items, extra], total: 3 },
+    headers: {},
+  });
+  runtimeWidget.http.post = async () => ({ statusCode: 200, data: { items: [CLOUD_ITEM] }, headers: {} });
+  runtimeWidget.tmdb.get = async () => ({ results: [] });
+  const result = await loadSearch("肖申克", SK);
+  assert.equal(result.length, 2);
+  assert.equal(result[0].id, "278");
+  assert.equal(result[0].title, "云端标题");
+  assert.equal(result[1].id, "1292064");
+  assert.equal(result[1].type, "douban");
+  assert.equal(result[1].title, "阿甘正传");
+});
+
+test("failed item matching keeps the Douban search result", async () => {
+  runtimeWidget.http.get = async () => ({ statusCode: 200, data: SEARCH_SOURCE, headers: {} });
+  runtimeWidget.http.post = async () => ({ statusCode: 500, data: null, headers: {} });
+  const result = await loadSearch("肖申克", SK);
+  assert.equal(result[0].id, "1291546");
+  assert.equal(result[0].type, "douban");
 });

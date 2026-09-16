@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test, { describe, mock } from "node:test";
 import { fileURLToPath } from "node:url";
+import axios from "axios";
 import { eq } from "drizzle-orm";
 import { sign } from "hono/jwt";
 import { app } from "../src/app";
@@ -310,6 +311,104 @@ describe("internal api catalog and meta", { concurrency: false }, () => {
         assert.equal(dumped.includes("Authorization"), false);
         assert.ok(logs.some((args) => args.includes("internal_error")));
         error.mock.restore();
+      } finally {
+        mock.restoreAll();
+      }
+    });
+  });
+});
+
+describe("internal api batch items", { concurrency: false }, () => {
+  test("POST /v1/items requires Bearer and rejects empty, oversized, and extra keys", async () => {
+    await withTestContext(async (env, ctx) => {
+      try {
+        let sourceCalls = 0;
+        mock.method(api.doubanAPI, "getSubjectDetail", async () => {
+          sourceCalls += 1;
+          return { id: 1, type: "movie", title: "x", linewatches: [] };
+        });
+        const limited = withRateLimits(env);
+        const denied = await internalApi.fetch(
+          new Request(`${PUBLIC}/v1/items`, { method: "POST", body: JSON.stringify({ ids: [1291546] }) }),
+          limited,
+          ctx,
+        );
+        assert.equal(denied.status, 401);
+        noStore(denied);
+
+        const userId = await insertUser(env);
+        const sk = await replaceApiKey(env, userId);
+        const headers = { Authorization: `Bearer ${sk}`, "Content-Type": "application/json" };
+        const bads = [
+          { ids: [] },
+          { ids: Array.from({ length: 21 }, (_, i) => i + 1) },
+          { ids: [1291546], extra: true },
+          { ids: [0] },
+        ];
+        for (const body of bads) {
+          const response = await internalApi.fetch(
+            new Request(`${PUBLIC}/v1/items`, { method: "POST", headers, body: JSON.stringify(body) }),
+            limited,
+            ctx,
+          );
+          assert.equal(response.status, 400, JSON.stringify(body));
+          noStore(response);
+        }
+        assert.equal(sourceCalls, 0);
+      } finally {
+        mock.restoreAll();
+      }
+    });
+  });
+
+  test("POST /v1/items maps ids in request order and omits missing subjects", async () => {
+    await withTestContext(async (env, ctx) => {
+      try {
+        mock.method(api.doubanAPI, "getSubjectDetail", async (id: number) => {
+          if (id === 2) {
+            const error = new axios.AxiosError("missing");
+            error.status = 404;
+            error.response = { status: 404, data: null, statusText: "Not Found", headers: {}, config: error.config! };
+            throw error;
+          }
+          return {
+            id,
+            type: "movie",
+            title: `标题${id}`,
+            year: "1994",
+            cover_url: POSTER,
+            rating: { value: 9.1 },
+            linewatches: [],
+          };
+        });
+        mock.method(api, "findExternalId", async ({ doubanId }: { doubanId: number }) => ({
+          doubanId,
+          tmdbId: doubanId === 1 ? 101 : null,
+          imdbId: null,
+          traktId: null,
+        }));
+        const userId = await insertUser(env);
+        const sk = await replaceApiKey(env, userId);
+        const response = await internalApi.fetch(
+          new Request(`${PUBLIC}/v1/items`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${sk}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: [1, 2, 3] }),
+          }),
+          withRateLimits(env),
+          ctx,
+        );
+        assert.equal(response.status, 200);
+        noStore(response);
+        const body = (await response.json()) as {
+          items: Array<{ doubanId: number; title: string; tmdbId: number | null }>;
+        };
+        assert.deepEqual(
+          body.items.map((item) => item.doubanId),
+          [1, 3],
+        );
+        assert.equal(body.items[0].tmdbId, 101);
+        assert.equal(body.items[0].title, "标题1");
       } finally {
         mock.restoreAll();
       }

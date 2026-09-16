@@ -45,3 +45,13 @@ export const doubanIdSchema = z
   .regex(/^[1-9]\d*$/)
   .transform(Number)
   .pipe(z.number().int().positive().max(Number.MAX_SAFE_INTEGER));
+export const itemsRequestSchema = z
+  .object({
+    ids: z
+      .array(z.union([z.number().int().positive().max(Number.MAX_SAFE_INTEGER), doubanIdSchema]))
+      .min(1)
+      .max(20)
+      .transform((ids) => [...new Set(ids)]),
+  })
+  .strict();
+export type ItemsRequest = z.infer<typeof itemsRequestSchema>;

@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DEFAULT_COLLECTION_IDS, getLatestYearlyRanking, MOVIE_YEARLY_RANKING_ID } from "../src/collections";
-import { doubanSubjectCollectionSchema } from "../src/douban";
+import { doubanSearchSchema, doubanSubjectCollectionSchema } from "../src/douban";
 import { imageProviderSchema, imageProvidersSchema, TMDB_IMAGE_LANGUAGE } from "../src/image-providers";
 import {
   bridgeItemSchema,
   catalogQuerySchema,
   catalogResponseSchema,
   doubanIdSchema,
+  itemsRequestSchema,
   metaResponseSchema,
 } from "../src/index";
 
@@ -46,7 +47,11 @@ test("non-critical ids and images degrade without failing the page", () => {
   });
   assert.equal(parsed.tmdbId, null);
   assert.equal(parsed.imdbId, null);
-  assert.deepEqual(parsed.images, { poster: "/poster.jpg", background: null, logo: "https://cdn.example.com/logo.png" });
+  assert.deepEqual(parsed.images, {
+    poster: "/poster.jpg",
+    background: null,
+    logo: "https://cdn.example.com/logo.png",
+  });
   assert.equal(bridgeItemSchema.safeParse({ mediaType: "movie", title: "x", images: {} }).success, false);
   assert.equal(doubanIdSchema.safeParse("0123").success, false);
   assert.equal(doubanIdSchema.parse("1291546"), 1291546);
@@ -67,4 +72,50 @@ test("moved Douban schema still parses a public collection envelope", () => {
   });
   assert.equal(parsed.subject_collection_items[0]?.id, 1291546);
   assert.equal(parsed.subject_collection_items[0]?.cover, undefined);
+});
+
+test("batch items request keeps 1-20 positive ids and rejects junk", () => {
+  assert.deepEqual(itemsRequestSchema.parse({ ids: ["1291546", 278] }).ids, [1291546, 278]);
+  assert.equal(itemsRequestSchema.safeParse({ ids: [] }).success, false);
+  assert.equal(itemsRequestSchema.safeParse({ ids: Array.from({ length: 21 }, (_, i) => i + 1) }).success, false);
+  assert.equal(itemsRequestSchema.safeParse({ ids: [0] }).success, false);
+  assert.equal(itemsRequestSchema.safeParse({ ids: [1291546], extra: true }).success, false);
+});
+
+test("weixin search keeps movie/tv subjects and drops the rest", () => {
+  const parsed = doubanSearchSchema.parse({
+    items: [
+      { layout: "doulist_cards", target_type: "doulist_cards" },
+      {
+        layout: "subject",
+        target_type: "movie",
+        target: {
+          id: "38581618",
+          title: "牛来",
+          year: "2026",
+          cover_url: "https://img.example/a.jpg",
+          rating: { value: 6 },
+        },
+      },
+      {
+        layout: "subject",
+        target_type: "book",
+        target: { id: "34794569", title: "犀牛来了" },
+      },
+      {
+        layout: "subject",
+        target_type: "tv",
+        target: { id: "2162905", title: "终极一班", year: "2005", card_subtitle: "中国大陆 / 剧情" },
+      },
+    ],
+    total: 4,
+  });
+  assert.deepEqual(
+    parsed.items.map((item) => [item.id, item.type, item.title]),
+    [
+      [38581618, "movie", "牛来"],
+      [2162905, "tv", "终极一班"],
+    ],
+  );
+  assert.equal(parsed.items[0]?.cover, "https://img.example/a.jpg");
 });
