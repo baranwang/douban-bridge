@@ -37,7 +37,8 @@ function recommendTags(params: Record<string, unknown>) {
       ? ["tv_genre", "variety_genre", "region", "year", "tag"]
       : ["genre", "tv_genre", "variety_genre", "region", "year", "tag"];
   return names
-    .map((name) => String(params[name] ?? "").trim())
+    .flatMap((name) => String(params[name] ?? "").split(/[,，]/))
+    .map((item) => item.trim())
     .filter(Boolean)
     .join(",");
 }
@@ -174,7 +175,12 @@ const RECOMMEND_YEAR = [
 ];
 
 const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfies WidgetModuleParam;
-const CUSTOM_TAG = { name: "tag", title: "自定义标签", type: "input" } satisfies WidgetModuleParam;
+const CUSTOM_TAG = {
+  name: "tag",
+  title: "自定义标签",
+  description: "多个标签用中文或英文逗号分隔",
+  type: "input",
+} satisfies WidgetModuleParam;
 const RECOMMEND_FILTERS: WidgetModuleParam[] = [
   { name: "region", title: "地区", type: "enumeration", enumOptions: RECOMMEND_REGION },
   { name: "sort", title: "排序", type: "enumeration", value: "T", enumOptions: RECOMMEND_SORT },

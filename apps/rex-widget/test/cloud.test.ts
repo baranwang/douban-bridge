@@ -779,6 +779,19 @@ test("movie recommend appends a custom tag after selected filters", async () => 
   assert.equal(new URL(requested).searchParams.get("tags"), "喜剧,香港,王家卫");
 });
 
+test("movie recommend splits custom tags on Chinese and ASCII commas", async () => {
+  let requested = "";
+  runtimeWidget.http.get = async (url) => {
+    requested = url;
+    return { statusCode: 200, data: { items: [], total: 0 }, headers: {} };
+  };
+  const load = Reflect.get(globalThis, "loadMovieRecommendCatalog") as (
+    params: Record<string, string | number>,
+  ) => Promise<VideoItem[]>;
+  await load({ genre: "喜剧", region: "", year: "", sort: "T", tag: "王家卫，香港, 文艺", sk: "" });
+  assert.equal(new URL(requested).searchParams.get("tags"), "喜剧,王家卫,香港,文艺");
+});
+
 test("tv recommend appends a custom tag and skips blanks", async () => {
   let requested = "";
   runtimeWidget.http.get = async (url) => {
