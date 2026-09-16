@@ -36,8 +36,8 @@ function pageSkip(page?: string | number) {
 function recommendTags(params: Record<string, unknown>) {
   const names =
     String(params.tv_genre ?? "").trim() || String(params.variety_genre ?? "").trim()
-      ? ["tv_genre", "variety_genre", "region", "year"]
-      : ["genre", "tv_genre", "variety_genre", "region", "year"];
+      ? ["tv_genre", "variety_genre", "region", "year", "tag"]
+      : ["genre", "tv_genre", "variety_genre", "region", "year", "tag"];
   return names
     .map((name) => String(params[name] ?? "").trim())
     .filter(Boolean)
@@ -100,6 +100,7 @@ const i18n = {
     豆瓣年度评分最高剧集: "豆瓣年度最高評分劇集",
     搜索: "搜尋",
     搜索关键词: "搜尋關鍵字",
+    自定义标签: "自訂標籤",
   },
   en: {
     密钥: "Secret Key",
@@ -116,6 +117,7 @@ const i18n = {
     豆瓣年度评分最高剧集: "Douban's Top-Rated TV Shows by Year",
     搜索: "Search",
     搜索关键词: "Search Query",
+    自定义标签: "Custom Tag",
   },
 };
 
@@ -177,6 +179,7 @@ const RECOMMEND_YEAR = [
 ];
 
 const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfies WidgetModuleParam;
+const CUSTOM_TAG = { name: "tag", title: "自定义标签", type: "input" } satisfies WidgetModuleParam;
 
 WidgetMetadata = {
   id: "douban.bridge",
@@ -315,6 +318,7 @@ WidgetMetadata = {
           type: "enumeration",
           enumOptions: RECOMMEND_YEAR,
         },
+        CUSTOM_TAG,
         PAGE,
       ],
     },
@@ -402,6 +406,7 @@ WidgetMetadata = {
           type: "enumeration",
           enumOptions: RECOMMEND_YEAR,
         },
+        CUSTOM_TAG,
         PAGE,
       ],
     },
