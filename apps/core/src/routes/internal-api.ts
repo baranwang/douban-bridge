@@ -2,6 +2,7 @@ import {
   catalogQuerySchema,
   catalogResponseSchema,
   doubanIdSchema,
+  itemsRequestSchema,
   metaResponseSchema,
 } from "@douban-bridge/contracts";
 import { Hono } from "hono";
@@ -9,7 +10,7 @@ import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod/v4";
 import { authenticateApiKey } from "@/libs/api-key";
 import { contextStorage } from "@/libs/middleware";
-import { getCatalogPage } from "@/services/catalog";
+import { getCatalogPage, getItemsByIds } from "@/services/catalog";
 import { getCloudMeta } from "@/services/metadata";
 
 type ApiAccount = Awaited<ReturnType<typeof authenticateApiKey>>;
@@ -96,4 +97,21 @@ internalApi.get("/v1/meta/:doubanId", async (c) => {
     origin: new URL(c.req.url).origin,
   });
   return c.json(metaResponseSchema.parse({ item }));
+});
+
+internalApi.post("/v1/items", async (c) => {
+  let body: ReturnType<typeof itemsRequestSchema.parse>;
+  try {
+    body = itemsRequestSchema.parse(await c.req.json());
+  } catch (error) {
+    if (error instanceof ZodError) throw new HTTPException(400);
+    throw error;
+  }
+  const account = c.get("apiAccount");
+  const items = await getItemsByIds(body.ids, {
+    providers: account.config.imageProviders,
+    configId: account.userId,
+    origin: new URL(c.req.url).origin,
+  });
+  return c.json(catalogResponseSchema.parse({ items }));
 });

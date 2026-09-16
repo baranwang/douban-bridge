@@ -8,6 +8,11 @@ type TestWidget = {
       url: string,
       options?: { headers?: Record<string, string> },
     ) => Promise<{ statusCode: number; data: unknown }>;
+    post?: (
+      url: string,
+      body: unknown,
+      options?: { headers?: Record<string, string> },
+    ) => Promise<{ statusCode: number; data: unknown }>;
   };
   tmdb: { get: (path: string, options?: { params?: Record<string, string> }) => Promise<unknown> };
   storage: {
@@ -44,7 +49,7 @@ const widget: TestWidget = {
   },
 };
 globalThis.Widget = widget;
-const { findBasicTmdb, getBasicCatalog } = await import("../src/basic");
+const { findBasicTmdb, getBasicCatalog, getBasicSearch } = await import("../src/basic");
 
 function installWidget(opts?: {
   http?: (url: string) => { statusCode: number; data: unknown };
@@ -77,6 +82,14 @@ function installWidget(opts?: {
 test("basic catalog uses public Douban paging and never calls the cloud API", async () => {
   const requests = installWidget();
   const result = await getBasicCatalog({ collectionId: "movie_top250", skip: 20 });
+  assert.equal(
+    requests.some((url) => url.includes("https://frodo.douban.com/api/v2/subject_collection/movie_top250/items")),
+    true,
+  );
+  assert.equal(
+    requests.some((url) => url.includes("m.douban.com")),
+    false,
+  );
   assert.equal(
     requests.some((url) => url.includes("/v1/")),
     false,
@@ -182,4 +195,49 @@ test("yearly rankings resolve the latest id and subcollections load directly", a
     subcollection.some((url) => url.includes("for_mobile=1")),
     false,
   );
+});
+
+const SEARCH = {
+  items: [
+    { layout: "doulist_cards", target_type: "doulist_cards" },
+    {
+      layout: "subject",
+      target_type: "movie",
+      target: {
+        id: "1291546",
+        title: "肖申克的救赎",
+        year: "1994",
+        cover_url: "https://img1.doubanio.com/test.jpg",
+        rating: { value: 9.7 },
+      },
+    },
+    {
+      layout: "subject",
+      target_type: "book",
+      target: { id: "1001", title: "一本书" },
+    },
+  ],
+  total: 2,
+};
+
+test("basic search hits frodo weixin and keeps movie/tv subjects", async () => {
+  const requests = installWidget({ http: () => ({ statusCode: 200, data: SEARCH }) });
+  const result = await getBasicSearch("肖申克", 0);
+  assert.equal(
+    requests.some(
+      (url) =>
+        url.includes("https://frodo.douban.com/api/v2/search/weixin") && url.includes("q=") && url.includes("start=0"),
+    ),
+    true,
+  );
+  assert.equal(result.length, 1);
+  assert.equal(result[0].id, "278");
+  assert.equal(result[0].type, "tmdb");
+  assert.equal(result[0].title, "肖申克的救赎");
+});
+
+test("empty search query throws before any request", async () => {
+  const requests = installWidget();
+  await assert.rejects(() => getBasicSearch("  ", 0), /搜索关键词/);
+  assert.equal(requests.length, 0);
 });

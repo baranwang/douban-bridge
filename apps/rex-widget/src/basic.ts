@@ -1,14 +1,19 @@
 import { type CatalogQuery, catalogQuerySchema } from "@douban-bridge/contracts";
 import { getLatestYearlyRanking } from "@douban-bridge/contracts/collections";
-import { type DoubanSubjectCollectionItem, doubanSubjectCollectionSchema } from "@douban-bridge/contracts/douban";
+import {
+  type DoubanSubjectCollectionItem,
+  doubanSearchSchema,
+  doubanSubjectCollectionSchema,
+} from "@douban-bridge/contracts/douban";
 import { z } from "zod/v4";
 import { rexFetch } from "./http";
 
-const DOUBAN_BASE = "https://m.douban.com/rexxar/api/v2";
+const DOUBAN_BASE = "https://frodo.douban.com/api/v2";
+const FRODO_KEY = "0ac44ae016490db2204ce0a042db2916";
 const DOUBAN_HEADERS = {
-  Referer: "https://m.douban.com/",
+  Referer: "https://servicewechat.com/wx2f9b06c1de1ccfca/99/page-frame.html",
   "User-Agent":
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.76(0x18004c3a) NetType/WIFI Language/zh_CN",
 };
 
 const tmdbSearchSchema = z.object({
@@ -77,7 +82,7 @@ export async function findBasicTmdb(source: BasicTmdbSource): Promise<BasicTmdbM
   }
 }
 
-async function toVideoItem(item: DoubanSubjectCollectionItem): Promise<VideoItem> {
+export async function toVideoItem(item: DoubanSubjectCollectionItem): Promise<VideoItem> {
   const match = await findBasicTmdb({
     type: item.type,
     title: item.title,
@@ -102,7 +107,7 @@ export async function getBasicCatalog(query: CatalogQuery): Promise<VideoItem[]>
   const collectionId = getLatestYearlyRanking(parsed.collectionId)?.id ?? parsed.collectionId;
   const response = await rexFetch
     .get(`${DOUBAN_BASE}/subject_collection/${collectionId}/items`, {
-      params: { start: parsed.skip, count: 20 },
+      params: { start: parsed.skip, count: 20, apiKey: FRODO_KEY },
       headers: DOUBAN_HEADERS,
       successStatus: [200],
       schema: doubanSubjectCollectionSchema,
@@ -113,6 +118,29 @@ export async function getBasicCatalog(query: CatalogQuery): Promise<VideoItem[]>
   if (!response.data) throw new Error("Douban request failed");
   const data = response.data;
   const items = data.subject_collection_items;
+  if (items.length === 0) return [];
+  return Promise.all(items.map((item) => toVideoItem(item)));
+}
+
+export async function fetchSearchItems(query: string, skip = 0): Promise<DoubanSubjectCollectionItem[]> {
+  const q = query.trim();
+  if (!q) throw new Error("搜索关键词不能为空");
+  const response = await rexFetch
+    .get(`${DOUBAN_BASE}/search/weixin`, {
+      params: { q, start: skip, count: 20, apiKey: FRODO_KEY },
+      headers: DOUBAN_HEADERS,
+      successStatus: [200],
+      schema: doubanSearchSchema,
+    })
+    .catch(() => {
+      throw new Error("Douban request failed");
+    });
+  if (!response.data) throw new Error("Douban request failed");
+  return response.data.items;
+}
+
+export async function getBasicSearch(query: string, skip = 0): Promise<VideoItem[]> {
+  const items = await fetchSearchItems(query, skip);
   if (items.length === 0) return [];
   return Promise.all(items.map((item) => toVideoItem(item)));
 }

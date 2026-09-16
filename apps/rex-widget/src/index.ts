@@ -9,7 +9,7 @@ import {
   YEARLY_RANKINGS,
 } from "@douban-bridge/contracts/collections";
 import { version } from "../package.json";
-import { loadCatalog } from "./cloud";
+import { loadCatalog, loadSearch as searchFromCloud } from "./cloud";
 import { SUB_COLLECTIONS } from "./sub-collections";
 
 function queryFromParams(params: { collectionId: string; page?: string | number }) {
@@ -28,6 +28,8 @@ const loadCatalogForWidget = async (
 loadDefaultCatalog = loadCatalogForWidget;
 loadGenreCatalog = loadCatalogForWidget;
 loadYearlyCatalog = loadCatalogForWidget;
+loadSearch = async (params: DoubanBridge.GlobalParams & { keyword?: string; query?: string }) =>
+  searchFromCloud((params.keyword || params.query || "").trim(), (params.sk ?? "").trim(), params.userId ?? "");
 
 function enumOptions(items: { id: string; name: string }[]) {
   return items.map((item) => ({ title: item.name, value: item.id }));
@@ -64,6 +66,8 @@ const i18n = {
     剧集类型榜: "劇集類型排行榜",
     豆瓣年度评分最高电影: "豆瓣年度最高評分電影",
     豆瓣年度评分最高剧集: "豆瓣年度最高評分劇集",
+    搜索: "搜尋",
+    搜索关键词: "搜尋關鍵字",
   },
   en: {
     密钥: "Secret Key",
@@ -78,6 +82,8 @@ const i18n = {
     剧集类型榜: "TV Shows by Genre",
     豆瓣年度评分最高电影: "Douban's Top-Rated Movies by Year",
     豆瓣年度评分最高剧集: "Douban's Top-Rated TV Shows by Year",
+    搜索: "Search",
+    搜索关键词: "Search Query",
   },
 };
 
@@ -167,4 +173,9 @@ WidgetMetadata = {
       ],
     },
   ],
+  search: {
+    title: "搜索",
+    functionName: "loadSearch",
+    params: [{ name: "keyword", title: "搜索关键词", type: "input" }],
+  },
 };

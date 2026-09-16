@@ -1,6 +1,6 @@
 import type { BridgeItem, CatalogQuery } from "@douban-bridge/contracts";
 import { catalogResponseSchema } from "@douban-bridge/contracts";
-import { getBasicCatalog } from "./basic";
+import { fetchSearchItems, getBasicCatalog, toVideoItem as toBasicVideoItem } from "./basic";
 import { rexFetch } from "./http";
 
 const API_ORIGIN = "https://douban-bridge.baran.wang";
@@ -44,4 +44,32 @@ export async function loadCatalog(query: CatalogQuery, sk: string, userId = ""):
     }
   }
   return await getBasicCatalog(query);
+}
+
+export async function loadSearch(query: string, sk: string, userId = ""): Promise<VideoItem[]> {
+  const sources = await fetchSearchItems(query);
+  if (sources.length === 0) return [];
+  if (sk) {
+    try {
+      const user = userId.trim();
+      const response = await rexFetch.post(
+        `${API_ORIGIN}/v1/items`,
+        { ids: sources.map((item) => item.id) },
+        {
+          headers: {
+            Authorization: `Bearer ${sk}`,
+            ...(user ? { "X-User-Id": user } : {}),
+          },
+          successStatus: [200],
+          schema: catalogResponseSchema,
+        },
+      );
+      if (!response.data) throw new Error("Cloud unavailable");
+      const matched = new Map(response.data.items.map((item) => [item.doubanId, toVideoItem(item)]));
+      return Promise.all(sources.map(async (item) => matched.get(item.id) ?? (await toBasicVideoItem(item))));
+    } catch {
+      /* 使用本次调用的基础模式 */
+    }
+  }
+  return Promise.all(sources.map((item) => toBasicVideoItem(item)));
 }
