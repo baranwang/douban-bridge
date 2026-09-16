@@ -4,6 +4,7 @@ import { Check, Star } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import { Github } from "@/components/github-icon";
+import { StarGuideDialog } from "@/components/star-guide-dialog";
 import type { PublicUser } from "@/libs/public-user";
 import type { AuthRoute } from "@/routes/auth";
 
@@ -16,7 +17,7 @@ export function useStarCheck(context: StarContext) {
   const [hasClicked, setHasClicked] = useState(false);
   const $get = client["check-star"].$get;
 
-  const { data, isValidating } = useSWR(
+  const { data, isValidating, mutate } = useSWR(
     hasClicked ? "check-star" : null, // 只有点击后才启用
     async () => {
       const res = await $get();
@@ -38,8 +39,14 @@ export function useStarCheck(context: StarContext) {
   }, [starred, data?.userId, context]);
 
   return {
-    checking: isValidating || starred,
+    opened: hasClicked,
+    validating: isValidating,
+    checked: data !== undefined,
+    starred,
     onStarClick: useCallback(() => setHasClicked(true), []),
+    recheck: useCallback(() => {
+      void mutate();
+    }, [mutate]),
   };
 }
 
@@ -49,8 +56,6 @@ interface StarBannerProps {
 }
 
 export const StarBanner: React.FC<StarBannerProps> = ({ user, context }) => {
-  const { checking, onStarClick } = useStarCheck(context);
-
   if (user?.hasStarred) return null;
 
   const benefits =
@@ -72,7 +77,7 @@ export const StarBanner: React.FC<StarBannerProps> = ({ user, context }) => {
             ))}
           </ul>
         </div>
-        <StarCta user={user} checking={checking} onStarClick={onStarClick} className="w-full sm:w-auto" />
+        <StarCta user={user} context={context} className="w-full sm:w-auto" />
       </div>
     </div>
   );
@@ -80,30 +85,39 @@ export const StarBanner: React.FC<StarBannerProps> = ({ user, context }) => {
 
 interface StarCtaProps {
   user?: PublicUser;
-  checking: boolean;
-  onStarClick: () => void;
+  context: StarContext;
   className?: string;
 }
 
-/** 未登录 → 去登录；已登录未 Star → 去 GitHub Star，回到本页后自动确认。 */
-export const StarCta: React.FC<StarCtaProps> = ({ user, checking, onStarClick, className }) => (
-  <Button
-    className={className}
-    disabled={checking}
-    render={
-      user ? (
-        <a
-          href="https://github.com/baranwang/douban-bridge"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={onStarClick}
-        />
-      ) : (
-        <a href="/auth/github" />
-      )
-    }
-  >
-    {user ? <Star className="size-4" /> : <Github className="size-4" />}
-    {user ? (checking ? "确认中…" : "去 Star 解锁") : "GitHub 登录"}
-  </Button>
-);
+/** 未登录 → 去登录；已登录未 Star → 先弹引导层，由用户在层内打开 GitHub。 */
+export const StarCta: React.FC<StarCtaProps> = ({ user, context, className }) => {
+  const [open, setOpen] = useState(false);
+  const { opened, validating, checked, starred, onStarClick, recheck } = useStarCheck(context);
+
+  if (!user) {
+    return (
+      <Button className={className} render={<a href="/auth/github" />}>
+        <Github className="size-4" />
+        GitHub 登录
+      </Button>
+    );
+  }
+
+  return (
+    <>
+      <Button className={className} onClick={() => setOpen(true)}>
+        <Star className="size-4" />去 Star 解锁
+      </Button>
+      <StarGuideDialog
+        open={open}
+        onOpenChange={setOpen}
+        opened={opened}
+        validating={validating}
+        checked={checked}
+        starred={starred}
+        onOpenGithub={onStarClick}
+        onRecheck={recheck}
+      />
+    </>
+  );
+};
