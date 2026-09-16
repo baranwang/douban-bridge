@@ -131,6 +131,86 @@ interface TvHotLoadDefaultCatalogReturnType extends Array<VideoItem> {
 }
 //#endregion tv_hot
 
+//#region tv_american
+/** Params of 近期热门美剧 */
+interface TvAmericanLoadDefaultCatalogParams extends DoubanBridge.GlobalParams {
+    /**
+     * 榜单
+     * @default 'tv_american'
+     */
+    collectionId: 'tv_american';
+    /**
+     * 页码
+     * @default '1'
+     */
+    page: string;
+}
+
+/** Return Type of 近期热门美剧 */
+interface TvAmericanLoadDefaultCatalogReturnType extends Array<VideoItem> {
+}
+//#endregion tv_american
+
+//#region tv_korean
+/** Params of 近期热门韩剧 */
+interface TvKoreanLoadDefaultCatalogParams extends DoubanBridge.GlobalParams {
+    /**
+     * 榜单
+     * @default 'tv_korean'
+     */
+    collectionId: 'tv_korean';
+    /**
+     * 页码
+     * @default '1'
+     */
+    page: string;
+}
+
+/** Return Type of 近期热门韩剧 */
+interface TvKoreanLoadDefaultCatalogReturnType extends Array<VideoItem> {
+}
+//#endregion tv_korean
+
+//#region tv_domestic
+/** Params of 近期热门国产剧 */
+interface TvDomesticLoadDefaultCatalogParams extends DoubanBridge.GlobalParams {
+    /**
+     * 榜单
+     * @default 'tv_domestic'
+     */
+    collectionId: 'tv_domestic';
+    /**
+     * 页码
+     * @default '1'
+     */
+    page: string;
+}
+
+/** Return Type of 近期热门国产剧 */
+interface TvDomesticLoadDefaultCatalogReturnType extends Array<VideoItem> {
+}
+//#endregion tv_domestic
+
+//#region tv_japanese
+/** Params of 近期热门日剧 */
+interface TvJapaneseLoadDefaultCatalogParams extends DoubanBridge.GlobalParams {
+    /**
+     * 榜单
+     * @default 'tv_japanese'
+     */
+    collectionId: 'tv_japanese';
+    /**
+     * 页码
+     * @default '1'
+     */
+    page: string;
+}
+
+/** Return Type of 近期热门日剧 */
+interface TvJapaneseLoadDefaultCatalogReturnType extends Array<VideoItem> {
+}
+//#endregion tv_japanese
+
 //#region tv_animation
 /** Params of 近期热门动画 */
 interface TvAnimationLoadDefaultCatalogParams extends DoubanBridge.GlobalParams {
@@ -170,6 +250,26 @@ interface ShowHotLoadDefaultCatalogParams extends DoubanBridge.GlobalParams {
 interface ShowHotLoadDefaultCatalogReturnType extends Array<VideoItem> {
 }
 //#endregion show_hot
+
+//#region tv_documentary
+/** Params of 近期热门纪录片 */
+interface TvDocumentaryLoadDefaultCatalogParams extends DoubanBridge.GlobalParams {
+    /**
+     * 榜单
+     * @default 'tv_documentary'
+     */
+    collectionId: 'tv_documentary';
+    /**
+     * 页码
+     * @default '1'
+     */
+    page: string;
+}
+
+/** Return Type of 近期热门纪录片 */
+interface TvDocumentaryLoadDefaultCatalogReturnType extends Array<VideoItem> {
+}
+//#endregion tv_documentary
 
 //#region tv_real_time_hotest
 /** Params of 实时热门电视 */
@@ -598,8 +698,8 @@ interface TvYearlyLoadYearlyCatalogParams extends DoubanBridge.GlobalParams {
 interface TvYearlyLoadYearlyCatalogReturnType extends Array<VideoItem> {
 }
 //#endregion tv_yearly
-type LoadDefaultCatalogParams = MovieHotGaiaLoadDefaultCatalogParams | MovieWeeklyBestLoadDefaultCatalogParams | MovieRealTimeHotestLoadDefaultCatalogParams | MovieTop250LoadDefaultCatalogParams | MovieShowingLoadDefaultCatalogParams | TvHotLoadDefaultCatalogParams | TvAnimationLoadDefaultCatalogParams | ShowHotLoadDefaultCatalogParams | TvRealTimeHotestLoadDefaultCatalogParams | TvChineseBestWeeklyLoadDefaultCatalogParams | TvGlobalBestWeeklyLoadDefaultCatalogParams | ShowChineseBestWeeklyLoadDefaultCatalogParams | ShowGlobalBestWeeklyLoadDefaultCatalogParams;
-type LoadDefaultCatalogReturnType = MovieHotGaiaLoadDefaultCatalogReturnType | MovieWeeklyBestLoadDefaultCatalogReturnType | MovieRealTimeHotestLoadDefaultCatalogReturnType | MovieTop250LoadDefaultCatalogReturnType | MovieShowingLoadDefaultCatalogReturnType | TvHotLoadDefaultCatalogReturnType | TvAnimationLoadDefaultCatalogReturnType | ShowHotLoadDefaultCatalogReturnType | TvRealTimeHotestLoadDefaultCatalogReturnType | TvChineseBestWeeklyLoadDefaultCatalogReturnType | TvGlobalBestWeeklyLoadDefaultCatalogReturnType | ShowChineseBestWeeklyLoadDefaultCatalogReturnType | ShowGlobalBestWeeklyLoadDefaultCatalogReturnType;
+type LoadDefaultCatalogParams = MovieHotGaiaLoadDefaultCatalogParams | MovieWeeklyBestLoadDefaultCatalogParams | MovieRealTimeHotestLoadDefaultCatalogParams | MovieTop250LoadDefaultCatalogParams | MovieShowingLoadDefaultCatalogParams | TvHotLoadDefaultCatalogParams | TvAmericanLoadDefaultCatalogParams | TvKoreanLoadDefaultCatalogParams | TvDomesticLoadDefaultCatalogParams | TvJapaneseLoadDefaultCatalogParams | TvAnimationLoadDefaultCatalogParams | ShowHotLoadDefaultCatalogParams | TvDocumentaryLoadDefaultCatalogParams | TvRealTimeHotestLoadDefaultCatalogParams | TvChineseBestWeeklyLoadDefaultCatalogParams | TvGlobalBestWeeklyLoadDefaultCatalogParams | ShowChineseBestWeeklyLoadDefaultCatalogParams | ShowGlobalBestWeeklyLoadDefaultCatalogParams;
+type LoadDefaultCatalogReturnType = MovieHotGaiaLoadDefaultCatalogReturnType | MovieWeeklyBestLoadDefaultCatalogReturnType | MovieRealTimeHotestLoadDefaultCatalogReturnType | MovieTop250LoadDefaultCatalogReturnType | MovieShowingLoadDefaultCatalogReturnType | TvHotLoadDefaultCatalogReturnType | TvAmericanLoadDefaultCatalogReturnType | TvKoreanLoadDefaultCatalogReturnType | TvDomesticLoadDefaultCatalogReturnType | TvJapaneseLoadDefaultCatalogReturnType | TvAnimationLoadDefaultCatalogReturnType | ShowHotLoadDefaultCatalogReturnType | TvDocumentaryLoadDefaultCatalogReturnType | TvRealTimeHotestLoadDefaultCatalogReturnType | TvChineseBestWeeklyLoadDefaultCatalogReturnType | TvGlobalBestWeeklyLoadDefaultCatalogReturnType | ShowChineseBestWeeklyLoadDefaultCatalogReturnType | ShowGlobalBestWeeklyLoadDefaultCatalogReturnType;
 
 /** 豆瓣热门电影 */
 declare let loadDefaultCatalog: (params: LoadDefaultCatalogParams) => LoadDefaultCatalogReturnType | null | Promise<LoadDefaultCatalogReturnType | null>;
