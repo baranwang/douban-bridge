@@ -11,7 +11,7 @@
     "tag": false
   },
   "updateInternalDependencies": "patch",
-  "ignore": ["@douban-bridge/core", "@douban-bridge/stremio", "@douban-bridge/contracts"],
+  "ignore": ["@douban-bridge/core", "@douban-bridge/stremio", "@douban-bridge/contracts", "@douban-bridge/ui"],
   "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
     "onlyUpdatePeerDependentsWhenOutOfRange": true,
     "updateInternalDependents": "always"
