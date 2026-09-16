@@ -9,7 +9,7 @@ import {
   ItemTitle,
 } from "@douban-bridge/ui/components/item";
 import { toast } from "@douban-bridge/ui/components/toast";
-import { Copy, Download } from "lucide-react";
+import { Copy } from "lucide-react";
 import { useCallback } from "react";
 import { SettingSection } from "@/components/setting-section";
 import { useSchemeLaunch } from "@/libs/use-scheme-launch";
@@ -30,7 +30,7 @@ export const InstallWidget: React.FC = () => {
   }, []);
 
   return (
-    <SettingSection title="安装 Widget" icon={<Download className="size-4 text-muted-foreground" />}>
+    <SettingSection title="安装 Widget">
       <ItemGroup>
         <Item data-section="install-widget" variant="outline">
           <ItemMedia variant="image">
@@ -45,7 +45,8 @@ export const InstallWidget: React.FC = () => {
               <Copy />
             </Button>
             <Button render={<a href={WIDGET_SCHEME} />} onClick={launch}>
-              <Download />在 Rex 中安装
+              {/* rex-mark 是纯黑图形，这里永远压在 primary 底色上，所以无条件反色 */}
+              <img src="/rex-mark.png" alt="" className="size-4 invert" />在 Rex 中安装
             </Button>
           </ItemActions>
         </Item>
