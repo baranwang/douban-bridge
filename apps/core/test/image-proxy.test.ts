@@ -15,6 +15,7 @@ function withRateLimits(env: CloudflareBindings): CloudflareBindings {
     ...env,
     PUBLIC_RATE_LIMIT: { limit: async () => ({ success: true }) },
     USER_RATE_LIMIT: { limit: async () => ({ success: true }) },
+    IMAGE_RATE_LIMIT: { limit: async () => ({ success: true }) },
   };
 }
 
@@ -164,6 +165,36 @@ describe("image proxy", { concurrency: false }, () => {
       };
       const response = await app.fetch(new Request(imageUrl(PUBLIC, userId, POSTER)), limited, ctx);
       assert.equal(response.status, 429);
+      assert.equal(response.headers.get("Retry-After"), "60");
+    });
+  });
+
+  test("uses the image bucket for identified users, never the /v1 user bucket", async () => {
+    await withTestContext(async (env, ctx) => {
+      const userId = await insertUser(env);
+      const keys: string[] = [];
+      const limited = {
+        ...withRateLimits(env),
+        USER_RATE_LIMIT: {
+          limit: async () => {
+            throw new Error("image proxy must not consume USER_RATE_LIMIT");
+          },
+        },
+        IMAGE_RATE_LIMIT: {
+          limit: async ({ key }: { key: string }) => {
+            keys.push(key);
+            return { success: false };
+          },
+        },
+      };
+      const response = await app.fetch(
+        new Request(imageUrl(PUBLIC, userId, POSTER), { headers: { "User-Agent": "Stremio/5" } }),
+        limited,
+        ctx,
+      );
+      assert.equal(response.status, 429);
+      assert.equal(response.headers.get("Retry-After"), "60");
+      assert.deepEqual(keys, [userId]);
     });
   });
 

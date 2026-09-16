@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { contextStorage, rateLimit } from "./libs/middleware";
+import { contextStorage, imageRateLimit } from "./libs/middleware";
 import { authMiddleware } from "./libs/session";
 import { apiKeysRoute } from "./routes/api-keys";
 import { authRoute } from "./routes/auth";
@@ -31,7 +31,7 @@ app.route("/rex", rexRoute);
 app.route("/configure", configureRoute);
 app.route("/:config/configure", configureRoute);
 
-app.use("/image-proxy/*", rateLimit);
+app.use("/image-proxy/*", imageRateLimit);
 app.route("/image-proxy", imageProxyRoute);
 
 app.route("/dash", dashRoute);

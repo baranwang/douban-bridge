@@ -6,6 +6,7 @@ interface __BaseEnv_CloudflareBindings {
 	STREMIO_ADDON_DOUBAN: D1Database;
 	PUBLIC_RATE_LIMIT: RateLimit;
 	USER_RATE_LIMIT: RateLimit;
+	IMAGE_RATE_LIMIT: RateLimit;
 	ASSETS: Fetcher;
 	DOUBAN_API_KEY: "0ac44ae016490db2204ce0a042db2916";
 	TRAKT_CLIENT_ID: "7100193031cd53fc7d2ec3eb22fe4162f30f0fb572d18c5b87fa1274c3dab80b";
