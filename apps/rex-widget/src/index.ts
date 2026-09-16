@@ -43,11 +43,11 @@ function recommendTags(params: Record<string, unknown>) {
 }
 const loadRecommendForWidget = async (
   type: "movie" | "tv",
-  params: DoubanBridge.GlobalParams & Record<string, unknown>,
+  params: DoubanBridge.GlobalParams & (LoadMovieRecommendCatalogParams | LoadTvRecommendCatalogParams),
 ) =>
   loadRecommend(
     type,
-    recommendTags(params),
+    recommendTags(params as unknown as Record<string, unknown>),
     String(params.sort ?? "T").trim() || "T",
     pageSkip(params.page as string | number | undefined),
     (params.sk ?? "").trim(),
