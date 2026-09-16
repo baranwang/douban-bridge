@@ -377,7 +377,6 @@ describe("internal api batch items", { concurrency: false }, () => {
             title: `标题${id}`,
             year: "1994",
             cover_url: POSTER,
-            genres: ["剧情"],
             rating: { value: 9.1 },
             linewatches: [],
           };
@@ -402,7 +401,7 @@ describe("internal api batch items", { concurrency: false }, () => {
         assert.equal(response.status, 200);
         noStore(response);
         const body = (await response.json()) as {
-          items: Array<{ doubanId: number; title: string; tmdbId: number | null; genres: string[] }>;
+          items: Array<{ doubanId: number; title: string; tmdbId: number | null }>;
         };
         assert.deepEqual(
           body.items.map((item) => item.doubanId),
@@ -410,7 +409,6 @@ describe("internal api batch items", { concurrency: false }, () => {
         );
         assert.equal(body.items[0].tmdbId, 101);
         assert.equal(body.items[0].title, "标题1");
-        assert.deepEqual(body.items[1].genres, ["剧情"]);
       } finally {
         mock.restoreAll();
       }

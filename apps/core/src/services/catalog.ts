@@ -88,7 +88,7 @@ export async function enrichCatalogItems(
         tmdbId: mapping?.tmdbId,
         imdbId: mapping?.imdbId,
       });
-      const genres = item.genres ?? item.card_subtitle?.split("/")[2]?.trim().split(" ") ?? [];
+      const genres = item.card_subtitle?.split("/")[2]?.trim().split(" ") ?? [];
       return {
         doubanId: item.id,
         mediaType: item.type,
@@ -126,7 +126,6 @@ export async function getItemsByIds(ids: number[], images: ImageContext): Promis
           cover_url: data.cover_url,
           pic: data.pic,
           rating: data.rating,
-          genres: data.genres ?? [],
           url: data.url,
         } as DoubanSubjectCollectionItem;
       } catch (error) {

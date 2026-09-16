@@ -56,7 +56,6 @@ const doubanSubjectCollectionItemSchema = z
       .nullish(),
     url: z.string().nullish(),
     release_date: z.string().nullish(),
-    genres: z.array(z.string()).nullish(),
   })
   .transform((v) => ({
     ...v,
