@@ -125,12 +125,12 @@ const RECOMMEND_REGION = [
     "国外",
     "韩国",
     "日本",
-    "中国大陆",
-    "中国香港",
+    "大陆",
+    "香港",
     "美国",
     "英国",
     "泰国",
-    "中国台湾",
+    "台湾",
     "意大利",
     "法国",
     "德国",
@@ -175,17 +175,16 @@ const RECOMMEND_YEAR = [
 ];
 
 const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfies WidgetModuleParam;
-const CUSTOM_TAG = {
-  name: "tag",
-  title: "自定义标签",
-  description: "多个标签用逗号分隔",
-  type: "input",
-} satisfies WidgetModuleParam;
 const RECOMMEND_FILTERS: WidgetModuleParam[] = [
   { name: "region", title: "地区", type: "enumeration", enumOptions: RECOMMEND_REGION },
   { name: "sort", title: "排序", type: "enumeration", value: "T", enumOptions: RECOMMEND_SORT },
   { name: "year", title: "年代", type: "enumeration", enumOptions: RECOMMEND_YEAR },
-  CUSTOM_TAG,
+  {
+    name: "tag",
+    title: "自定义标签",
+    description: "多个标签用逗号分隔",
+    type: "input",
+  },
   PAGE,
 ];
 function genreModule(id: string, title: string, configs: { id: string; name: string }[]): WidgetModule {
