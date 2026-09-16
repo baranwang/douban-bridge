@@ -2,6 +2,7 @@ import { type CatalogQuery, catalogQuerySchema } from "@douban-bridge/contracts"
 import { getLatestYearlyRanking } from "@douban-bridge/contracts/collections";
 import {
   type DoubanSubjectCollectionItem,
+  doubanRecommendSchema,
   doubanSearchSchema,
   doubanSubjectCollectionSchema,
 } from "@douban-bridge/contracts/douban";
@@ -131,6 +132,26 @@ export async function fetchSearchItems(query: string, skip = 0): Promise<DoubanS
       headers: DOUBAN_HEADERS,
       successStatus: [200],
       schema: doubanSearchSchema,
+    })
+    .catch(() => {
+      throw new Error("Douban request failed");
+    });
+  if (!response.data) throw new Error("Douban request failed");
+  return response.data.items;
+}
+
+export async function fetchRecommendItems(
+  type: "movie" | "tv",
+  tags: string,
+  sort: string,
+  skip = 0,
+): Promise<DoubanSubjectCollectionItem[]> {
+  const response = await rexFetch
+    .get(`${DOUBAN_BASE}/${type}/recommend`, {
+      params: { tags, start: skip, count: 20, apiKey: FRODO_KEY, sort },
+      headers: DOUBAN_HEADERS,
+      successStatus: [200],
+      schema: doubanRecommendSchema,
     })
     .catch(() => {
       throw new Error("Douban request failed");

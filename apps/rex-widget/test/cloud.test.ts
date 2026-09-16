@@ -46,6 +46,8 @@ Object.assign(globalThis, {
   loadDefaultCatalog: undefined,
   loadGenreCatalog: undefined,
   loadYearlyCatalog: undefined,
+  loadMovieRecommendCatalog: undefined,
+  loadTvRecommendCatalog: undefined,
   loadSearch: undefined,
 });
 const { loadCatalog, loadSearch } = await import("../src/cloud");
@@ -459,7 +461,9 @@ test("catalog items keep imdb then douban ids", async () => {
 test("WidgetMetadata exposes Stremio catalog order plus genre and yearly modules", () => {
   assert.equal(WidgetMetadata.requiredVersion, "0.0.1");
   assert.deepEqual(
-    WidgetMetadata.modules.filter((item: { functionName: string }) => item.functionName === "loadDefaultCatalog").map((item: { id: string }) => item.id),
+    WidgetMetadata.modules
+      .filter((item: { functionName: string }) => item.functionName === "loadDefaultCatalog")
+      .map((item: { id: string }) => item.id),
     DEFAULT_CATALOG_IDS,
   );
   assert.ok(DEFAULT_CATALOG_IDS.includes("tv_american"));
@@ -666,5 +670,114 @@ test("failed item matching keeps the Douban search result", async () => {
   runtimeWidget.http.post = async () => ({ statusCode: 500, data: null, headers: {} });
   const result = await loadSearch("肖申克", SK);
   assert.equal(result[0].id, "1291546");
+  assert.equal(result[0].type, "douban");
+});
+
+test("tv recommend joins tags except sort and posts matched ids", async () => {
+  let requested = "";
+  const posts: Array<{ url: string; body: unknown; headers?: Record<string, string> }> = [];
+  runtimeWidget.http.get = async (url) => {
+    requested = url;
+    assert.equal(url.includes("frodo.douban.com/api/v2/tv/recommend"), true);
+    return {
+      statusCode: 200,
+      data: {
+        items: [
+          {
+            id: "37822829",
+            type: "tv",
+            title: "开庭",
+            year: "2026",
+            pic: { large: "https://img.example/tv.jpg" },
+            comment: { comment: "TVB" },
+          },
+        ],
+        total: 1,
+      },
+      headers: {},
+    };
+  };
+  runtimeWidget.http.post = async (url, body, options) => {
+    posts.push({ url, body, headers: options?.headers });
+    return {
+      statusCode: 200,
+      data: {
+        items: [
+          {
+            ...CLOUD_ITEM,
+            doubanId: 37822829,
+            mediaType: "tv",
+            title: "开庭",
+            tmdbId: 1396,
+          },
+        ],
+      },
+      headers: {},
+    };
+  };
+  const load = Reflect.get(globalThis, "loadTvRecommendCatalog") as (
+    params: Record<string, string | number>,
+  ) => Promise<VideoItem[]>;
+  const result = await load({
+    genre: "电视剧",
+    tv_genre: "喜剧",
+    variety_genre: "",
+    region: "香港",
+    year: "2020年代",
+    sort: "U",
+    page: 2,
+    sk: SK,
+    userId: "user-1",
+  });
+  const url = new URL(requested);
+  assert.equal(url.pathname, "/api/v2/tv/recommend");
+  assert.equal(url.searchParams.get("tags"), "电视剧,喜剧,香港,2020年代");
+  assert.equal(url.searchParams.get("sort"), "U");
+  assert.equal(url.searchParams.get("start"), "20");
+  assert.equal(posts[0].url, "https://douban-bridge.baran.wang/v1/items");
+  assert.deepEqual(posts[0].body, { ids: [37822829] });
+  assert.equal(posts[0].headers?.Authorization, `Bearer ${SK}`);
+  assert.equal(posts[0].headers?.["X-User-Id"], "user-1");
+  assert.equal(result[0].id, "1396");
+  assert.equal(result[0].title, "开庭");
+});
+
+test("movie recommend skips empty tags and stays on Douban without sk", async () => {
+  let requested = "";
+  let posted = 0;
+  runtimeWidget.http.get = async (url) => {
+    requested = url;
+    return {
+      statusCode: 200,
+      data: {
+        items: [
+          {
+            id: "26752088",
+            type: "movie",
+            title: "我不是药神",
+            year: "2018",
+            pic: { large: "https://img.example/a.jpg" },
+          },
+        ],
+        total: 1,
+      },
+      headers: {},
+    };
+  };
+  runtimeWidget.http.post = async () => {
+    posted += 1;
+    throw new Error("cloud should not be called");
+  };
+  runtimeWidget.tmdb.get = async () => ({ results: [] });
+  const load = Reflect.get(globalThis, "loadMovieRecommendCatalog") as (
+    params: Record<string, string | number>,
+  ) => Promise<VideoItem[]>;
+  const result = await load({ genre: "喜剧", region: "", year: "", sort: "T", sk: "" });
+  const url = new URL(requested);
+  assert.equal(url.pathname, "/api/v2/movie/recommend");
+  assert.equal(url.searchParams.get("tags"), "喜剧");
+  assert.equal(url.searchParams.get("sort"), "T");
+  assert.equal(posted, 0);
+  assert.equal(result[0].id, "26752088");
   assert.equal(result[0].type, "douban");
 });

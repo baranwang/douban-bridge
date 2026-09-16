@@ -60,6 +60,8 @@ test("VM globals, Stremio catalog order, optional yearly params, empty cloud pag
   assert.equal(typeof context.loadDefaultCatalog, "function");
   assert.equal(typeof context.loadGenreCatalog, "function");
   assert.equal(typeof context.loadYearlyCatalog, "function");
+  assert.equal(typeof context.loadMovieRecommendCatalog, "function");
+  assert.equal(typeof context.loadTvRecommendCatalog, "function");
   assert.equal(typeof context.loadSearch, "function");
   assert.equal(context.WidgetMetadata.search.functionName, "loadSearch");
   assert.equal(context.loadDetail, undefined);

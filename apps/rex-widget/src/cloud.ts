@@ -1,6 +1,7 @@
 import type { BridgeItem, CatalogQuery } from "@douban-bridge/contracts";
 import { catalogResponseSchema } from "@douban-bridge/contracts";
-import { fetchSearchItems, getBasicCatalog, toVideoItem as toBasicVideoItem } from "./basic";
+import type { DoubanSubjectCollectionItem } from "@douban-bridge/contracts/douban";
+import { fetchRecommendItems, fetchSearchItems, getBasicCatalog, toVideoItem as toBasicVideoItem } from "./basic";
 import { rexFetch } from "./http";
 
 const API_ORIGIN = "https://douban-bridge.baran.wang";
@@ -46,8 +47,7 @@ export async function loadCatalog(query: CatalogQuery, sk: string, userId = ""):
   return await getBasicCatalog(query);
 }
 
-export async function loadSearch(query: string, sk: string, userId = ""): Promise<VideoItem[]> {
-  const sources = await fetchSearchItems(query);
+async function enrichItems(sources: DoubanSubjectCollectionItem[], sk: string, userId = ""): Promise<VideoItem[]> {
   if (sources.length === 0) return [];
   if (sk) {
     try {
@@ -72,4 +72,19 @@ export async function loadSearch(query: string, sk: string, userId = ""): Promis
     }
   }
   return Promise.all(sources.map((item) => toBasicVideoItem(item)));
+}
+
+export async function loadSearch(query: string, sk: string, userId = ""): Promise<VideoItem[]> {
+  return enrichItems(await fetchSearchItems(query), sk, userId);
+}
+
+export async function loadRecommend(
+  type: "movie" | "tv",
+  tags: string,
+  sort: string,
+  skip: number,
+  sk: string,
+  userId = "",
+): Promise<VideoItem[]> {
+  return enrichItems(await fetchRecommendItems(type, tags, sort, skip), sk, userId);
 }

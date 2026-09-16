@@ -9,7 +9,7 @@ import {
   YEARLY_RANKINGS,
 } from "@douban-bridge/contracts/collections";
 import { version } from "../package.json";
-import { loadCatalog, loadSearch as searchFromCloud } from "./cloud";
+import { loadCatalog, loadRecommend, loadSearch as searchFromCloud } from "./cloud";
 import { SUB_COLLECTIONS } from "./sub-collections";
 
 function queryFromParams(params: { collectionId: string; page?: string | number }) {
@@ -28,6 +28,34 @@ const loadCatalogForWidget = async (
 loadDefaultCatalog = loadCatalogForWidget;
 loadGenreCatalog = loadCatalogForWidget;
 loadYearlyCatalog = loadCatalogForWidget;
+function pageSkip(page?: string | number) {
+  const value = Number(page ?? 1);
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error("Invalid page");
+  return (value - 1) * 20;
+}
+function recommendTags(params: Record<string, unknown>) {
+  return ["genre", "tv_genre", "variety_genre", "region", "year"]
+    .map((name) => String(params[name] ?? "").trim())
+    .filter(Boolean)
+    .join(",");
+}
+const loadRecommendForWidget = async (
+  type: "movie" | "tv",
+  params: DoubanBridge.GlobalParams & Record<string, unknown>,
+) =>
+  loadRecommend(
+    type,
+    recommendTags(params),
+    String(params.sort ?? "T").trim() || "T",
+    pageSkip(params.page as string | number | undefined),
+    (params.sk ?? "").trim(),
+    params.userId ?? "",
+  );
+loadMovieRecommendCatalog = (params: DoubanBridge.GlobalParams & Record<string, unknown>) =>
+  loadRecommendForWidget("movie", params);
+loadTvRecommendCatalog = (params: DoubanBridge.GlobalParams & Record<string, unknown>) =>
+  loadRecommendForWidget("tv", params);
+// @ts-expect-error
 loadSearch = async (params: DoubanBridge.GlobalParams & { keyword?: string; query?: string }) =>
   searchFromCloud((params.keyword || params.query || "").trim(), (params.sk ?? "").trim(), params.userId ?? "");
 
@@ -86,6 +114,63 @@ const i18n = {
     搜索关键词: "Search Query",
   },
 };
+
+const RECOMMEND_REGION = [
+  { title: "全部", value: "" },
+  ...[
+    "华语",
+    "欧美",
+    "国外",
+    "韩国",
+    "日本",
+    "中国大陆",
+    "中国香港",
+    "美国",
+    "英国",
+    "泰国",
+    "中国台湾",
+    "意大利",
+    "法国",
+    "德国",
+    "西班牙",
+    "俄罗斯",
+    "瑞典",
+    "巴西",
+    "丹麦",
+    "印度",
+    "加拿大",
+    "爱尔兰",
+    "澳大利亚",
+  ].map((item) => ({ title: item, value: item })),
+];
+
+const RECOMMEND_SORT = [
+  { title: "综合排序", value: "T" },
+  { title: "近期热度", value: "U" },
+  { title: "首播时间", value: "R" },
+  { title: "高分优先", value: "S" },
+];
+const RECOMMEND_YEAR = [
+  { title: "全部", value: "" },
+  ...[
+    "2020年代",
+    "2026",
+    "2025",
+    "2024",
+    "2023",
+    "2022",
+    "2021",
+    "2020",
+    "2019",
+    "2010年代",
+    "2000年代",
+    "90年代",
+    "80年代",
+    "70年代",
+    "60年代",
+    "更早",
+  ].map((item) => ({ title: item, value: item })),
+];
 
 const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfies WidgetModuleParam;
 
@@ -157,7 +242,6 @@ WidgetMetadata = {
       id: "tv_yearly",
       title: "豆瓣年度评分最高剧集",
       functionName: "loadYearlyCatalog",
-
       params: [
         {
           name: "collectionId",
@@ -169,6 +253,151 @@ WidgetMetadata = {
           ],
         },
         ...subCollectionParams(YEARLY_RANKINGS[TV_YEARLY_RANKING_ID], TV_YEARLY_RANKING_ID),
+        PAGE,
+      ],
+    },
+    {
+      id: "movie_recommend",
+      title: "电影推荐",
+      functionName: "loadMovieRecommendCatalog",
+      params: [
+        {
+          name: "genre",
+          title: "类型",
+          type: "enumeration",
+          enumOptions: [
+            { title: "全部", value: "" },
+            ...[
+              "喜剧",
+              "爱情",
+              "动作",
+              "科幻",
+              "动画",
+              "悬疑",
+              "犯罪",
+              "惊悚",
+              "冒险",
+              "音乐",
+              "历史",
+              "奇幻",
+              "恐怖",
+              "战争",
+              "传记",
+              "歌舞",
+              "武侠",
+              "灾难",
+              "西部",
+              "纪录片",
+              "短片",
+            ].map((item) => ({ title: item, value: item })),
+          ],
+        },
+        {
+          name: "region",
+          title: "地区",
+          type: "enumeration",
+          enumOptions: RECOMMEND_REGION,
+        },
+        {
+          name: "sort",
+          title: "排序",
+          type: "enumeration",
+          value: "T",
+          enumOptions: RECOMMEND_SORT,
+        },
+        {
+          name: "year",
+          title: "年代",
+          type: "enumeration",
+          enumOptions: RECOMMEND_YEAR,
+        },
+        PAGE,
+      ],
+    },
+    {
+      id: "tv_recommend",
+      title: "剧集推荐",
+      functionName: "loadTvRecommendCatalog",
+      params: [
+        {
+          name: "genre",
+          title: "类型",
+          type: "enumeration",
+          enumOptions: [
+            { title: "全部", value: "" },
+            { title: "剧集", value: "电视剧" },
+            { title: "综艺", value: "综艺" },
+          ],
+        },
+        {
+          name: "tv_genre",
+          title: "剧集",
+          type: "enumeration",
+          value: "电视剧",
+          belongTo: {
+            paramName: "genre",
+            value: ["电视剧"],
+          },
+          enumOptions: [
+            { title: "全部", value: "电视剧" },
+            ...[
+              "喜剧",
+              "爱情",
+              "悬疑",
+              "动画",
+              "武侠",
+              "古装",
+              "家庭",
+              "犯罪",
+              "科幻",
+              "恐怖",
+              "历史",
+              "战争",
+              "动作",
+              "冒险",
+              "传记",
+              "剧情",
+              "奇幻",
+              "惊悚",
+              "灾难",
+              "歌舞",
+              "音乐",
+            ].map((item) => ({ title: item, value: item })),
+          ],
+        },
+        {
+          name: "variety_genre",
+          title: "综艺",
+          type: "enumeration",
+          value: "综艺",
+          belongTo: {
+            paramName: "genre",
+            value: ["综艺"],
+          },
+          enumOptions: [
+            { title: "全部", value: "综艺" },
+            ...["真人秀", "脱口秀", "音乐", "歌舞"].map((item) => ({ title: item, value: item })),
+          ],
+        },
+        {
+          name: "region",
+          title: "地区",
+          type: "enumeration",
+          enumOptions: RECOMMEND_REGION,
+        },
+        {
+          name: "sort",
+          title: "排序",
+          type: "enumeration",
+          value: "T",
+          enumOptions: RECOMMEND_SORT,
+        },
+        {
+          name: "year",
+          title: "年代",
+          type: "enumeration",
+          enumOptions: RECOMMEND_YEAR,
+        },
         PAGE,
       ],
     },
