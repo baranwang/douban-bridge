@@ -34,7 +34,11 @@ function pageSkip(page?: string | number) {
   return (value - 1) * 20;
 }
 function recommendTags(params: Record<string, unknown>) {
-  return ["genre", "tv_genre", "variety_genre", "region", "year"]
+  const names =
+    String(params.tv_genre ?? "").trim() || String(params.variety_genre ?? "").trim()
+      ? ["tv_genre", "variety_genre", "region", "year"]
+      : ["genre", "tv_genre", "variety_genre", "region", "year"];
+  return names
     .map((name) => String(params[name] ?? "").trim())
     .filter(Boolean)
     .join(",");

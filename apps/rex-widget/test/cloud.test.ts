@@ -731,7 +731,7 @@ test("tv recommend joins tags except sort and posts matched ids", async () => {
   });
   const url = new URL(requested);
   assert.equal(url.pathname, "/api/v2/tv/recommend");
-  assert.equal(url.searchParams.get("tags"), "电视剧,喜剧,香港,2020年代");
+  assert.equal(url.searchParams.get("tags"), "喜剧,香港,2020年代");
   assert.equal(url.searchParams.get("sort"), "U");
   assert.equal(url.searchParams.get("start"), "20");
   assert.equal(posts[0].url, "https://douban-bridge.baran.wang/v1/items");
@@ -740,6 +740,19 @@ test("tv recommend joins tags except sort and posts matched ids", async () => {
   assert.equal(posts[0].headers?.["X-User-Id"], "user-1");
   assert.equal(result[0].id, "1396");
   assert.equal(result[0].title, "开庭");
+});
+
+test("tv recommend keeps genre when sub-genres are empty", async () => {
+  let requested = "";
+  runtimeWidget.http.get = async (url) => {
+    requested = url;
+    return { statusCode: 200, data: { items: [], total: 0 }, headers: {} };
+  };
+  const load = Reflect.get(globalThis, "loadTvRecommendCatalog") as (
+    params: Record<string, string | number>,
+  ) => Promise<VideoItem[]>;
+  await load({ genre: "电视剧", tv_genre: "", variety_genre: "", region: "香港", sk: "" });
+  assert.equal(new URL(requested).searchParams.get("tags"), "电视剧,香港");
 });
 
 test("movie recommend skips empty tags and stays on Douban without sk", async () => {
