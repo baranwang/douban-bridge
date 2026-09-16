@@ -33,6 +33,7 @@ import {
 } from "@/libs/collections";
 import type { Config } from "@/libs/config";
 import type { PublicUser } from "@/libs/public-user";
+import { useSchemeLaunch } from "@/libs/use-scheme-launch";
 import type { ConfigureRoute } from "@/routes/configure";
 import { GenreDrawer } from "../genre-drawer";
 import { SettingSection } from "../setting-section";
@@ -94,22 +95,7 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
     }
   }, []);
 
-  const handleImport = useCallback(() => {
-    let didBlur = false;
-
-    const handleBlur = () => {
-      didBlur = true;
-    };
-
-    window.addEventListener("blur", handleBlur);
-
-    setTimeout(() => {
-      window.removeEventListener("blur", handleBlur);
-      if (!didBlur) {
-        toast.add({ title: "未检测到支持的应用，请确保已安装兼容 stremio 协议的应用", type: "error" });
-      }
-    }, 1000);
-  }, []);
+  const handleImport = useSchemeLaunch("未检测到支持的应用，请确保已安装兼容 stremio 协议的应用");
 
   // 创建类型榜单 ID 集合，用于过滤
   const movieGenreIds = useMemo(() => new Set(MOVIE_GENRE_CONFIGS.map((c) => c.id)), []);
