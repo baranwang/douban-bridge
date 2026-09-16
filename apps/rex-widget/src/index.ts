@@ -108,7 +108,7 @@ WidgetMetadata = {
   ],
   i18n,
   modules: [
-    ...COLLECTION_CONFIGS.filter((item) => item.isDefault).map<WidgetModule>((item) => ({
+    ...COLLECTION_CONFIGS.filter((item) => !item.hasGenre).map<WidgetModule>((item) => ({
       id: item.id,
       title: item.name,
       functionName: "loadDefaultCatalog",

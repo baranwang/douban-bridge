@@ -3,10 +3,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createContext, runInContext } from "node:vm";
 import {
-  DEFAULT_COLLECTION_IDS,
+  COLLECTION_CONFIGS,
   MOVIE_YEARLY_RANKING_ID,
   TV_YEARLY_RANKING_ID,
 } from "@douban-bridge/contracts/collections";
+
+const DEFAULT_CATALOG_IDS = COLLECTION_CONFIGS.filter((item) => !item.hasGenre).map((item) => item.id);
 
 const SECRETS = [
   "DOUBAN_API_KEY",
@@ -26,7 +28,7 @@ test("Rex bundle has no ESM import, require, core secrets, or Node builtins", ()
   assert.equal(/\brequire\s*\(\s*["'](?:node:|fs|path|http|crypto)/.test(code), false);
 });
 
-test("VM globals, 13 default modules, optional yearly params, empty cloud page", async () => {
+test("VM globals, Stremio catalog order, optional yearly params, empty cloud page", async () => {
   let local = 0;
   const storage = new Map();
   const context = createContext({
@@ -61,13 +63,10 @@ test("VM globals, 13 default modules, optional yearly params, empty cloud page",
   assert.equal(typeof context.loadSearch, "function");
   assert.equal(context.WidgetMetadata.search.functionName, "loadSearch");
   assert.equal(context.loadDetail, undefined);
-  assert.equal(DEFAULT_COLLECTION_IDS.length, 13);
-  for (const id of DEFAULT_COLLECTION_IDS) {
-    assert.ok(
-      context.WidgetMetadata.modules.some((module) => module.id === id),
-      id,
-    );
-  }
+  const catalogIds = context.WidgetMetadata.modules
+    .filter((module) => module.functionName === "loadDefaultCatalog")
+    .map((module) => module.id);
+  assert.equal(JSON.stringify(catalogIds), JSON.stringify(DEFAULT_CATALOG_IDS));
   const movieYearly = context.WidgetMetadata.modules.find((module) => module.id === "movie_yearly");
   const collectionId = movieYearly.params.find((param) => param.name === "collectionId");
   assert.equal(collectionId.required, undefined);

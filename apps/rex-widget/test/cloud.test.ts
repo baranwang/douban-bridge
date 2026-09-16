@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  DEFAULT_COLLECTION_IDS,
+  COLLECTION_CONFIGS,
   MOVIE_GENRE_CONFIGS,
   MOVIE_YEARLY_RANKING_ID,
   TV_GENRE_CONFIGS,
   TV_YEARLY_RANKING_ID,
   YEARLY_RANKINGS,
 } from "@douban-bridge/contracts/collections";
+
+const DEFAULT_CATALOG_IDS = COLLECTION_CONFIGS.filter((item) => !item.hasGenre).map((item) => item.id);
 
 type TestWidget = {
   http: {
@@ -454,10 +456,15 @@ test("catalog items keep imdb then douban ids", async () => {
   assert.equal(douban.type, "douban");
 });
 
-test("WidgetMetadata exposes 13 defaults plus genre and yearly modules", () => {
+test("WidgetMetadata exposes Stremio catalog order plus genre and yearly modules", () => {
   assert.equal(WidgetMetadata.requiredVersion, "0.0.1");
-  assert.equal(DEFAULT_COLLECTION_IDS.length, 13);
-  for (const id of DEFAULT_COLLECTION_IDS) {
+  assert.deepEqual(
+    WidgetMetadata.modules.filter((item: { functionName: string }) => item.functionName === "loadDefaultCatalog").map((item: { id: string }) => item.id),
+    DEFAULT_CATALOG_IDS,
+  );
+  assert.ok(DEFAULT_CATALOG_IDS.includes("tv_american"));
+  assert.ok(DEFAULT_CATALOG_IDS.includes("tv_documentary"));
+  for (const id of DEFAULT_CATALOG_IDS) {
     const module = WidgetMetadata.modules.find((item: { id: string }) => item.id === id);
     assert.ok(module, id);
     assert.equal(module.functionName, "loadDefaultCatalog");
