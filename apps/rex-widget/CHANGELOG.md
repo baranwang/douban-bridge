@@ -1,5 +1,11 @@
 # @rexnow/douban
 
+## 0.6.1
+
+### Patch Changes
+
+- 32e5ef3: Rex Widget 电影/剧集推荐地区选项改成大陆/香港/台湾，自定义标签参数内联进筛选列表。
+
 ## 0.6.0
 
 ### Minor Changes
