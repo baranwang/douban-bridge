@@ -24,6 +24,7 @@ components/
 | TMDB language order | `packages/ui/src/tmdb-language-sortable/` | shared language/country helpers plus sortable rows |
 | Shared primitives | `packages/ui/src/components/` | import through `@douban-bridge/ui/components/*` |
 | Drawers | `genre-drawer.tsx`, `yearly-ranking-drawer.tsx` | compose the shared drawer and item primitives |
+| Star guide footer state | `star-guide-state.ts` | pure `starGuideUi()`; covered by `test/star-guide-state.test.ts` |
 
 ## CONVENTIONS
 
@@ -48,5 +49,7 @@ components/
 ## NOTES
 
 - `StarBanner` and `UserMenu` use imperative browser/form side effects; keep that pattern isolated.
+- `StarCta` owns `useStarCheck` and drives `StarGuideDialog`; call sites just render `StarCta`. Footer wording/disabled
+  logic belongs in `star-guide-state.ts`, not the dialog.
 - `provider-configs.tsx` contains an embedded helper component; prefer extracting future helpers if they grow.
 - UI text is primarily Chinese; preserve existing locale unless the surrounding component is already English.

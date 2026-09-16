@@ -14,7 +14,7 @@
     "components": "@douban-bridge/ui/components",
     "utils": "cn",
     "ui": "@douban-bridge/ui/components",
-    "lib": "@douban-bridge/ui",
+    "lib": "@douban-bridge/ui/lib",
     "hooks": "@douban-bridge/ui/hooks"
   }
 }

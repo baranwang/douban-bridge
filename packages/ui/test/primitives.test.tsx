@@ -5,6 +5,7 @@ import { Badge } from "@douban-bridge/ui/components/badge";
 import { Button } from "@douban-bridge/ui/components/button";
 import { ButtonGroup } from "@douban-bridge/ui/components/button-group";
 import { Card } from "@douban-bridge/ui/components/card";
+import { Dialog } from "@douban-bridge/ui/components/dialog";
 import { Drawer } from "@douban-bridge/ui/components/drawer";
 import { DropdownMenu } from "@douban-bridge/ui/components/dropdown-menu";
 import { Input } from "@douban-bridge/ui/components/input";
@@ -26,6 +27,7 @@ test("exports every shared primitive family", () => {
     Button,
     Card,
     Drawer,
+    Dialog,
     DropdownMenu,
     InputGroup,
     Input,
