@@ -178,7 +178,7 @@ const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfi
 const CUSTOM_TAG = {
   name: "tag",
   title: "自定义标签",
-  description: "多个标签用中文或英文逗号分隔",
+  description: "多个标签用逗号分隔",
   type: "input",
 } satisfies WidgetModuleParam;
 const RECOMMEND_FILTERS: WidgetModuleParam[] = [

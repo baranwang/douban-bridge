@@ -715,7 +715,7 @@ interface LoadMovieRecommendCatalogParams extends DoubanBridge.GlobalParams {
     year: '' | '2020年代' | '2026' | '2025' | '2024' | '2023' | '2022' | '2021' | '2020' | '2019' | '2010年代' | '2000年代' | '90年代' | '80年代' | '70年代' | '60年代' | '更早';
     /**
      * 自定义标签
-     * @description 多个标签用中文或英文逗号分隔
+     * @description 多个标签用逗号分隔
      */
     tag: string;
     /**
@@ -759,7 +759,7 @@ interface LoadTvRecommendCatalogParams extends DoubanBridge.GlobalParams {
     year: '' | '2020年代' | '2026' | '2025' | '2024' | '2023' | '2022' | '2021' | '2020' | '2019' | '2010年代' | '2000年代' | '90年代' | '80年代' | '70年代' | '60年代' | '更早';
     /**
      * 自定义标签
-     * @description 多个标签用中文或英文逗号分隔
+     * @description 多个标签用逗号分隔
      */
     tag: string;
     /**
