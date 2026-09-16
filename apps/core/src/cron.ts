@@ -43,7 +43,7 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
       const imdbAPI = new ImdbAPI();
 
       for (const group of groups) {
-        const results = await Promise.all(
+        const results = await Promise.allSettled(
           group.map<Promise<DoubanIdMapping | null>>(async (item) => {
             const { doubanId, imdbId } = item;
             let doubanDetail: z.output<typeof doubanSubjectDetailSchema> | null = null;
@@ -99,7 +99,22 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
             return null;
           }),
         );
-        const validResults = results.filter((item): item is DoubanIdMapping => !!item);
+        for (const [index, result] of results.entries()) {
+          if (result.status === "rejected") {
+            const error = result.reason;
+            console.warn(
+              "⚠️ Skipping failed mapping",
+              group[index].doubanId,
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+        }
+        const validResults = results.flatMap((result) => {
+          if (result.status === "fulfilled" && result.value) {
+            return [result.value];
+          }
+          return [];
+        });
         if (validResults.length > 0) {
           ctx.waitUntil(api.persistIdMapping(validResults));
           successCount += validResults.length;

@@ -3,7 +3,6 @@ import test, { describe, mock } from "node:test";
 import { eq } from "drizzle-orm";
 import { doubanMapping } from "../src/db";
 import { api } from "../src/libs/api";
-import { FanartAPI } from "../src/libs/api/fanart";
 import { TmdbAPI } from "../src/libs/api/tmdb";
 import { getCatalogPage } from "../src/services/catalog";
 import { withTestContext } from "./context";
@@ -130,9 +129,10 @@ describe("catalog service", { concurrency: false }, () => {
     });
   });
 
-  test("a later image provider is used when the first throws", async () => {
+  test("a failed TMDB provider falls back without logging a handled error", async () => {
     await withTestContext(async () => {
       try {
+        let errorCount = 0;
         await api.db.insert(doubanMapping).values({ doubanId: 1, tmdbId: 101, calibrated: true });
         mock.method(api.doubanAPI, "getSubjectCollectionItems", async () => ({
           subject_collection_items: [
@@ -147,14 +147,17 @@ describe("catalog service", { concurrency: false }, () => {
           ],
           total: 1,
         }));
-        mock.method(FanartAPI.prototype, "getSubjectImages", async () => {
-          throw new Error("fanart down");
+        mock.method(console, "error", () => {
+          errorCount += 1;
+        });
+        mock.method(TmdbAPI.prototype, "getSubjectImages", async () => {
+          throw new Error("invalid TMDB token");
         });
         const result = await getCatalogPage(
           { collectionId: "movie_top250", skip: 0 },
           {
             providers: [
-              { provider: "fanart", extra: { apiKey: "test" } },
+              { provider: "tmdb", extra: { apiKey: "test" } },
               { provider: "douban", extra: {} },
             ],
             origin,
@@ -163,6 +166,7 @@ describe("catalog service", { concurrency: false }, () => {
         assert.equal(result[0].images.poster, "https://img.example.com/poster.jpg");
         assert.equal(result[0].images.background, null);
         assert.equal(result[0].images.logo, null);
+        assert.equal(errorCount, 0);
       } finally {
         mock.restoreAll();
       }
