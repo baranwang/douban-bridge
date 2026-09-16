@@ -1,5 +1,11 @@
 # @rexnow/douban
 
+## 0.6.0
+
+### Minor Changes
+
+- e7ed176: Rex Widget 电影/剧集推荐增加自定义标签输入，拼进现有 Douban tags。
+
 ## 0.5.0
 
 ### Minor Changes

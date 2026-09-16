@@ -1,6 +1,6 @@
 {
   "name": "@rexnow/douban",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Douban catalogs and details for Rex",
   "type": "module",
   "main": "./dist/douban-bridge.js",
