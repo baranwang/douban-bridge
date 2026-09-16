@@ -120,20 +120,15 @@ export class ImageUrlGenerator {
     extra: ImageProvider<"tmdb">["extra"],
   ): Promise<ImageUrls | null> {
     this.tmdbAPI ??= new TmdbAPI(extra.apiKey);
-    try {
-      const imageLanguages = extra.imageLanguages ?? TMDB_IMAGE_LANGUAGE;
-      const images = await this.tmdbAPI.getSubjectImages(type, tmdbId, imageLanguages);
-      if (!images) return null;
+    const imageLanguages = extra.imageLanguages ?? TMDB_IMAGE_LANGUAGE;
+    const images = await this.tmdbAPI.getSubjectImages(type, tmdbId, imageLanguages);
+    if (!images) return null;
 
-      return {
-        poster: this.sortTmdbImages(images.posters, imageLanguages)?.[0]?.file_path || undefined,
-        background: this.sortTmdbImages(images.backdrops, imageLanguages)?.[0]?.file_path || undefined,
-        logo: this.sortTmdbImages(images.logos, imageLanguages)?.[0]?.file_path || undefined,
-      };
-    } catch (error) {
-      console.error(error);
-      return null;
-    }
+    return {
+      poster: this.sortTmdbImages(images.posters, imageLanguages)?.[0]?.file_path || undefined,
+      background: this.sortTmdbImages(images.backdrops, imageLanguages)?.[0]?.file_path || undefined,
+      logo: this.sortTmdbImages(images.logos, imageLanguages)?.[0]?.file_path || undefined,
+    };
   }
 
   private sortTmdbImages(arr: TmdbImageData[], imageLanguages: string[]) {

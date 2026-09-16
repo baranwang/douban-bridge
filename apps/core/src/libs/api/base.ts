@@ -2,6 +2,8 @@ import axios, { type AxiosInstance, type AxiosRequestConfig, type CreateAxiosDef
 import { getDrizzle } from "@/db";
 import { getContext } from "../middleware";
 
+const redactUrl = (url: string) => url.replace(/([?&]api_?key=)[^&]*/gi, "$1[REDACTED]");
+
 export enum CacheType {
   LOCAL = 1,
   KV = 2,
@@ -26,21 +28,21 @@ export class BaseAPI {
     });
 
     this.axios.interceptors.request.use((config) => {
-      const finalUri = axios.getUri(config);
+      const finalUri = redactUrl(axios.getUri(config));
       console.info("⬆️", config.method?.toUpperCase(), finalUri);
       return config;
     });
     this.axios.interceptors.response.use(
       (response) => {
-        console.info("⬇️", response.status, axios.getUri(response.config));
+        console.info("⬇️", response.status, redactUrl(axios.getUri(response.config)));
         if (response.status >= 400) {
-          console.error("❌", response.status, response.data);
+          console.warn("❌", response.status, response.data);
         }
         return response;
       },
       (error) => {
         if (!error.config?.baseURL?.includes("webservice.fanart.tv")) {
-          console.error("❌", error.response?.status, axios.getUri(error.config));
+          console.warn("❌", error.response?.status, redactUrl(axios.getUri(error.config)));
         }
         return Promise.reject(error);
       },
