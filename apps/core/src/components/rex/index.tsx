@@ -12,6 +12,7 @@ import { PageShell } from "../page-shell";
 import { SettingSection } from "../setting-section";
 import { UserMenu } from "../user-menu";
 import { ApiKeySettings } from "./api-key-settings";
+import { InstallWidget } from "./install-widget";
 import { ModeComparison } from "./mode-comparison";
 
 export interface RexProps {
@@ -53,41 +54,45 @@ export function Rex({ user, imageProviders: initialImageProviders }: RexProps) {
       description="管理 Rex 密钥与所有播放器共用的图片来源"
       actions={<UserMenu user={user} />}
     >
-      {isStarred ? (
-        <div className="mt-9 flex flex-col gap-10">
-          <div data-section="rex-key-settings">
-            <ApiKeySettings user={user} />
-          </div>
+      <div className="mt-9 flex flex-col gap-10">
+        <InstallWidget />
 
-          <form data-section="image-provider-settings" onSubmit={saveImageProviders}>
-            <SettingSection
-              title="图片来源"
-              icon={<ImageIcon className="size-4 text-muted-foreground" />}
-              footer="拖动排序调整优先级，排在前面的图片来源将优先使用"
-            >
-              <ItemGroup>
-                <ImageProviderSortable value={imageProviders} onChange={setImageProviders} />
-              </ItemGroup>
-            </SettingSection>
-            <Button
-              className="mt-4 w-full sm:w-auto"
-              type="submit"
-              disabled={saving || isEqual(imageProviders, savedImageProviders)}
-            >
-              {saving ? (
-                <>
-                  <Spinner />
-                  保存中…
-                </>
-              ) : (
-                "保存图片设置"
-              )}
-            </Button>
-          </form>
-        </div>
-      ) : (
-        <ModeComparison user={user} />
-      )}
+        {isStarred ? (
+          <>
+            <div data-section="rex-key-settings">
+              <ApiKeySettings user={user} />
+            </div>
+
+            <form data-section="image-provider-settings" onSubmit={saveImageProviders}>
+              <SettingSection
+                title="图片来源"
+                icon={<ImageIcon className="size-4 text-muted-foreground" />}
+                footer="拖动排序调整优先级，排在前面的图片来源将优先使用"
+              >
+                <ItemGroup>
+                  <ImageProviderSortable value={imageProviders} onChange={setImageProviders} />
+                </ItemGroup>
+              </SettingSection>
+              <Button
+                className="mt-4 w-full sm:w-auto"
+                type="submit"
+                disabled={saving || isEqual(imageProviders, savedImageProviders)}
+              >
+                {saving ? (
+                  <>
+                    <Spinner />
+                    保存中…
+                  </>
+                ) : (
+                  "保存图片设置"
+                )}
+              </Button>
+            </form>
+          </>
+        ) : (
+          <ModeComparison user={user} />
+        )}
+      </div>
       <Toaster />
     </PageShell>
   );

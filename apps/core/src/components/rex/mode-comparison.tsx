@@ -10,7 +10,7 @@ export const ModeComparison: React.FC<{ user?: PublicUser }> = ({ user }) => {
   const { checking, onStarClick } = useStarCheck("rex");
 
   return (
-    <section aria-labelledby="rex-full-mode-title" className="mt-9">
+    <section aria-labelledby="rex-full-mode-title">
       <h2 id="rex-full-mode-title" className="font-semibold text-lg">
         启用完整模式
       </h2>

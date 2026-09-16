@@ -56,6 +56,7 @@ test("Rex page exposes settings only to a starred session", async () => {
     assert.equal(anonymousBody.includes('data-section="rex-key-settings"'), false);
     assert.equal(anonymousBody.includes('data-section="image-provider-settings"'), false);
     assert.ok(anonymousBody.includes("GitHub 登录"));
+    assert.ok(anonymousBody.includes('data-section="install-widget"'));
 
     const unstarredId = await insertUser(env, { hasStarred: false });
     await getDrizzle(env)
@@ -81,12 +82,14 @@ test("Rex page exposes settings only to a starred session", async () => {
     assert.equal(unstarredBody.includes("githubAccessToken"), false);
     assert.equal(unstarredBody.includes("sk_"), false);
     assert.ok(unstarredBody.includes("去 Star 解锁"));
+    assert.ok(unstarredBody.includes('data-section="install-widget"'));
 
     const userId = await insertUser(env, { hasStarred: true });
     const cookie = await sessionCookie(env, userId);
     const owner = await app.fetch(new Request(`${CORE}/rex`, { headers: { Cookie: cookie } }), bindings, ctx);
     const body = await owner.text();
     assert.equal(owner.status, 200);
+    assert.ok(body.includes('data-section="install-widget"'));
     assert.ok(body.includes('data-section="rex-key-settings"'));
     assert.ok(body.includes('data-section="image-provider-settings"'));
     assert.equal(body.includes(GITHUB_TOKEN), false);
