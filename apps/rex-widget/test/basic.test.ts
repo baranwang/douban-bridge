@@ -49,7 +49,7 @@ const widget: TestWidget = {
   },
 };
 globalThis.Widget = widget;
-const { fetchRecommendItems, findBasicTmdb, getBasicCatalog, getBasicSearch } = await import("../src/basic");
+const { fetchRecommendItems, fetchSearchItems, findBasicTmdb, getBasicCatalog, toVideoItem } = await import("../src/basic");
 
 function installWidget(opts?: {
   http?: (url: string) => { statusCode: number; data: unknown };
@@ -222,7 +222,8 @@ const SEARCH = {
 
 test("basic search hits frodo weixin and keeps movie/tv subjects", async () => {
   const requests = installWidget({ http: () => ({ statusCode: 200, data: SEARCH }) });
-  const result = await getBasicSearch("肖申克", 0);
+  const items = await fetchSearchItems("肖申克", 0);
+  const result = await Promise.all(items.map((item) => toVideoItem(item)));
   assert.equal(
     requests.some(
       (url) =>
@@ -238,7 +239,7 @@ test("basic search hits frodo weixin and keeps movie/tv subjects", async () => {
 
 test("empty search query throws before any request", async () => {
   const requests = installWidget();
-  await assert.rejects(() => getBasicSearch("  ", 0), /搜索关键词/);
+  await assert.rejects(() => fetchSearchItems("  ", 0), /搜索关键词/);
   assert.equal(requests.length, 0);
 });
 
