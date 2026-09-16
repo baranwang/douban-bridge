@@ -49,7 +49,7 @@ const widget: TestWidget = {
   },
 };
 globalThis.Widget = widget;
-const { findBasicTmdb, getBasicCatalog, getBasicSearch } = await import("../src/basic");
+const { fetchRecommendItems, findBasicTmdb, getBasicCatalog, getBasicSearch } = await import("../src/basic");
 
 function installWidget(opts?: {
   http?: (url: string) => { statusCode: number; data: unknown };
@@ -240,4 +240,44 @@ test("empty search query throws before any request", async () => {
   const requests = installWidget();
   await assert.rejects(() => getBasicSearch("  ", 0), /搜索关键词/);
   assert.equal(requests.length, 0);
+});
+
+test("basic recommend hits frodo movie/tv recommend and keeps subjects", async () => {
+  const requests = installWidget({
+    http: (url) => {
+      if (url.includes("/tv/recommend")) {
+        return {
+          statusCode: 200,
+          data: {
+            items: [
+              {
+                id: "37822829",
+                type: "tv",
+                title: "开庭",
+                year: "2026",
+                pic: { large: "https://img.example/tv.jpg" },
+                comment: { comment: "TVB" },
+              },
+            ],
+            total: 1,
+          },
+        };
+      }
+      throw new Error(`unexpected url ${url}`);
+    },
+  });
+  const items = await fetchRecommendItems("tv", "电视剧,香港,2020年代", "U", 0);
+  assert.equal(
+    requests.some(
+      (url) =>
+        url.includes("https://frodo.douban.com/api/v2/tv/recommend") &&
+        url.includes("tags=") &&
+        url.includes("sort=U") &&
+        url.includes("start=0"),
+    ),
+    true,
+  );
+  assert.equal(items.length, 1);
+  assert.equal(items[0].id, 37822829);
+  assert.equal(items[0].title, "开庭");
 });

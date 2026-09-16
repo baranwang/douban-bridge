@@ -698,6 +698,74 @@ interface TvYearlyLoadYearlyCatalogParams extends DoubanBridge.GlobalParams {
 interface TvYearlyLoadYearlyCatalogReturnType extends Array<VideoItem> {
 }
 //#endregion tv_yearly
+
+//#region movie_recommend
+/** Params of 电影推荐 */
+interface LoadMovieRecommendCatalogParams extends DoubanBridge.GlobalParams {
+    /** 类型 */
+    genre: '' | '喜剧' | '爱情' | '动作' | '科幻' | '动画' | '悬疑' | '犯罪' | '惊悚' | '冒险' | '音乐' | '历史' | '奇幻' | '恐怖' | '战争' | '传记' | '歌舞' | '武侠' | '灾难' | '西部' | '纪录片' | '短片';
+    /** 地区 */
+    region: '' | '华语' | '欧美' | '国外' | '韩国' | '日本' | '中国大陆' | '中国香港' | '美国' | '英国' | '泰国' | '中国台湾' | '意大利' | '法国' | '德国' | '西班牙' | '俄罗斯' | '瑞典' | '巴西' | '丹麦' | '印度' | '加拿大' | '爱尔兰' | '澳大利亚';
+    /**
+     * 排序
+     * @default 'T'
+     */
+    sort: 'T' | 'U' | 'R' | 'S';
+    /** 年代 */
+    year: '' | '2020年代' | '2026' | '2025' | '2024' | '2023' | '2022' | '2021' | '2020' | '2019' | '2010年代' | '2000年代' | '90年代' | '80年代' | '70年代' | '60年代' | '更早';
+    /**
+     * 页码
+     * @default '1'
+     */
+    page: string;
+}
+
+/** Return Type of 电影推荐 */
+interface LoadMovieRecommendCatalogReturnType extends Array<VideoItem> {
+}
+
+/** 电影推荐 */
+declare let loadMovieRecommendCatalog: (params: LoadMovieRecommendCatalogParams) => LoadMovieRecommendCatalogReturnType | null | Promise<LoadMovieRecommendCatalogReturnType | null>;
+//#endregion movie_recommend
+
+//#region tv_recommend
+/** Params of 剧集推荐 */
+interface LoadTvRecommendCatalogParams extends DoubanBridge.GlobalParams {
+    /** 类型 */
+    genre: '' | '电视剧' | '综艺';
+    /**
+     * 剧集
+     * @default '电视剧'
+     */
+    tv_genre: '电视剧' | '喜剧' | '爱情' | '悬疑' | '动画' | '武侠' | '古装' | '家庭' | '犯罪' | '科幻' | '恐怖' | '历史' | '战争' | '动作' | '冒险' | '传记' | '剧情' | '奇幻' | '惊悚' | '灾难' | '歌舞' | '音乐';
+    /**
+     * 综艺
+     * @default '综艺'
+     */
+    variety_genre: '综艺' | '真人秀' | '脱口秀' | '音乐' | '歌舞';
+    /** 地区 */
+    region: '' | '华语' | '欧美' | '国外' | '韩国' | '日本' | '中国大陆' | '中国香港' | '美国' | '英国' | '泰国' | '中国台湾' | '意大利' | '法国' | '德国' | '西班牙' | '俄罗斯' | '瑞典' | '巴西' | '丹麦' | '印度' | '加拿大' | '爱尔兰' | '澳大利亚';
+    /**
+     * 排序
+     * @default 'T'
+     */
+    sort: 'T' | 'U' | 'R' | 'S';
+    /** 年代 */
+    year: '' | '2020年代' | '2026' | '2025' | '2024' | '2023' | '2022' | '2021' | '2020' | '2019' | '2010年代' | '2000年代' | '90年代' | '80年代' | '70年代' | '60年代' | '更早';
+    /**
+     * 页码
+     * @default '1'
+     */
+    page: string;
+}
+
+/** Return Type of 剧集推荐 */
+interface LoadTvRecommendCatalogReturnType extends Array<VideoItem> {
+}
+
+/** 剧集推荐 */
+declare let loadTvRecommendCatalog: (params: LoadTvRecommendCatalogParams) => LoadTvRecommendCatalogReturnType | null | Promise<LoadTvRecommendCatalogReturnType | null>;
+//#endregion tv_recommend
 type LoadDefaultCatalogParams = MovieHotGaiaLoadDefaultCatalogParams | MovieWeeklyBestLoadDefaultCatalogParams | MovieRealTimeHotestLoadDefaultCatalogParams | MovieTop250LoadDefaultCatalogParams | MovieShowingLoadDefaultCatalogParams | TvHotLoadDefaultCatalogParams | TvAmericanLoadDefaultCatalogParams | TvKoreanLoadDefaultCatalogParams | TvDomesticLoadDefaultCatalogParams | TvJapaneseLoadDefaultCatalogParams | TvAnimationLoadDefaultCatalogParams | ShowHotLoadDefaultCatalogParams | TvDocumentaryLoadDefaultCatalogParams | TvRealTimeHotestLoadDefaultCatalogParams | TvChineseBestWeeklyLoadDefaultCatalogParams | TvGlobalBestWeeklyLoadDefaultCatalogParams | ShowChineseBestWeeklyLoadDefaultCatalogParams | ShowGlobalBestWeeklyLoadDefaultCatalogParams;
 type LoadDefaultCatalogReturnType = MovieHotGaiaLoadDefaultCatalogReturnType | MovieWeeklyBestLoadDefaultCatalogReturnType | MovieRealTimeHotestLoadDefaultCatalogReturnType | MovieTop250LoadDefaultCatalogReturnType | MovieShowingLoadDefaultCatalogReturnType | TvHotLoadDefaultCatalogReturnType | TvAmericanLoadDefaultCatalogReturnType | TvKoreanLoadDefaultCatalogReturnType | TvDomesticLoadDefaultCatalogReturnType | TvJapaneseLoadDefaultCatalogReturnType | TvAnimationLoadDefaultCatalogReturnType | ShowHotLoadDefaultCatalogReturnType | TvDocumentaryLoadDefaultCatalogReturnType | TvRealTimeHotestLoadDefaultCatalogReturnType | TvChineseBestWeeklyLoadDefaultCatalogReturnType | TvGlobalBestWeeklyLoadDefaultCatalogReturnType | ShowChineseBestWeeklyLoadDefaultCatalogReturnType | ShowGlobalBestWeeklyLoadDefaultCatalogReturnType;
 

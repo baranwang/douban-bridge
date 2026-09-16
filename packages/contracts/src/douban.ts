@@ -48,7 +48,7 @@ const doubanSubjectCollectionItemSchema = z
       .nullish(),
     photos: z.array(z.string()).nullish(),
     description: z.string().nullish(),
-    comment: z.string().nullish(),
+    comment: z.unknown().nullish(),
     rating: z
       .object({
         value: z.coerce.number().nullish(),
@@ -61,7 +61,7 @@ const doubanSubjectCollectionItemSchema = z
     ...v,
     cover: v.cover?.url ?? v.cover_url ?? v.pic?.large ?? v.pic?.normal,
     year: v.year ?? v.card_subtitle?.split("/")?.[0].trim(),
-    description: v.description || v.comment,
+    description: v.description || (typeof v.comment === "string" ? v.comment : undefined),
   }));
 
 export type DoubanSubjectCollectionItem = z.output<typeof doubanSubjectCollectionItemSchema>;
@@ -179,6 +179,20 @@ export const doubanSearchSchema = z.object({
           type: item.target_type,
         });
         return result.success ? result.data : null;
+      }),
+    )
+    .transform((v) => v.filter((v) => v !== null)),
+  total: z.number().optional(),
+});
+
+export const doubanRecommendSchema = z.object({
+  items: z
+    .array(
+      z.unknown().transform((raw) => {
+        const result = doubanSubjectCollectionItemSchema.safeParse(raw);
+        if (result.success) return result.data;
+        console.warn(z.prettifyError(result.error));
+        return null;
       }),
     )
     .transform((v) => v.filter((v) => v !== null)),

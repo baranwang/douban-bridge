@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DEFAULT_COLLECTION_IDS, getLatestYearlyRanking, MOVIE_YEARLY_RANKING_ID } from "../src/collections";
-import { doubanSearchSchema, doubanSubjectCollectionSchema } from "../src/douban";
+import { doubanRecommendSchema, doubanSearchSchema, doubanSubjectCollectionSchema } from "../src/douban";
 import { imageProviderSchema, imageProvidersSchema, TMDB_IMAGE_LANGUAGE } from "../src/image-providers";
 import {
   bridgeItemSchema,
@@ -118,4 +118,25 @@ test("weixin search keeps movie/tv subjects and drops the rest", () => {
     ],
   );
   assert.equal(parsed.items[0]?.cover, "https://img.example/a.jpg");
+});
+
+test("recommend envelope keeps movie/tv subjects and object comments", () => {
+  const parsed = doubanRecommendSchema.parse({
+    items: [
+      {
+        id: "26752088",
+        type: "movie",
+        title: "我不是药神",
+        year: "2018",
+        pic: { large: "https://img.example/a.jpg" },
+        comment: { comment: "真实事件改编" },
+      },
+      { id: "x", type: "book", title: "一本书" },
+    ],
+    total: 2,
+  });
+  assert.equal(parsed.items.length, 1);
+  assert.equal(parsed.items[0]?.id, 26752088);
+  assert.equal(parsed.items[0]?.cover, "https://img.example/a.jpg");
+  assert.equal(parsed.items[0]?.description, undefined);
 });
