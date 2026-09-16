@@ -12,12 +12,15 @@ import { version } from "../package.json";
 import { loadCatalog, loadRecommend, loadSearch as searchFromCloud } from "./cloud";
 import { SUB_COLLECTIONS } from "./sub-collections";
 
+function pageSkip(page?: string | number) {
+  const value = Number(page ?? 1);
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error("Invalid page");
+  return (value - 1) * 20;
+}
 function queryFromParams(params: { collectionId: string; page?: string | number }) {
-  const page = Number(params.page ?? 1);
-  if (!Number.isSafeInteger(page) || page < 1) throw new Error("Invalid page");
   const collectionId = getLatestYearlyRanking(params.collectionId)?.id ?? params.collectionId;
   const subCollectionId = Reflect.get(params, `subCollectionId_${collectionId}`);
-  return catalogQuerySchema.parse({ collectionId: subCollectionId || collectionId, skip: (page - 1) * 20 });
+  return catalogQuerySchema.parse({ collectionId: subCollectionId || collectionId, skip: pageSkip(params.page) });
 }
 const loadCatalogForWidget = async (
   params: DoubanBridge.GlobalParams & {
@@ -28,37 +31,31 @@ const loadCatalogForWidget = async (
 loadDefaultCatalog = loadCatalogForWidget;
 loadGenreCatalog = loadCatalogForWidget;
 loadYearlyCatalog = loadCatalogForWidget;
-function pageSkip(page?: string | number) {
-  const value = Number(page ?? 1);
-  if (!Number.isSafeInteger(value) || value < 1) throw new Error("Invalid page");
-  return (value - 1) * 20;
-}
 function recommendTags(params: Record<string, unknown>) {
   const names =
     String(params.tv_genre ?? "").trim() || String(params.variety_genre ?? "").trim()
-      ? ["tv_genre", "variety_genre", "region", "year"]
-      : ["genre", "tv_genre", "variety_genre", "region", "year"];
+      ? ["tv_genre", "variety_genre", "region", "year", "tag"]
+      : ["genre", "tv_genre", "variety_genre", "region", "year", "tag"];
   return names
-    .map((name) => String(params[name] ?? "").trim())
+    .flatMap((name) => String(params[name] ?? "").split(/[,，]/))
+    .map((item) => item.trim())
     .filter(Boolean)
     .join(",");
 }
 const loadRecommendForWidget = async (
   type: "movie" | "tv",
-  params: DoubanBridge.GlobalParams & Record<string, unknown>,
+  params: DoubanBridge.GlobalParams & (LoadMovieRecommendCatalogParams | LoadTvRecommendCatalogParams),
 ) =>
   loadRecommend(
     type,
-    recommendTags(params),
+    recommendTags(params as unknown as Record<string, unknown>),
     String(params.sort ?? "T").trim() || "T",
     pageSkip(params.page as string | number | undefined),
     (params.sk ?? "").trim(),
     params.userId ?? "",
   );
-loadMovieRecommendCatalog = (params: DoubanBridge.GlobalParams & Record<string, unknown>) =>
-  loadRecommendForWidget("movie", params);
-loadTvRecommendCatalog = (params: DoubanBridge.GlobalParams & Record<string, unknown>) =>
-  loadRecommendForWidget("tv", params);
+loadMovieRecommendCatalog = (params) => loadRecommendForWidget("movie", params);
+loadTvRecommendCatalog = (params) => loadRecommendForWidget("tv", params);
 // @ts-expect-error
 loadSearch = async (params: DoubanBridge.GlobalParams & { keyword?: string; query?: string }) =>
   searchFromCloud((params.keyword || params.query || "").trim(), (params.sk ?? "").trim(), params.userId ?? "");
@@ -83,7 +80,6 @@ function subCollectionParams(collections: { id: string }[], latestId?: string) {
       : [];
   });
 }
-
 const i18n = {
   "zh-Hant": {
     密钥: "密鑰",
@@ -100,6 +96,7 @@ const i18n = {
     豆瓣年度评分最高剧集: "豆瓣年度最高評分劇集",
     搜索: "搜尋",
     搜索关键词: "搜尋關鍵字",
+    自定义标签: "自訂標籤",
   },
   en: {
     密钥: "Secret Key",
@@ -116,6 +113,7 @@ const i18n = {
     豆瓣年度评分最高剧集: "Douban's Top-Rated TV Shows by Year",
     搜索: "Search",
     搜索关键词: "Search Query",
+    自定义标签: "Custom Tag",
   },
 };
 
@@ -177,6 +175,49 @@ const RECOMMEND_YEAR = [
 ];
 
 const PAGE = { name: "page", title: "页码", type: "page", value: "1" } satisfies WidgetModuleParam;
+const CUSTOM_TAG = {
+  name: "tag",
+  title: "自定义标签",
+  description: "多个标签用逗号分隔",
+  type: "input",
+} satisfies WidgetModuleParam;
+const RECOMMEND_FILTERS: WidgetModuleParam[] = [
+  { name: "region", title: "地区", type: "enumeration", enumOptions: RECOMMEND_REGION },
+  { name: "sort", title: "排序", type: "enumeration", value: "T", enumOptions: RECOMMEND_SORT },
+  { name: "year", title: "年代", type: "enumeration", enumOptions: RECOMMEND_YEAR },
+  CUSTOM_TAG,
+  PAGE,
+];
+function genreModule(id: string, title: string, configs: { id: string; name: string }[]): WidgetModule {
+  return {
+    id,
+    title,
+    functionName: "loadGenreCatalog",
+    params: [
+      { name: "collectionId", title: "榜单", type: "enumeration", enumOptions: enumOptions(configs) },
+      ...subCollectionParams(configs),
+      PAGE,
+    ],
+  };
+}
+function yearlyModule(id: string, title: string, rankingId: keyof typeof YEARLY_RANKINGS): WidgetModule {
+  const rankings = YEARLY_RANKINGS[rankingId];
+  return {
+    id,
+    title,
+    functionName: "loadYearlyCatalog",
+    params: [
+      {
+        name: "collectionId",
+        title: "年度",
+        type: "enumeration",
+        enumOptions: [{ title: "最新年度", value: rankingId }, ...enumOptions(rankings)],
+      },
+      ...subCollectionParams(rankings, rankingId),
+      PAGE,
+    ],
+  };
+}
 
 WidgetMetadata = {
   id: "douban.bridge",
@@ -203,63 +244,10 @@ WidgetMetadata = {
       functionName: "loadDefaultCatalog",
       params: [{ name: "collectionId", title: "榜单", type: "constant", value: item.id }, PAGE],
     })),
-    {
-      id: "movie_genre",
-      title: "电影类型榜",
-      functionName: "loadGenreCatalog",
-      params: [
-        { name: "collectionId", title: "榜单", type: "enumeration", enumOptions: enumOptions(MOVIE_GENRE_CONFIGS) },
-        ...subCollectionParams(MOVIE_GENRE_CONFIGS),
-        PAGE,
-      ],
-    },
-    {
-      id: "tv_genre",
-      title: "剧集类型榜",
-      functionName: "loadGenreCatalog",
-      params: [
-        { name: "collectionId", title: "榜单", type: "enumeration", enumOptions: enumOptions(TV_GENRE_CONFIGS) },
-        ...subCollectionParams(TV_GENRE_CONFIGS),
-        PAGE,
-      ],
-    },
-    {
-      id: "movie_yearly",
-      title: "豆瓣年度评分最高电影",
-      functionName: "loadYearlyCatalog",
-
-      params: [
-        {
-          name: "collectionId",
-          title: "年度",
-          type: "enumeration",
-          enumOptions: [
-            { title: "最新年度", value: MOVIE_YEARLY_RANKING_ID },
-            ...enumOptions(YEARLY_RANKINGS[MOVIE_YEARLY_RANKING_ID]),
-          ],
-        },
-        ...subCollectionParams(YEARLY_RANKINGS[MOVIE_YEARLY_RANKING_ID], MOVIE_YEARLY_RANKING_ID),
-        PAGE,
-      ],
-    },
-    {
-      id: "tv_yearly",
-      title: "豆瓣年度评分最高剧集",
-      functionName: "loadYearlyCatalog",
-      params: [
-        {
-          name: "collectionId",
-          title: "年度",
-          type: "enumeration",
-          enumOptions: [
-            { title: "最新年度", value: TV_YEARLY_RANKING_ID },
-            ...enumOptions(YEARLY_RANKINGS[TV_YEARLY_RANKING_ID]),
-          ],
-        },
-        ...subCollectionParams(YEARLY_RANKINGS[TV_YEARLY_RANKING_ID], TV_YEARLY_RANKING_ID),
-        PAGE,
-      ],
-    },
+    genreModule("movie_genre", "电影类型榜", MOVIE_GENRE_CONFIGS),
+    genreModule("tv_genre", "剧集类型榜", TV_GENRE_CONFIGS),
+    yearlyModule("movie_yearly", "豆瓣年度评分最高电影", MOVIE_YEARLY_RANKING_ID),
+    yearlyModule("tv_yearly", "豆瓣年度评分最高剧集", TV_YEARLY_RANKING_ID),
     {
       id: "movie_recommend",
       title: "电影推荐",
@@ -296,26 +284,7 @@ WidgetMetadata = {
             ].map((item) => ({ title: item, value: item })),
           ],
         },
-        {
-          name: "region",
-          title: "地区",
-          type: "enumeration",
-          enumOptions: RECOMMEND_REGION,
-        },
-        {
-          name: "sort",
-          title: "排序",
-          type: "enumeration",
-          value: "T",
-          enumOptions: RECOMMEND_SORT,
-        },
-        {
-          name: "year",
-          title: "年代",
-          type: "enumeration",
-          enumOptions: RECOMMEND_YEAR,
-        },
-        PAGE,
+        ...RECOMMEND_FILTERS,
       ],
     },
     {
@@ -383,26 +352,7 @@ WidgetMetadata = {
             ...["真人秀", "脱口秀", "音乐", "歌舞"].map((item) => ({ title: item, value: item })),
           ],
         },
-        {
-          name: "region",
-          title: "地区",
-          type: "enumeration",
-          enumOptions: RECOMMEND_REGION,
-        },
-        {
-          name: "sort",
-          title: "排序",
-          type: "enumeration",
-          value: "T",
-          enumOptions: RECOMMEND_SORT,
-        },
-        {
-          name: "year",
-          title: "年代",
-          type: "enumeration",
-          enumOptions: RECOMMEND_YEAR,
-        },
-        PAGE,
+        ...RECOMMEND_FILTERS,
       ],
     },
   ],

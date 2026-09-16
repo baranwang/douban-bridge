@@ -83,10 +83,12 @@ test("metadata translates broad labels to English", () => {
       "豆瓣电影、剧集排行榜",
       "剧集类型榜",
       "电影类型榜",
+      "自定义标签",
     ].sort(),
   );
   assert.equal(metadata.i18n?.en?.电影类型榜, "Movies by Genre");
   assert.equal(metadata.i18n?.en?.豆瓣年度评分最高电影, "Douban's Top-Rated Movies by Year");
+  assert.equal(metadata.i18n?.en?.自定义标签, "Custom Tag");
 });
 
 const DOUBAN_SOURCE = {
@@ -753,6 +755,62 @@ test("tv recommend keeps genre when sub-genres are empty", async () => {
   ) => Promise<VideoItem[]>;
   await load({ genre: "电视剧", tv_genre: "", variety_genre: "", region: "香港", sk: "" });
   assert.equal(new URL(requested).searchParams.get("tags"), "电视剧,香港");
+});
+
+test("recommend modules expose a custom tag input", () => {
+  for (const id of ["movie_recommend", "tv_recommend"]) {
+    const module = WidgetMetadata.modules.find((item: { id: string }) => item.id === id);
+    const tag = module.params.find((param: { name: string }) => param.name === "tag");
+    assert.equal(tag.title, "自定义标签");
+    assert.equal(tag.type, "input");
+  }
+});
+
+test("movie recommend appends a custom tag after selected filters", async () => {
+  let requested = "";
+  runtimeWidget.http.get = async (url) => {
+    requested = url;
+    return { statusCode: 200, data: { items: [], total: 0 }, headers: {} };
+  };
+  const load = Reflect.get(globalThis, "loadMovieRecommendCatalog") as (
+    params: Record<string, string | number>,
+  ) => Promise<VideoItem[]>;
+  await load({ genre: "喜剧", region: "香港", year: "", sort: "T", tag: " 王家卫 ", sk: "" });
+  assert.equal(new URL(requested).searchParams.get("tags"), "喜剧,香港,王家卫");
+});
+
+test("movie recommend splits custom tags on Chinese and ASCII commas", async () => {
+  let requested = "";
+  runtimeWidget.http.get = async (url) => {
+    requested = url;
+    return { statusCode: 200, data: { items: [], total: 0 }, headers: {} };
+  };
+  const load = Reflect.get(globalThis, "loadMovieRecommendCatalog") as (
+    params: Record<string, string | number>,
+  ) => Promise<VideoItem[]>;
+  await load({ genre: "喜剧", region: "", year: "", sort: "T", tag: "王家卫，香港, 文艺", sk: "" });
+  assert.equal(new URL(requested).searchParams.get("tags"), "喜剧,王家卫,香港,文艺");
+});
+
+test("tv recommend appends a custom tag and skips blanks", async () => {
+  let requested = "";
+  runtimeWidget.http.get = async (url) => {
+    requested = url;
+    return { statusCode: 200, data: { items: [], total: 0 }, headers: {} };
+  };
+  const load = Reflect.get(globalThis, "loadTvRecommendCatalog") as (
+    params: Record<string, string | number>,
+  ) => Promise<VideoItem[]>;
+  await load({
+    genre: "电视剧",
+    tv_genre: "",
+    variety_genre: "",
+    region: "香港",
+    year: "2020年代",
+    tag: "   ",
+    sk: "",
+  });
+  assert.equal(new URL(requested).searchParams.get("tags"), "电视剧,香港,2020年代");
 });
 
 test("movie recommend skips empty tags and stays on Douban without sk", async () => {

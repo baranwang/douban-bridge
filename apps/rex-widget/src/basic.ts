@@ -103,22 +103,33 @@ export async function toVideoItem(item: DoubanSubjectCollectionItem): Promise<Vi
   };
 }
 
-export async function getBasicCatalog(query: CatalogQuery): Promise<VideoItem[]> {
-  const parsed = catalogQuerySchema.parse(query);
-  const collectionId = getLatestYearlyRanking(parsed.collectionId)?.id ?? parsed.collectionId;
+async function frodo<T>(
+  path: string,
+  params: Record<string, string | number>,
+  schema: { parse: (value: unknown) => T },
+) {
   const response = await rexFetch
-    .get(`${DOUBAN_BASE}/subject_collection/${collectionId}/items`, {
-      params: { start: parsed.skip, count: 20, apiKey: FRODO_KEY },
+    .get(`${DOUBAN_BASE}${path}`, {
+      params: { ...params, apiKey: FRODO_KEY },
       headers: DOUBAN_HEADERS,
       successStatus: [200],
-      schema: doubanSubjectCollectionSchema,
+      schema,
     })
     .catch(() => {
       throw new Error("Douban request failed");
     });
   if (!response.data) throw new Error("Douban request failed");
-  const data = response.data;
-  const items = data.subject_collection_items;
+  return response.data;
+}
+
+export async function getBasicCatalog(query: CatalogQuery): Promise<VideoItem[]> {
+  const parsed = catalogQuerySchema.parse(query);
+  const collectionId = getLatestYearlyRanking(parsed.collectionId)?.id ?? parsed.collectionId;
+  const { subject_collection_items: items } = await frodo(
+    `/subject_collection/${collectionId}/items`,
+    { start: parsed.skip, count: 20 },
+    doubanSubjectCollectionSchema,
+  );
   if (items.length === 0) return [];
   return Promise.all(items.map((item) => toVideoItem(item)));
 }
@@ -126,18 +137,8 @@ export async function getBasicCatalog(query: CatalogQuery): Promise<VideoItem[]>
 export async function fetchSearchItems(query: string, skip = 0): Promise<DoubanSubjectCollectionItem[]> {
   const q = query.trim();
   if (!q) throw new Error("搜索关键词不能为空");
-  const response = await rexFetch
-    .get(`${DOUBAN_BASE}/search/weixin`, {
-      params: { q, start: skip, count: 20, apiKey: FRODO_KEY },
-      headers: DOUBAN_HEADERS,
-      successStatus: [200],
-      schema: doubanSearchSchema,
-    })
-    .catch(() => {
-      throw new Error("Douban request failed");
-    });
-  if (!response.data) throw new Error("Douban request failed");
-  return response.data.items;
+  const { items } = await frodo("/search/weixin", { q, start: skip, count: 20 }, doubanSearchSchema);
+  return items;
 }
 
 export async function fetchRecommendItems(
@@ -146,22 +147,6 @@ export async function fetchRecommendItems(
   sort: string,
   skip = 0,
 ): Promise<DoubanSubjectCollectionItem[]> {
-  const response = await rexFetch
-    .get(`${DOUBAN_BASE}/${type}/recommend`, {
-      params: { tags, start: skip, count: 20, apiKey: FRODO_KEY, sort },
-      headers: DOUBAN_HEADERS,
-      successStatus: [200],
-      schema: doubanRecommendSchema,
-    })
-    .catch(() => {
-      throw new Error("Douban request failed");
-    });
-  if (!response.data) throw new Error("Douban request failed");
-  return response.data.items;
-}
-
-export async function getBasicSearch(query: string, skip = 0): Promise<VideoItem[]> {
-  const items = await fetchSearchItems(query, skip);
-  if (items.length === 0) return [];
-  return Promise.all(items.map((item) => toVideoItem(item)));
+  const { items } = await frodo(`/${type}/recommend`, { tags, start: skip, count: 20, sort }, doubanRecommendSchema);
+  return items;
 }

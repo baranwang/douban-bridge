@@ -25,16 +25,20 @@ function toVideoItem(item: BridgeItem): VideoItem {
   };
 }
 
+function cloudHeaders(sk: string, userId: string) {
+  const user = userId.trim();
+  return {
+    Authorization: `Bearer ${sk}`,
+    ...(user ? { "X-User-Id": user } : {}),
+  };
+}
+
 export async function loadCatalog(query: CatalogQuery, sk: string, userId = ""): Promise<VideoItem[]> {
   if (sk) {
     try {
-      const user = userId.trim();
       const response = await rexFetch.get(`${API_ORIGIN}/v1/catalog/${encodeURIComponent(query.collectionId)}`, {
         params: { skip: query.skip },
-        headers: {
-          Authorization: `Bearer ${sk}`,
-          ...(user ? { "X-User-Id": user } : {}),
-        },
+        headers: cloudHeaders(sk, userId),
         successStatus: [200],
         schema: catalogResponseSchema,
       });
@@ -51,15 +55,11 @@ async function enrichItems(sources: DoubanSubjectCollectionItem[], sk: string, u
   if (sources.length === 0) return [];
   if (sk) {
     try {
-      const user = userId.trim();
       const response = await rexFetch.post(
         `${API_ORIGIN}/v1/items`,
         { ids: sources.map((item) => item.id) },
         {
-          headers: {
-            Authorization: `Bearer ${sk}`,
-            ...(user ? { "X-User-Id": user } : {}),
-          },
+          headers: cloudHeaders(sk, userId),
           successStatus: [200],
           schema: catalogResponseSchema,
         },
