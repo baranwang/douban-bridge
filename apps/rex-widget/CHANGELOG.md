@@ -1,5 +1,12 @@
 # @rexnow/douban
 
+## 0.4.0
+
+### Minor Changes
+
+- 33e031c: Rex Widget 增加豆瓣搜索，本地请求改走 frodo，有密钥时用云端批量 ID 匹配。
+- 550558a: Rex Widget 补上 Stremio 同序的剧集热门榜：美剧、韩剧、国产剧、日剧、纪录片。
+
 ## 0.3.1
 
 ### Patch Changes
