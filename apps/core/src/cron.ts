@@ -34,7 +34,6 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
           return {
             ...mapping,
             doubanId,
-            calibrated: true,
           };
         }
         return null;
@@ -53,9 +52,17 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
                 // 豆瓣有些剧是用的某一季的 imdb，尝试搜索一下
                 doubanDetail = await api.doubanAPI.getSubjectDetail(doubanId).catch(() => null);
                 if (doubanDetail && doubanDetail.type === "tv") {
-                  const resp = await imdbAPI.search(imdbId);
-                  if (resp.top?.series?.series?.id) {
-                    data = await api.traktAPI.searchByImdbId(resp.top.series.series.id).catch(() => []);
+                  try {
+                    const resp = await imdbAPI.search(imdbId);
+                    if (resp.top?.series?.series?.id) {
+                      data = await api.traktAPI.searchByImdbId(resp.top.series.series.id).catch(() => []);
+                    }
+                  } catch (error) {
+                    console.warn(
+                      "⚠️ IMDb parent lookup failed",
+                      doubanId,
+                      error instanceof Error ? error.message : String(error),
+                    );
                   }
                 }
               }
@@ -87,10 +94,11 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
 
               // 电影尝试比对一下年份，如果只有一个结果，则直接返回
               if (doubanDetail.type === "movie") {
-                const yearsMatches = results.filter(
-                  (item) =>
-                    api.traktAPI.getSearchResultField(item, "year")?.toString() === doubanDetail.year?.toString(),
-                );
+                const doubanYear = doubanDetail.year?.toString();
+                const yearsMatches = results.filter((item) => {
+                  const candidateYear = api.traktAPI.getSearchResultField(item, "year")?.toString();
+                  return Boolean(doubanYear && candidateYear && candidateYear === doubanYear);
+                });
                 if (yearsMatches.length === 1) {
                   return formatIdMapping(doubanId, api.traktAPI.getSearchResultField(yearsMatches[0], "ids"));
                 }

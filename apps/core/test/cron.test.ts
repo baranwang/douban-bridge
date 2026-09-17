@@ -41,3 +41,70 @@ test("cron continues after one mapping lookup fails", async () => {
     }
   });
 });
+
+test("cron does not treat missing years as a unique year match", async () => {
+  await withTestContext(async (env) => {
+    try {
+      await api.db.insert(doubanMapping).values({ doubanId: 10 });
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        type: "movie",
+        title: "同名电影",
+        original_title: "Same Name",
+        year: undefined,
+      }));
+      mock.method(api.traktAPI, "search", async () => [
+        { type: "movie" as const, movie: { title: "Other", year: undefined, ids: { trakt: 1, tmdb: 1, imdb: "tt1" } } },
+        { type: "movie" as const, movie: { title: "Same Name", year: 1999, ids: { trakt: 2, tmdb: 2, imdb: "tt2" } } },
+      ]);
+      const pending: Promise<unknown>[] = [];
+      const ctx = {
+        waitUntil(p: Promise<unknown>) {
+          pending.push(p);
+        },
+        passThroughOnException() {},
+      } as ExecutionContext;
+      await scheduled({ scheduledTime: 0, cron: "0 * * * *", noRetry() {} }, env, ctx);
+      await Promise.all(pending);
+      const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 10) });
+      assert.equal(row?.tmdbId ?? null, null);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("cron continues to title search after IMDb parent lookup throws", async () => {
+  await withTestContext(async (env) => {
+    try {
+      await api.db.insert(doubanMapping).values({ doubanId: 11, imdbId: "tt-season" });
+      mock.method(api.traktAPI, "searchByImdbId", async () => []);
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        type: "tv",
+        title: "独一部剧",
+        original_title: "Only Show",
+        year: "2020",
+      }));
+      mock.method(ImdbAPI.prototype, "search", async () => {
+        throw new Error("IMDb down");
+      });
+      mock.method(api.traktAPI, "search", async () => [
+        { type: "show" as const, show: { ids: { trakt: 9, tmdb: 99, imdb: "tt-show" } } },
+      ]);
+      const pending: Promise<unknown>[] = [];
+      const ctx = {
+        waitUntil(p: Promise<unknown>) {
+          pending.push(p);
+        },
+        passThroughOnException() {},
+      } as ExecutionContext;
+      await scheduled({ scheduledTime: 0, cron: "0 * * * *", noRetry() {} }, env, ctx);
+      await Promise.all(pending);
+      const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 11) });
+      assert.equal(row?.tmdbId, 99);
+      assert.notEqual(row?.calibrated, true);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
