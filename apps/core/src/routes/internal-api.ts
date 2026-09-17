@@ -22,13 +22,8 @@ export const internalApi = new Hono<{
 
 internalApi.use(contextStorage);
 
-internalApi.use("*", async (c, next) => {
-  c.header("Cache-Control", "private, no-store");
-  await next();
-  c.header("Cache-Control", "private, no-store");
-});
-
 internalApi.use("/v1/*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
   const account = await authenticateApiKey(c.env, c.req.header("Authorization"));
   c.set("apiAccount", account);
   const { success } = await c.env.USER_RATE_LIMIT.limit({ key: account.userId });
@@ -36,6 +31,7 @@ internalApi.use("/v1/*", async (c, next) => {
     return c.text("Rate limit exceeded", 429);
   }
   await next();
+  c.header("Cache-Control", "private, no-store");
 });
 
 internalApi.onError((err, c) => {
