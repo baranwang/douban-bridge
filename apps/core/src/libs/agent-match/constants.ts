@@ -1,0 +1,7 @@
+export const AGENT_AUTO_WRITE_MIN_CONFIDENCE = 0.9;
+export const AGENT_SUGGEST_MIN_CONFIDENCE = 0.6;
+export const AGENT_REASON_MAX_CHARS = 400;
+export const AGENT_MATCH_HOURLY_LIMIT = 20;
+export const AGENT_LEASE_MS = 10 * 60 * 1000;
+export const AGENT_POLICY_VERSION = "v1";
+export const AGENT_BACKOFF_MS = [86_400_000, 259_200_000, 604_800_000] as const;
