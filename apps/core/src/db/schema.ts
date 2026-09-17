@@ -8,6 +8,15 @@ export const doubanMapping = sqliteTable("douban_mapping", {
   imdbId: text("imdb_id"),
   traktId: int("trakt_id"),
   calibrated: int("calibrated", { mode: "boolean" }).default(false),
+  matchSource: text("match_source"),
+  mappingRevision: int("mapping_revision").notNull().default(0),
+  agentState: text("agent_state"),
+  agentToken: text("agent_token"),
+  agentLeaseUntil: int("agent_lease_until"),
+  nextAgentAt: int("next_agent_at"),
+  agentAttempts: int("agent_attempts").notNull().default(0),
+  agentInputHash: text("agent_input_hash"),
+  agentResult: text("agent_result"),
 
   createdAt: int("created_at", { mode: "timestamp_ms" }).$defaultFn(() => new Date()),
   updatedAt: int("updated_at", { mode: "timestamp_ms" })
@@ -21,6 +30,15 @@ export const doubanMappingSchema = z.object({
   imdbId: z.string().nullish(),
   traktId: z.coerce.number().nullish(),
   calibrated: z.boolean().nullish(),
+  matchSource: z.enum(["deterministic", "agent", "human"]).nullish(),
+  mappingRevision: z.coerce.number().nullish(),
+  agentState: z.enum(["pending", "running", "suggested", "no_match"]).nullish(),
+  agentToken: z.string().nullish(),
+  agentLeaseUntil: z.coerce.number().nullish(),
+  nextAgentAt: z.coerce.number().nullish(),
+  agentAttempts: z.coerce.number().nullish(),
+  agentInputHash: z.string().nullish(),
+  agentResult: z.string().nullish(),
 });
 
 export type DoubanIdMapping = z.output<typeof doubanMappingSchema>;
