@@ -10,11 +10,13 @@ import {
 } from "@douban-bridge/ui/components/card";
 import { Input } from "@douban-bridge/ui/components/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@douban-bridge/ui/components/table";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { uniqBy } from "es-toolkit";
 import { type Env, Hono } from "hono";
-import { ArrowLeft, Check, Search } from "lucide-react";
+import { ArrowLeft, Check, Search, X } from "lucide-react";
+import { z } from "zod/v4";
 import { doubanMapping, doubanMappingSchema } from "@/db";
+import { computeNextAgentAt } from "@/libs/agent-match/verifier";
 import { api } from "@/libs/api";
 import { TmdbAPI } from "@/libs/api/tmdb";
 
@@ -28,12 +30,96 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
   }
 
   const form = await c.req.formData();
+  const numericId = Number.parseInt(doubanId, 10);
+  const existing = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, numericId) });
+  if (!existing) return c.notFound();
 
+  const intent = String(form.get("intent") ?? "save");
+  const parsedAgentResult = (() => {
+    if (!existing.agentResult) return null;
+    try {
+      return JSON.parse(existing.agentResult) as {
+        candidateId?: string;
+        tmdbId?: number | null;
+        imdbId?: string | null;
+        traktId?: number | null;
+        reason?: string;
+        confidence?: number;
+        priorMapping?: { tmdbId?: number | null; imdbId?: string | null; traktId?: number | null };
+        rejectedCandidateIds?: string[];
+      };
+    } catch {
+      return null;
+    }
+  })();
+
+  if (intent === "confirm") {
+    const tmdbId = existing.tmdbId ?? parsedAgentResult?.tmdbId ?? null;
+    const imdbId = existing.imdbId ?? parsedAgentResult?.imdbId ?? null;
+    const traktId = existing.traktId ?? parsedAgentResult?.traktId ?? null;
+    await api.db
+      .update(doubanMapping)
+      .set({
+        tmdbId,
+        imdbId,
+        traktId,
+        calibrated: true,
+        matchSource: "human",
+        mappingRevision: sql`${doubanMapping.mappingRevision} + 1`,
+        agentState: null,
+        agentToken: null,
+        agentLeaseUntil: null,
+      })
+      .where(eq(doubanMapping.doubanId, numericId));
+    return c.redirect("/dash/tidy-up");
+  }
+
+  if (intent === "reject") {
+    const prior = parsedAgentResult?.priorMapping;
+    const rejected = new Set(parsedAgentResult?.rejectedCandidateIds ?? []);
+    if (parsedAgentResult?.candidateId) rejected.add(parsedAgentResult.candidateId);
+    const restoreAgentWrite = existing.matchSource === "agent" && prior;
+    await api.db
+      .update(doubanMapping)
+      .set({
+        tmdbId: restoreAgentWrite ? (prior.tmdbId ?? null) : existing.tmdbId,
+        imdbId: restoreAgentWrite ? (prior.imdbId ?? null) : existing.imdbId,
+        traktId: restoreAgentWrite ? (prior.traktId ?? null) : existing.traktId,
+        matchSource: restoreAgentWrite ? null : existing.matchSource,
+        agentState: "no_match",
+        agentToken: null,
+        agentLeaseUntil: null,
+        nextAgentAt: computeNextAgentAt((existing.agentAttempts ?? 0) + 1),
+        agentAttempts: sql`${doubanMapping.agentAttempts} + 1`,
+        mappingRevision: sql`${doubanMapping.mappingRevision} + 1`,
+        agentResult: JSON.stringify({
+          ...(parsedAgentResult ?? {}),
+          rejectedCandidateIds: [...rejected],
+        }),
+      })
+      .where(eq(doubanMapping.doubanId, numericId));
+    return c.redirect("/dash/tidy-up?view=no_match");
+  }
+
+  const emptyToNull = (value: FormDataEntryValue | null) => {
+    if (value == null) return null;
+    const text = String(value).trim();
+    return text === "" ? null : text;
+  };
+  const optionalPositiveInt = z.union([
+    z.null(),
+    z.string().regex(/^[1-9]\d*$/).transform((value) => Number(value)),
+  ]);
+  const tmdbParsed = optionalPositiveInt.safeParse(emptyToNull(form.get("tmdbId")));
+  const traktParsed = optionalPositiveInt.safeParse(emptyToNull(form.get("traktId")));
+  if (!tmdbParsed.success || !traktParsed.success) {
+    return c.json({ error: "invalid_id" }, 400);
+  }
   const result = doubanMappingSchema.safeParse({
     doubanId,
-    tmdbId: form.get("tmdbId"),
-    imdbId: form.get("imdbId"),
-    traktId: form.get("traktId"),
+    tmdbId: tmdbParsed.data,
+    imdbId: emptyToNull(form.get("imdbId")),
+    traktId: traktParsed.data,
     calibrated: form.get("calibrated") === "on",
   });
 
@@ -44,8 +130,18 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
   const { tmdbId, imdbId, traktId, calibrated } = result.data;
   await api.db
     .update(doubanMapping)
-    .set({ tmdbId, imdbId, traktId, calibrated })
-    .where(eq(doubanMapping.doubanId, Number.parseInt(doubanId, 10)));
+    .set({
+      tmdbId: tmdbId ?? null,
+      imdbId: imdbId ?? null,
+      traktId: traktId ?? null,
+      calibrated,
+      mappingRevision: sql`${doubanMapping.mappingRevision} + 1`,
+      agentState: null,
+      agentToken: null,
+      agentLeaseUntil: null,
+      matchSource: calibrated ? "human" : existing.matchSource,
+    })
+    .where(eq(doubanMapping.doubanId, numericId));
 
   return c.redirect("/dash/tidy-up");
 });
@@ -453,13 +549,26 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                     </label>
                   </div>
                 </CardContent>
+                {idMapping?.agentResult ? (
+                  <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                    <p>Agent 置信度：{(() => { try { return JSON.parse(idMapping.agentResult).confidence; } catch { return "-"; } })()}</p>
+                    <p>原因：{(() => { try { return JSON.parse(idMapping.agentResult).reason; } catch { return "-"; } })()}</p>
+                  </div>
+                ) : null}
                 <CardFooter className="justify-end gap-3">
                   <a href="/dash/tidy-up">
                     <Button type="button" variant="ghost">
                       取消
                     </Button>
                   </a>
-                  <Button type="submit">
+                  <Button type="submit" name="intent" value="reject" variant="outline">
+                    <X className="h-4 w-4" />
+                    驳回
+                  </Button>
+                  <Button type="submit" name="intent" value="confirm" variant="secondary">
+                    确认
+                  </Button>
+                  <Button type="submit" name="intent" value="save">
                     <Check className="h-4 w-4" />
                     保存
                   </Button>

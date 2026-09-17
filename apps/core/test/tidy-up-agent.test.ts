@@ -1,0 +1,147 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { eq } from "drizzle-orm";
+import { doubanMapping } from "../src/db";
+import { CandidateRegistry } from "../src/libs/agent-match/candidates";
+import { verifyConcludeMatch } from "../src/libs/agent-match/verifier";
+import { applyAgentVerdict } from "../src/libs/agent-match/writer";
+import { tidyUpListFilter } from "../src/routes/dash/tidy-up";
+import { tidyUpDetailRoute } from "../src/routes/dash/tidy-up/detail";
+import { api } from "../src/libs/api";
+import { withTestContext } from "./context";
+
+async function postTidyUp(doubanId: number, body: Record<string, string>) {
+  const form = new URLSearchParams(body);
+  return tidyUpDetailRoute.request(`/${doubanId}`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: form,
+  });
+}
+
+test("empty tmdb field saves as null instead of zero", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({ doubanId: 41, imdbId: "tt41" });
+    const response = await postTidyUp(41, { tmdbId: "", imdbId: "tt41", traktId: "" });
+    assert.equal(response.status, 302);
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 41) });
+    assert.equal(row?.tmdbId ?? null, null);
+  });
+});
+
+test("zero tmdb id is rejected", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({ doubanId: 42 });
+    const response = await postTidyUp(42, { tmdbId: "0" });
+    assert.equal(response.status, 400);
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 42) });
+    assert.equal(row?.tmdbId ?? null, null);
+  });
+});
+
+test("confirming a suggestion locks it as human", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({
+      doubanId: 43,
+      agentState: "suggested",
+      agentResult: JSON.stringify({
+        decision: "match",
+        confidence: 0.7,
+        reason: "像",
+        candidateId: "tmdb:movie:10",
+        tmdbId: 10,
+        imdbId: "tt10",
+        traktId: 7,
+        priorMapping: { tmdbId: null, imdbId: null, traktId: null },
+      }),
+    });
+    const response = await postTidyUp(43, { intent: "confirm" });
+    assert.equal(response.status, 302);
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 43) });
+    assert.equal(row?.calibrated, true);
+    assert.equal(row?.matchSource, "human");
+    assert.equal(row?.tmdbId, 10);
+    assert.equal(row?.agentState, null);
+  });
+});
+
+test("rejecting an agent write restores prior mapping", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({
+      doubanId: 44,
+      tmdbId: 999,
+      matchSource: "agent",
+      agentResult: JSON.stringify({
+        decision: "match",
+        confidence: 0.95,
+        reason: "直写",
+        candidateId: "tmdb:movie:999",
+        tmdbId: 999,
+        imdbId: "tt999",
+        traktId: 9,
+        priorMapping: { tmdbId: null, imdbId: "tt-old", traktId: null },
+      }),
+    });
+    const response = await postTidyUp(44, { intent: "reject" });
+    assert.equal(response.status, 302);
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 44) });
+    assert.equal(row?.tmdbId ?? null, null);
+    assert.equal(row?.imdbId, "tt-old");
+    assert.equal(row?.agentState, "no_match");
+  });
+});
+
+test("human edit invalidates a running agent claim", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({
+      doubanId: 45,
+      mappingRevision: 3,
+      agentState: "running",
+      agentToken: "tok-45",
+    });
+    const response = await postTidyUp(45, { imdbId: "tt-human", tmdbId: "" });
+    assert.equal(response.status, 302);
+    const registry = new CandidateRegistry();
+    const candidate = registry.register({ type: "movie", tmdbId: 10 });
+    const verdict = verifyConcludeMatch({
+      decision: "match",
+      candidateId: candidate.candidateId,
+      confidence: 0.95,
+      reason: "旧任务",
+      registry,
+      douban: { type: "movie", title: "A" },
+    });
+    const status = await applyAgentVerdict({
+      doubanId: 45,
+      expectedRevision: 3,
+      agentToken: "tok-45",
+      verdict,
+      confidence: 0.95,
+      reason: "旧任务",
+    });
+    assert.equal(status, "stale");
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 45) });
+    assert.equal(row?.tmdbId ?? null, null);
+    assert.equal(row?.imdbId, "tt-human");
+  });
+});
+
+test("tidyUpListFilter splits suggested auto and no_match views", () => {
+  const rows = [
+    { doubanId: 1, agentState: "suggested", matchSource: null, calibrated: false, tmdbId: null },
+    { doubanId: 2, agentState: null, matchSource: "agent", calibrated: false, tmdbId: 10 },
+    { doubanId: 3, agentState: "no_match", matchSource: null, calibrated: false, tmdbId: null },
+  ];
+  assert.deepEqual(
+    tidyUpListFilter(rows, "suggested").map((row) => row.doubanId),
+    [1],
+  );
+  assert.deepEqual(
+    tidyUpListFilter(rows, "auto").map((row) => row.doubanId),
+    [2],
+  );
+  assert.deepEqual(
+    tidyUpListFilter(rows, "no_match").map((row) => row.doubanId),
+    [3],
+  );
+});

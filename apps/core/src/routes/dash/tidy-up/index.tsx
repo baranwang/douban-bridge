@@ -2,7 +2,6 @@ import { Badge } from "@douban-bridge/ui/components/badge";
 import { Button } from "@douban-bridge/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@douban-bridge/ui/components/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@douban-bridge/ui/components/table";
-import { isNull } from "drizzle-orm";
 import { type Env, Hono } from "hono";
 import { AlertTriangle, CheckCircle, Hash, Pencil } from "lucide-react";
 import { doubanMapping } from "@/db";
@@ -11,10 +10,29 @@ import { tidyUpDetailRoute } from "./detail";
 
 export const tidyUpRoute = new Hono<Env>();
 
+export type TidyUpView = "suggested" | "auto" | "no_match";
+
+export function tidyUpListFilter<T extends { agentState?: string | null; matchSource?: string | null; calibrated?: boolean | null; tmdbId?: number | null }>(
+  rows: T[],
+  view: TidyUpView,
+): T[] {
+  if (view === "suggested") return rows.filter((row) => row.agentState === "suggested");
+  if (view === "auto") return rows.filter((row) => row.matchSource === "agent" && row.calibrated !== true && row.tmdbId != null);
+  return rows.filter((row) => row.agentState === "no_match");
+}
+
+const VIEW_COPY: Record<TidyUpView, { title: string; description: string }> = {
+  suggested: { title: "待确认建议", description: "Agent 给出了建议，尚未写入正式 TMDB ID" },
+  auto: { title: "Agent 已写未校准", description: "Agent 已直写正式 ID，仍可人工确认或驳回" },
+  no_match: { title: "无匹配", description: "Agent 未能给出可用匹配" },
+};
+
 tidyUpRoute.route("/", tidyUpDetailRoute);
 
 tidyUpRoute.get("/", async (c) => {
-  const data = await api.db.select().from(doubanMapping).where(isNull(doubanMapping.tmdbId));
+  const viewParam = c.req.query("view");
+  const view: TidyUpView = viewParam === "auto" || viewParam === "no_match" ? viewParam : "suggested";
+  const data = tidyUpListFilter(await api.db.select().from(doubanMapping), view);
 
   const withImdbCount = data.filter((item) => item.imdbId).length;
   const withTraktCount = data.filter((item) => item.traktId).length;
@@ -27,11 +45,14 @@ tidyUpRoute.get("/", async (c) => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="bg-linear-to-r from-emerald-600 to-teal-600 bg-clip-text font-bold text-3xl text-transparent tracking-tight">
-                ID 映射整理
+                {VIEW_COPY[view].title}
               </h1>
-              <p className="mt-2 text-muted-foreground">以下条目缺少 TMDB ID，需要手动补充</p>
+              <p className="mt-2 text-muted-foreground">{VIEW_COPY[view].description}</p>
             </div>
             <div className="flex items-center gap-3">
+              <a href="/dash/tidy-up?view=suggested"><Button variant={view === "suggested" ? "default" : "outline"} size="sm">待确认建议</Button></a>
+              <a href="/dash/tidy-up?view=auto"><Button variant={view === "auto" ? "default" : "outline"} size="sm">Agent 已写未校准</Button></a>
+              <a href="/dash/tidy-up?view=no_match"><Button variant={view === "no_match" ? "default" : "outline"} size="sm">无匹配</Button></a>
               <Badge
                 variant="outline"
                 className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400"
