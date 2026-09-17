@@ -59,10 +59,18 @@ class API extends BaseAPI {
       .onConflictDoUpdate({
         target: doubanMapping.doubanId,
         set: {
-          // 优先使用新值，新值为空时保留现有值
+          tmdbId: sql`CASE
+            WHEN ${doubanMapping.tmdbId} IS NULL THEN excluded.tmdb_id
+            ELSE ${doubanMapping.tmdbId}
+          END`,
           imdbId: sql`COALESCE(excluded.imdb_id, ${doubanMapping.imdbId})`,
-          tmdbId: sql`COALESCE(excluded.tmdb_id, ${doubanMapping.tmdbId})`,
           traktId: sql`COALESCE(excluded.trakt_id, ${doubanMapping.traktId})`,
+          mappingRevision: sql`CASE
+            WHEN excluded.tmdb_id IS NOT NULL OR excluded.imdb_id IS NOT NULL OR excluded.trakt_id IS NOT NULL
+            THEN ${doubanMapping.mappingRevision} + 1
+            ELSE ${doubanMapping.mappingRevision}
+          END`,
+          matchSource: sql`COALESCE(${doubanMapping.matchSource}, 'deterministic')`,
         },
         setWhere: or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
       });
