@@ -74,6 +74,14 @@
   "triggers": {
     "crons": ["0 * * * *"]
   },
+  "queues": {
+    "producers": [{ "binding": "AGENT_MATCH_QUEUE", "queue": "douban-agent-match" }],
+    "consumers": [{
+      "queue": "douban-agent-match",
+      "max_batch_size": 1,
+      "max_concurrency": 1
+    }]
+  },
   "observability": {
     "logs": {
       "enabled": true,

@@ -24,6 +24,7 @@ test("cron continues after one mapping lookup fails", async () => {
         throw new Error("IMDb rejected one id");
       });
 
+      env.AGENT_MATCH_QUEUE = { send: async () => ({ metadata: { metrics: { retries: 0 } } }) } as Queue;
       const pending: Promise<unknown>[] = [];
       const ctx = {
         waitUntil(promise: Promise<unknown>) {
@@ -56,6 +57,7 @@ test("cron does not treat missing years as a unique year match", async () => {
         { type: "movie" as const, movie: { title: "Other", year: undefined, ids: { trakt: 1, tmdb: 1, imdb: "tt1" } } },
         { type: "movie" as const, movie: { title: "Same Name", year: 1999, ids: { trakt: 2, tmdb: 2, imdb: "tt2" } } },
       ]);
+      env.AGENT_MATCH_QUEUE = { send: async () => ({ metadata: { metrics: { retries: 0 } } }) } as Queue;
       const pending: Promise<unknown>[] = [];
       const ctx = {
         waitUntil(p: Promise<unknown>) {
@@ -90,6 +92,7 @@ test("cron continues to title search after IMDb parent lookup throws", async () 
       mock.method(api.traktAPI, "search", async () => [
         { type: "show" as const, show: { ids: { trakt: 9, tmdb: 99, imdb: "tt-show" } } },
       ]);
+      env.AGENT_MATCH_QUEUE = { send: async () => ({ metadata: { metrics: { retries: 0 } } }) } as Queue;
       const pending: Promise<unknown>[] = [];
       const ctx = {
         waitUntil(p: Promise<unknown>) {

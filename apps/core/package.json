@@ -14,6 +14,8 @@
   "dependencies": {
     "@douban-bridge/contracts": "workspace:*",
     "@douban-bridge/ui": "workspace:*",
+    "@earendil-works/pi-agent-core": "^0.85.1",
+    "@earendil-works/pi-ai": "^0.85.1",
     "@hono/react-renderer": "^1.0.1",
     "@hono/zod-validator": "^0.9.1",
     "@octokit/core": "^7.0.8",
