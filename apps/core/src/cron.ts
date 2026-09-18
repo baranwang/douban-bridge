@@ -1,8 +1,6 @@
 import { and, isNull, ne, or } from "drizzle-orm";
-import type { z } from "zod/v4";
 import { type DoubanIdMapping, doubanMapping } from "@/db";
-import { api, type doubanSubjectDetailSchema } from "@/libs/api";
-import { ImdbAPI } from "./libs/api/imdb";
+import { api } from "@/libs/api";
 import { AGENT_MATCH_HOURLY_LIMIT } from "./libs/agent-match/constants";
 import { claimAgentJobs, recoverExpiredClaims } from "./libs/agent-match/pool";
 import { asyncLocalStorage } from "./libs/middleware";
@@ -41,40 +39,17 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
         return null;
       };
 
-      const imdbAPI = new ImdbAPI();
-
       for (const group of groups) {
         const results = await Promise.allSettled(
           group.map<Promise<DoubanIdMapping | null>>(async (item) => {
             const { doubanId, imdbId } = item;
-            let doubanDetail: z.output<typeof doubanSubjectDetailSchema> | null = null;
             if (imdbId) {
-              let data = await api.traktAPI.searchByImdbId(imdbId).catch(() => []);
-              if (data.length === 0) {
-                // 豆瓣有些剧是用的某一季的 imdb，尝试搜索一下
-                doubanDetail = await api.doubanAPI.getSubjectDetail(doubanId).catch(() => null);
-                if (doubanDetail && doubanDetail.type === "tv") {
-                  try {
-                    const resp = await imdbAPI.search(imdbId);
-                    if (resp.top?.series?.series?.id) {
-                      data = await api.traktAPI.searchByImdbId(resp.top.series.series.id).catch(() => []);
-                    }
-                  } catch (error) {
-                    console.warn(
-                      "⚠️ IMDb parent lookup failed",
-                      doubanId,
-                      error instanceof Error ? error.message : String(error),
-                    );
-                  }
-                }
-              }
+              const data = await api.traktAPI.searchByImdbId(imdbId).catch(() => []);
               if (data.length === 1) {
                 return formatIdMapping(doubanId, api.traktAPI.getSearchResultField(data[0], "ids"));
               }
             }
-            if (!doubanDetail) {
-              doubanDetail = await api.doubanAPI.getSubjectDetail(doubanId).catch(() => null);
-            }
+            const doubanDetail = await api.doubanAPI.getSubjectDetail(doubanId).catch(() => null);
             if (doubanDetail) {
               const results = await api.traktAPI.search(
                 doubanDetail.type === "movie" ? "movie" : "show",

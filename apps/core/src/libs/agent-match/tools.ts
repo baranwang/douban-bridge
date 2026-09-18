@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
-import { ImdbAPI } from "@/libs/api/imdb";
 import { TmdbAPI } from "@/libs/api/tmdb";
 import { getContext } from "@/libs/middleware";
 import { type CandidateRegistry, makeCandidateId } from "./candidates";
@@ -61,12 +60,61 @@ function registerTmdbItems(
   return results;
 }
 
+function registerTraktItems(
+  registry: CandidateRegistry,
+  items: Array<Parameters<typeof api.traktAPI.getSearchResultField>[0]>,
+) {
+  const results: Array<{
+    candidateId: string | null;
+    type: "movie" | "tv";
+    title?: string;
+    originalTitle?: string;
+    year?: string | null;
+    tmdbId: number | null;
+    imdbId: string | null;
+    traktId: number | null;
+  }> = [];
+  for (const item of items.slice(0, MAX_SEARCH_RESULTS)) {
+    const type = item.type === "movie" ? "movie" : "tv";
+    const ids = api.traktAPI.getSearchResultField(item, "ids");
+    const title = api.traktAPI.getSearchResultField(item, "title") ?? undefined;
+    const originalTitle = api.traktAPI.getSearchResultField(item, "original_title") ?? undefined;
+    const year = api.traktAPI.getSearchResultField(item, "year")?.toString();
+    const tmdbId = ids?.tmdb ?? null;
+    const imdbId = ids?.imdb ?? null;
+    const traktId = ids?.trakt ?? null;
+    let candidateId: string | null = null;
+    if (tmdbId) {
+      const candidate = registry.register({
+        type,
+        tmdbId,
+        title,
+        originalTitle,
+        year,
+        imdbId: imdbId ?? undefined,
+        traktId: traktId ?? undefined,
+      });
+      candidateId = candidate.candidateId;
+    }
+    results.push({
+      candidateId,
+      type,
+      title,
+      originalTitle,
+      year: year ?? null,
+      tmdbId,
+      imdbId,
+      traktId,
+    });
+  }
+  return results;
+}
+
 export function createAgentMatchTools(
   registry: CandidateRegistry,
   options: { doubanType?: "movie" | "tv"; doubanId?: number } = {},
 ): AgentTool[] {
   const tmdbAPI = new TmdbAPI();
-  const imdbAPI = new ImdbAPI();
   let doubanType = options.doubanType;
 
   return [
@@ -142,6 +190,23 @@ export function createAgentMatchTools(
       },
     },
     {
+      name: "search_trakt",
+      description: "Search Trakt movies/shows/episodes. Episode hits register the parent show, not the episode.",
+      parameters: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["movie", "show", "episode"] },
+          query: { type: "string" },
+        },
+        required: ["type", "query"],
+      },
+      async execute(args) {
+        const type = args.type === "episode" ? "episode" : args.type === "show" ? "show" : "movie";
+        const results = await api.traktAPI.search(type, String(args.query ?? ""));
+        return { results: registerTraktItems(registry, results) };
+      },
+    },
+    {
       name: "get_tmdb_external_ids",
       description: "Fetch IMDb/Trakt-facing external IDs for an already registered candidate.",
       parameters: {
@@ -169,21 +234,6 @@ export function createAgentMatchTools(
           tmdbId: updated.tmdbId,
           imdbId: updated.imdbId ?? null,
         };
-      },
-    },
-    {
-      name: "lift_imdb_series",
-      description: "Lift a season/episode IMDb ID to the parent series IMDb ID.",
-      parameters: {
-        type: "object",
-        properties: {
-          imdbId: { type: "string" },
-        },
-        required: ["imdbId"],
-      },
-      async execute(args) {
-        const resp = await imdbAPI.search(String(args.imdbId));
-        return { seriesImdbId: resp.top?.series?.series?.id ?? null };
       },
     },
     {
