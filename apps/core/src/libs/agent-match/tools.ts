@@ -81,7 +81,7 @@ export function createAgentMatchTools(
         required: ["doubanId"],
       },
       async execute(args) {
-        const doubanId = Number(args.doubanId ?? options.doubanId);
+        const doubanId = options.doubanId ?? Number(args.doubanId);
         const detail = await api.doubanAPI.getSubjectDetail(doubanId);
         doubanType = detail.type;
         const mapping = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, doubanId) });

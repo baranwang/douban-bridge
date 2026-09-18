@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 import { CandidateRegistry } from "../src/libs/agent-match/candidates";
 import { createAgentMatchTools } from "../src/libs/agent-match/tools";
+import { api } from "../src/libs/api";
 import { ImdbAPI } from "../src/libs/api/imdb";
 import { TmdbAPI } from "../src/libs/api/tmdb";
 import { withTestContext } from "./context";
@@ -92,6 +93,23 @@ test("exa_get_contents trims page text", async () => {
       assert.ok(getContents);
       const out = await getContents.execute({ urls: "https://example.com/inception" });
       assert.equal(out.results[0].text.length, 1500);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("get_douban_subject ignores a hallucinated doubanId when a job id is pinned", async () => {
+  await withTestContext(async () => {
+    try {
+      mock.method(api.doubanAPI, "getSubjectDetail", async (id: number) => {
+        if (id !== 41) throw new Error(`unexpected douban id ${id}`);
+        return { id: 41, type: "tv", title: "Pinned", original_title: "Pinned", year: "2010" };
+      });
+      const tools = createAgentMatchTools(new CandidateRegistry(), { doubanType: "tv", doubanId: 41 });
+      const getSubject = tools.find((t) => t.name === "get_douban_subject")!;
+      const out = await getSubject.execute({ doubanId: 999 });
+      assert.equal(out.doubanId, 41);
     } finally {
       mock.restoreAll();
     }

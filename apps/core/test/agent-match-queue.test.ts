@@ -385,3 +385,69 @@ test("queue consumer suggests when a concurrent imdb appears mid-session", async
     }
   });
 });
+
+test("queue retries when a provider tool fails before conclusion", async () => {
+  await withTestContext(async (env) => {
+    try {
+      await api.db.insert(doubanMapping).values({
+        doubanId: 40,
+        agent: JSON.stringify({ token: "tok-40", leaseUntil: Date.now() + 60_000 }),
+      });
+      mock.method((await import("../src/libs/api/tmdb")).TmdbAPI.prototype, "search", async () => {
+        throw new Error("tmdb down");
+      });
+      mock.method(
+        runner.agentMatchRuntime,
+        "runPiSession",
+        async (input: {
+          tools: Array<{ name: string; execute: (args: Record<string, unknown>) => Promise<unknown> }>;
+        }) => {
+          const search = input.tools.find((tool) => tool.name === "search_tmdb");
+          const conclude = input.tools.find((tool) => tool.name === "conclude_match");
+          await assert.rejects(
+            () => search?.execute({ type: "movie", query: "Inception" }) ?? Promise.resolve(),
+            /tmdb down/,
+          );
+          await conclude?.execute({
+            decision: "none",
+            confidence: 0,
+            reason: "搜不到",
+          });
+        },
+      );
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        id: 40,
+        type: "movie",
+        title: "盗梦空间",
+        original_title: "Inception",
+        year: "2010",
+      }));
+      let acked = false;
+      let retried = false;
+      await handleAgentMatchBatch(
+        {
+          messages: [
+            {
+              body: { doubanId: 40, agentToken: "tok-40" },
+              ack() {
+                acked = true;
+              },
+              retry() {
+                retried = true;
+              },
+            },
+          ],
+        } as unknown as MessageBatch<AgentJob>,
+        env,
+        executionContext([]),
+      );
+      const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 40) });
+      assert.equal(row?.tmdbId ?? null, null);
+      assert.equal(JSON.parse(row?.agent ?? "{}").status, undefined);
+      assert.equal(acked, false);
+      assert.equal(retried, true);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});

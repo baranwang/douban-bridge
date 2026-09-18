@@ -142,6 +142,18 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
   let persisted = false;
   let operationalError: Error | undefined;
   let lastStatus: "written" | "suggested" | "no_match" | "stale" = "stale";
+  const wrapTool = (tool: AgentTool): AgentTool => ({
+    ...tool,
+    async execute(args) {
+      if (operationalError) throw operationalError;
+      try {
+        return await tool.execute(args);
+      } catch (error) {
+        operationalError = error instanceof Error ? error : new Error(String(error));
+        throw operationalError;
+      }
+    },
+  });
 
   const currentImdbId = async () =>
     (await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, job.doubanId) }))?.imdbId ?? null;
@@ -197,7 +209,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
   await agentMatchRuntime.runPiSession({
     system: AGENT_MATCH_SYSTEM_PROMPT,
     user: `请匹配豆瓣条目 ${job.doubanId}。标题：${detail.title}。年份：${detail.year ?? "未知"}。类型：${detail.type}。`,
-    tools: [...tools, concludeTool],
+    tools: [...tools, concludeTool].map(wrapTool),
     sessionId: `douban-match:${job.doubanId}`,
   });
   if (operationalError) throw operationalError;
