@@ -9,6 +9,17 @@ import * as runner from "../src/libs/agent-match/runner";
 import { api } from "../src/libs/api";
 import { withTestContext } from "./context";
 
+test("withAgentMatchStreamOptions forwards sessionId as x-grok-conv-id", () => {
+  const options = runner.withAgentMatchStreamOptions(
+    { temperature: 0, headers: { Authorization: null } },
+    "douban-match:37134256",
+    { "cf-aig-authorization": "Bearer cloudflare-gateway-binding" },
+  );
+  assert.equal(options.sessionId, "douban-match:37134256");
+  assert.equal(options.headers["x-grok-conv-id"], "douban-match:37134256");
+  assert.equal(options.headers["cf-aig-authorization"], "Bearer cloudflare-gateway-binding");
+});
+
 test("assistantMessageText keeps only assistant text", () => {
   assert.equal(runner.assistantMessageText({ role: "user", content: "hi" }), undefined);
   assert.equal(runner.assistantMessageText({ role: "assistant", content: "  ok  " }), "ok");
