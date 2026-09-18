@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { type Env, Hono } from "hono";
 import { z } from "zod/v4";
 import { getDrizzle, users } from "@/db";
-import { DoubanAPI } from "@/libs/api";
+import { fetchDoubanImage } from "@/libs/douban-image";
 
 export const imageProxyRoute = new Hono<Env>();
 
@@ -29,31 +29,5 @@ imageProxyRoute.get("/:userId", zValidator("query", imageProxySchema), async (c)
     return c.body(null, 304);
   }
 
-  const image = new URL(url);
-  if (
-    image.protocol !== "https:" ||
-    image.username ||
-    image.password ||
-    (image.port && image.port !== "443") ||
-    !image.hostname.endsWith(".doubanio.com")
-  ) {
-    return c.text("Unsupported image source", 400);
-  }
-
-  const response = await fetch(image, {
-    headers: DoubanAPI.BASE_HEADERS,
-    redirect: "manual",
-  });
-  if (response.status >= 300 && response.status < 400) {
-    return c.text("Image source redirected", 502);
-  }
-
-  const headers = new Headers();
-  const contentType = response.headers.get("Content-Type");
-  if (contentType) headers.set("Content-Type", contentType);
-  if (response.status === 200) {
-    headers.set("ETag", url);
-    headers.set("Access-Control-Allow-Origin", "*");
-  }
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  return fetchDoubanImage(url);
 });

@@ -9,6 +9,18 @@ import * as runner from "../src/libs/agent-match/runner";
 import { api } from "../src/libs/api";
 import { withTestContext } from "./context";
 
+test("assistantMessageText keeps only assistant text", () => {
+  assert.equal(runner.assistantMessageText({ role: "user", content: "hi" }), undefined);
+  assert.equal(runner.assistantMessageText({ role: "assistant", content: "  ok  " }), "ok");
+  assert.equal(
+    runner.assistantMessageText({
+      role: "assistant",
+      content: [{ type: "text", text: "hello" }, { type: "toolCall" }, { type: "text", text: "world" }],
+    }),
+    "hello\nworld",
+  );
+});
+
 type AgentJob = {
   doubanId: number;
   agentToken: string;
@@ -85,6 +97,11 @@ test("suggested rows are not enqueued", async () => {
 
 test("queue consumer writes high-confidence matches and acks", async () => {
   await withTestContext(async (env) => {
+    const logs: unknown[][] = [];
+    const originalInfo = console.info;
+    console.info = (...args: unknown[]) => {
+      logs.push(args);
+    };
     try {
       await api.db.insert(doubanMapping).values({
         doubanId: 35,
@@ -143,7 +160,16 @@ test("queue consumer writes high-confidence matches and acks", async () => {
       assert.equal(row?.tmdbId, 27205);
       assert.equal(acked, true);
       assert.equal(retried, false);
+      const events = logs
+        .filter((args) => args[0] === "agent-match" && typeof args[1] === "object" && args[1] !== null)
+        .map((args) => args[1] as { doubanId: number; event: string; tool?: string });
+      assert.equal(events[0]?.event, "start");
+      assert.equal(events[0]?.doubanId, 35);
+      assert.ok(events.some((event) => event.event === "tool_start" && event.tool === "search_tmdb"));
+      assert.ok(events.some((event) => event.event === "tool_end" && event.tool === "conclude_match"));
+      assert.ok(events.some((event) => event.event === "done"));
     } finally {
+      console.info = originalInfo;
       mock.restoreAll();
     }
   });

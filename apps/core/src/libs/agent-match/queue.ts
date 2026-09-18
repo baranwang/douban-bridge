@@ -12,7 +12,11 @@ export async function handleAgentMatchBatch(
         await runAgentMatchJob(message.body);
         message.ack();
       } catch (error) {
-        console.warn("agent match job failed", error);
+        console.warn("agent-match", {
+          doubanId: message.body.doubanId,
+          event: "failed",
+          error: error instanceof Error ? error.message : String(error),
+        });
         message.retry();
       }
     }

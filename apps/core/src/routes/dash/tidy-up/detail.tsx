@@ -19,6 +19,7 @@ import { doubanMapping, doubanMappingSchema } from "@/db";
 import { parseAgent, serializeAgent } from "@/libs/agent-match/blob";
 import { api } from "@/libs/api";
 import { TmdbAPI } from "@/libs/api/tmdb";
+import { dashDoubanImageSrc } from "@/libs/douban-image";
 
 export const tidyUpDetailRoute = new Hono<Env>();
 
@@ -145,6 +146,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
     .catch(() => null);
 
   const doubanCoverUrl = subject.cover_url || subject.pic?.large || subject.pic?.normal || "";
+  const doubanCoverSrc = doubanCoverUrl ? dashDoubanImageSrc(doubanCoverUrl) : "";
 
   let traktResults = await api.traktAPI.search(subject.type === "tv" ? "show" : "movie", subject.title);
 
@@ -226,7 +228,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                   {doubanCoverUrl && (
                     <div className="mb-4 overflow-hidden rounded-lg shadow-lg">
                       <img
-                        src={doubanCoverUrl}
+                        src={doubanCoverSrc}
                         alt={subject.title}
                         referrerPolicy="no-referrer"
                         loading="lazy"

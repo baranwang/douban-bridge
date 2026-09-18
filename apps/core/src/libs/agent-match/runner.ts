@@ -13,8 +13,42 @@ import { agentMatchWriter } from "./writer";
 
 export type { AgentMatchJob } from "./types";
 
+const LOG_MAX_CHARS = 2000;
+
+function compact(value: unknown): string {
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  if (!text) return "";
+  return text.length <= LOG_MAX_CHARS ? text : `${text.slice(0, LOG_MAX_CHARS)}…`;
+}
+
+export function assistantMessageText(message: { role?: string; content?: unknown }): string | undefined {
+  if (message.role !== "assistant") return undefined;
+  const content = message.content;
+  if (typeof content === "string") return content.trim() || undefined;
+  if (!Array.isArray(content)) return undefined;
+  const text = content
+    .flatMap((part) =>
+      part && typeof part === "object" && "text" in part && typeof (part as { text?: unknown }).text === "string"
+        ? [(part as { text: string }).text]
+        : [],
+    )
+    .join("\n")
+    .trim();
+  return text || undefined;
+}
+
+function logAgentMatch(doubanId: number, event: string, extra: Record<string, unknown> = {}): void {
+  console.info("agent-match", { doubanId, event, ...extra });
+}
+
 export const agentMatchRuntime = {
-  async runPiSession(input: { system: string; user: string; tools: AgentTool[]; sessionId: string }): Promise<void> {
+  async runPiSession(input: {
+    system: string;
+    user: string;
+    tools: AgentTool[];
+    sessionId: string;
+    doubanId?: number;
+  }): Promise<void> {
     const [{ Agent }, { Type, createModels, createProvider }, { openAICompletionsApi }] = await Promise.all([
       import("@earendil-works/pi-agent-core"),
       import("@earendil-works/pi-ai"),
@@ -65,6 +99,8 @@ export const agentMatchRuntime = {
     if (!model) {
       throw new Error(`Unknown agent match model: ${modelId}`);
     }
+    const doubanId = input.doubanId ?? Number(input.sessionId.split(":").at(-1));
+    logAgentMatch(doubanId, "prompt", { sessionId: input.sessionId, user: compact(input.user) });
     const agent = new Agent({
       streamFn: models.streamSimple.bind(models),
       sessionId: input.sessionId,
@@ -101,6 +137,19 @@ export const agentMatchRuntime = {
         }),
       },
     });
+    agent.subscribe((event) => {
+      if (event.type === "message_end") {
+        const text = assistantMessageText(event.message);
+        if (text) logAgentMatch(doubanId, "assistant", { text: compact(text) });
+        return;
+      }
+      if (event.type === "agent_end") {
+        logAgentMatch(doubanId, "session_end", {
+          messages: event.messages.length,
+          error: agent.state.errorMessage ?? null,
+        });
+      }
+    });
     await agent.prompt(input.user);
     await agent.waitForIdle();
     if (agent.state.errorMessage) {
@@ -114,13 +163,17 @@ export async function runPiSession(input: {
   user: string;
   tools: AgentTool[];
   sessionId: string;
+  doubanId?: number;
 }): Promise<void> {
   return agentMatchRuntime.runPiSession(input);
 }
 
 export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | "suggested" | "no_match" | "stale"> {
   const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, job.doubanId) });
-  if (!row) return "stale";
+  if (!row) {
+    logAgentMatch(job.doubanId, "stale", { reason: "missing_row" });
+    return "stale";
+  }
   const blob = parseAgent(row.agent);
   const now = Date.now();
   if (
@@ -129,6 +182,11 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
     blob.status === "suggested" ||
     blob.status === "no_match"
   ) {
+    logAgentMatch(job.doubanId, "stale", {
+      reason: "claim_mismatch",
+      calibrated: row.calibrated === true,
+      status: blob?.status ?? null,
+    });
     return "stale";
   }
 
@@ -137,9 +195,18 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
     .set({ agent: serializeAgent({ ...blob, token: job.agentToken, leaseUntil: now + AGENT_LEASE_MS }) })
     .where(and(eq(doubanMapping.doubanId, job.doubanId), eq(doubanMapping.agent, row.agent)))
     .returning({ doubanId: doubanMapping.doubanId });
-  if (extended.length === 0) return "stale";
+  if (extended.length === 0) {
+    logAgentMatch(job.doubanId, "stale", { reason: "lease_lost" });
+    return "stale";
+  }
 
   const detail = await api.doubanAPI.getSubjectDetail(job.doubanId);
+  logAgentMatch(job.doubanId, "start", {
+    title: detail.title,
+    originalTitle: detail.original_title ?? null,
+    year: detail.year ?? null,
+    type: detail.type,
+  });
   const registry = new CandidateRegistry();
   const tools = createAgentMatchTools(registry, { doubanType: detail.type, doubanId: job.doubanId });
   let persisted = false;
@@ -149,10 +216,17 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
     ...tool,
     async execute(args) {
       if (operationalError) throw operationalError;
+      logAgentMatch(job.doubanId, "tool_start", { tool: tool.name, args: compact(args) });
       try {
-        return await tool.execute(args);
+        const result = await tool.execute(args);
+        logAgentMatch(job.doubanId, "tool_end", { tool: tool.name, result: compact(result) });
+        return result;
       } catch (error) {
         operationalError = error instanceof Error ? error : new Error(String(error));
+        logAgentMatch(job.doubanId, "tool_error", {
+          tool: tool.name,
+          error: operationalError.message,
+        });
         throw operationalError;
       }
     },
@@ -214,10 +288,12 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
     user: `请匹配豆瓣条目 ${job.doubanId}。标题：${detail.title}。年份：${detail.year ?? "未知"}。类型：${detail.type}。`,
     tools: [...tools, concludeTool].map(wrapTool),
     sessionId: `douban-match:${job.doubanId}`,
+    doubanId: job.doubanId,
   });
   if (operationalError) throw operationalError;
 
   if (!persisted) {
+    logAgentMatch(job.doubanId, "no_conclusion");
     lastStatus = await agentMatchWriter.applyAgentVerdict({
       doubanId: job.doubanId,
       agentToken: job.agentToken,
@@ -238,5 +314,6 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
       reason: "agent_no_conclusion",
     });
   }
+  logAgentMatch(job.doubanId, "done", { status: lastStatus });
   return lastStatus;
 }
