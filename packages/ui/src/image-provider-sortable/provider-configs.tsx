@@ -1,4 +1,4 @@
-import { TMDB_IMAGE_LANGUAGE } from "@douban-bridge/contracts/image-providers";
+import { isTmdbReadAccessToken, TMDB_IMAGE_LANGUAGE } from "@douban-bridge/contracts/image-providers";
 import {
   InputGroup,
   InputGroupAddon,
@@ -90,6 +90,7 @@ export const tmdbConfig: ProviderConfigDef<"tmdb"> = {
             <InputGroupPassword
               placeholder="请输入你的 API 读访问令牌"
               value={extra.apiKey ?? ""}
+              aria-invalid={Boolean(extra.apiKey) && !isTmdbReadAccessToken(extra.apiKey)}
               onChange={(event) => onChange({ ...extra, apiKey: event.target.value || undefined })}
             />
             <InputGroupAddon align="inline-end">
@@ -100,6 +101,11 @@ export const tmdbConfig: ProviderConfigDef<"tmdb"> = {
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
+          {extra.apiKey && !isTmdbReadAccessToken(extra.apiKey) ? (
+            <p className="mt-2 text-destructive text-sm">
+              需要 API 读访问令牌（JWT），不是 v3 API Key。将使用系统默认令牌。
+            </p>
+          ) : null}
         </ItemContent>
       </Item>
       <TmdbLanguageSortable

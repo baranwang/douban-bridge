@@ -1,4 +1,4 @@
-import { TMDB_IMAGE_LANGUAGE } from "@douban-bridge/contracts/image-providers";
+import { resolveTmdbAccessToken, TMDB_IMAGE_LANGUAGE } from "@douban-bridge/contracts/image-providers";
 import { SECONDS_PER_WEEK } from "@/libs/constants";
 import { BaseAPI, CacheType } from "../base";
 import { tmdbFindResultSchema, tmdbSearchResultSchema, tmdbSubjectImagesSchema } from "./schema";
@@ -9,7 +9,7 @@ export class TmdbAPI extends BaseAPI {
     this.axios.interceptors.request.use((config) => {
       config.headers.set(
         "Authorization",
-        `Bearer ${apiKey || this.context.env.TMDB_API_KEY || process.env.TMDB_API_KEY}`,
+        `Bearer ${resolveTmdbAccessToken(apiKey, this.context.env.TMDB_API_KEY || process.env.TMDB_API_KEY)}`,
       );
       return config;
     });

@@ -2,6 +2,20 @@ import { z } from "zod/v4";
 
 export const TMDB_IMAGE_LANGUAGE = ["zh", "en", "ja", "ko", "null"];
 
+/** TMDB v4 Read Access Token is a JWT. v3 API Keys are 32-char hex and cannot be sent as Bearer. */
+export function isTmdbReadAccessToken(value?: string): boolean {
+  const token = value?.trim();
+  return !!token && /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token);
+}
+
+export function resolveTmdbAccessToken(
+  userToken: string | undefined,
+  fallback: string | undefined,
+): string | undefined {
+  const token = userToken?.trim();
+  return isTmdbReadAccessToken(token) ? token : fallback;
+}
+
 const imageProviderDoubanSchema = z.object({
   provider: z.literal("douban"),
   extra: z.object({}),
