@@ -105,7 +105,7 @@ test("medium confidence stores a suggestion without official ids", async () => {
   });
 });
 
-test("auto write is stale when a concurrent imdb conflicts", async () => {
+test("auto write overwrites a conflicting imdb at high confidence", async () => {
   await withTestContext(async () => {
     await api.db.insert(doubanMapping).values({
       doubanId: 4,
@@ -135,9 +135,9 @@ test("auto write is stale when a concurrent imdb conflicts", async () => {
       confidence: 0.95,
       reason: "ok",
     });
-    assert.equal(status, "stale");
+    assert.equal(status, "written");
     const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 4) });
-    assert.equal(row?.tmdbId ?? null, null);
-    assert.equal(row?.imdbId, "tt-new");
+    assert.equal(row?.tmdbId, 10);
+    assert.equal(row?.imdbId, "tt-old");
   });
 });

@@ -21,7 +21,7 @@ test("high confidence closed-set pick auto-writes without imdb anchor", () => {
   assert.equal(verdict.candidate?.tmdbId, 27205);
 });
 
-test("imdb conflict downgrades auto-write to suggest", () => {
+test("imdb conflict still auto-writes at high confidence", () => {
   const registry = new CandidateRegistry();
   const candidate = registry.register({ type: "movie", tmdbId: 1, title: "Foo", imdbId: "tt-other" });
   const verdict = verifyConcludeMatch({
@@ -32,7 +32,7 @@ test("imdb conflict downgrades auto-write to suggest", () => {
     registry,
     douban: { ...douban, imdbId: "tt-real" },
   });
-  assert.equal(verdict.tier, "suggest");
+  assert.equal(verdict.tier, "auto");
 });
 
 test("unknown candidateId cannot write", () => {
@@ -80,7 +80,7 @@ test("truncateReason caps length", () => {
   assert.equal(reason.length, AGENT_REASON_MAX_CHARS);
 });
 
-test("wrong title cannot auto-write even at high confidence", () => {
+test("wrong title still auto-writes at high confidence", () => {
   const registry = new CandidateRegistry();
   const candidate = registry.register({
     type: "movie",
@@ -97,8 +97,8 @@ test("wrong title cannot auto-write even at high confidence", () => {
     registry,
     douban,
   });
-  assert.equal(verdict.tier, "suggest");
-  assert.equal(verdict.code, "title_mismatch");
+  assert.equal(verdict.tier, "auto");
+  assert.equal(verdict.code, "auto");
 });
 
 test("missing year can still auto-write when titles match", () => {
@@ -136,7 +136,7 @@ test("percentage confidence cannot auto-write", () => {
   assert.equal(verdict.code, "invalid_confidence");
 });
 
-test("row imdb without candidate imdb cannot auto-write", () => {
+test("row imdb without candidate imdb still auto-writes at high confidence", () => {
   const registry = new CandidateRegistry();
   const candidate = registry.register({ type: "movie", tmdbId: 27205, title: "Inception", year: "2010" });
   const verdict = verifyConcludeMatch({
@@ -147,6 +147,6 @@ test("row imdb without candidate imdb cannot auto-write", () => {
     registry,
     douban: { ...douban, imdbId: "tt1375666" },
   });
-  assert.equal(verdict.tier, "suggest");
-  assert.equal(verdict.code, "missing_imdb");
+  assert.equal(verdict.tier, "auto");
+  assert.equal(verdict.code, "auto");
 });

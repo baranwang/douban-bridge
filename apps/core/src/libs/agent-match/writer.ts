@@ -45,19 +45,16 @@ export async function applyAgentVerdict(input: {
 
   if (input.verdict.tier === "auto" && input.verdict.candidate) {
     const candidate = input.verdict.candidate;
-    const imdbGuard = candidate.imdbId
-      ? or(isNull(doubanMapping.imdbId), eq(doubanMapping.imdbId, candidate.imdbId))
-      : isNull(doubanMapping.imdbId);
     const updated = await api.db
       .update(doubanMapping)
       .set({
         tmdbId: candidate.tmdbId,
-        imdbId: candidate.imdbId ?? null,
-        traktId: candidate.traktId ?? null,
+        imdbId: candidate.imdbId ?? row.imdbId,
+        traktId: candidate.traktId ?? row.traktId,
         calibrated: false,
         agent: serializeAgent(conclusion),
       })
-      .where(and(where, isNull(doubanMapping.tmdbId), imdbGuard))
+      .where(and(where, isNull(doubanMapping.tmdbId)))
       .returning({ doubanId: doubanMapping.doubanId });
     return updated.length === 0 ? "stale" : "written";
   }
