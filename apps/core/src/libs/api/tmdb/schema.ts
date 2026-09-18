@@ -12,13 +12,17 @@ export const tmdbSearchResultItemSchema = z
   .union([
     z.object({
       ...tmdbSearchResultItemBaseSchema.shape,
-      title: z.string().nullish(),
+      title: z.string(),
       original_title: z.string().nullish(),
+      release_date: z.string().nullish(),
+      first_air_date: z.string().nullish(),
     }),
     z.object({
       ...tmdbSearchResultItemBaseSchema.shape,
-      name: z.string().nullish(),
+      name: z.string(),
       original_name: z.string().nullish(),
+      release_date: z.string().nullish(),
+      first_air_date: z.string().nullish(),
     }),
   ])
   .transform((v) => ({

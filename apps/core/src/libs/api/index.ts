@@ -39,16 +39,17 @@ class API extends BaseAPI {
   async persistIdMapping(mappings: (DoubanIdMapping | null)[], skipNil = true) {
     const hasValidId = (item: DoubanIdMapping) => !!(item.imdbId || item.tmdbId || item.traktId);
 
-    const data = mappings.filter((item): item is DoubanIdMapping => {
+    const data = mappings.flatMap((item) => {
       const result = doubanMappingSchema.safeParse(item);
       if (!result.success) {
         console.warn("❌ Invalid douban id mapping", z.prettifyError(result.error));
-        return false;
+        return [];
       }
       if (skipNil && !hasValidId(result.data)) {
-        return false;
+        return [];
       }
-      return true;
+      const { doubanId, imdbId, tmdbId, traktId } = result.data;
+      return [{ doubanId, imdbId, tmdbId, traktId }];
     });
     if (data.length === 0) return;
 
@@ -59,10 +60,20 @@ class API extends BaseAPI {
       .onConflictDoUpdate({
         target: doubanMapping.doubanId,
         set: {
-          // 优先使用新值，新值为空时保留现有值
-          imdbId: sql`COALESCE(excluded.imdb_id, ${doubanMapping.imdbId})`,
-          tmdbId: sql`COALESCE(excluded.tmdb_id, ${doubanMapping.tmdbId})`,
-          traktId: sql`COALESCE(excluded.trakt_id, ${doubanMapping.traktId})`,
+          tmdbId: sql`CASE
+            WHEN ${doubanMapping.tmdbId} IS NULL THEN excluded.tmdb_id
+            ELSE ${doubanMapping.tmdbId}
+          END`,
+          imdbId: sql`CASE
+            WHEN ${doubanMapping.tmdbId} IS NULL AND excluded.tmdb_id IS NOT NULL THEN excluded.imdb_id
+            WHEN ${doubanMapping.tmdbId} IS NULL THEN COALESCE(excluded.imdb_id, ${doubanMapping.imdbId})
+            ELSE ${doubanMapping.imdbId}
+          END`,
+          traktId: sql`CASE
+            WHEN ${doubanMapping.tmdbId} IS NULL AND excluded.tmdb_id IS NOT NULL THEN excluded.trakt_id
+            WHEN ${doubanMapping.tmdbId} IS NULL THEN COALESCE(excluded.trakt_id, ${doubanMapping.traktId})
+            ELSE ${doubanMapping.traktId}
+          END`,
         },
         setWhere: or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
       });

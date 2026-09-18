@@ -43,7 +43,8 @@
     "TRAKT_CLIENT_ID": "95pidRr4d15bGI__HJQtIsSRzv_GfTnznlFotZrFsew",
     "GITHUB_CLIENT_ID": "Ov23liAcIeCqxTwANWoZ",
     "STREMIO_ORIGIN": "https://stremio-addon-douban.baran.wang",
-    "DASH_ORIGIN": "https://douban-bridge.baran.wang"
+    "DASH_ORIGIN": "https://douban-bridge.baran.wang",
+    "AGENT_MATCH_MODEL": "grok-4.6"
   },
   "ratelimits": [
     {
@@ -73,6 +74,14 @@
   ],
   "triggers": {
     "crons": ["0 * * * *"]
+  },
+  "queues": {
+    "producers": [{ "binding": "AGENT_MATCH_QUEUE", "queue": "douban-agent-match" }],
+    "consumers": [{
+      "queue": "douban-agent-match",
+      "max_batch_size": 1,
+      "max_concurrency": 1
+    }]
   },
   "observability": {
     "logs": {

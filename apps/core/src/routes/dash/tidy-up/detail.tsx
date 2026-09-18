@@ -13,8 +13,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { eq } from "drizzle-orm";
 import { uniqBy } from "es-toolkit";
 import { type Env, Hono } from "hono";
-import { ArrowLeft, Check, Search } from "lucide-react";
+import { ArrowLeft, Check, Search, X } from "lucide-react";
+import { z } from "zod/v4";
 import { doubanMapping, doubanMappingSchema } from "@/db";
+import { parseAgent, serializeAgent } from "@/libs/agent-match/blob";
 import { api } from "@/libs/api";
 import { TmdbAPI } from "@/libs/api/tmdb";
 
@@ -28,12 +30,74 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
   }
 
   const form = await c.req.formData();
+  const numericId = Number.parseInt(doubanId, 10);
+  const existing = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, numericId) });
+  if (!existing) return c.notFound();
 
+  const intent = String(form.get("intent") ?? "save");
+  const blob = parseAgent(existing.agent);
+
+  if (intent === "confirm") {
+    const tmdbId = existing.tmdbId ?? blob?.tmdbId ?? null;
+    if (tmdbId == null) return c.json({ error: "missing_candidate" }, 400);
+    await api.db
+      .update(doubanMapping)
+      .set({
+        tmdbId,
+        imdbId: existing.tmdbId != null ? (existing.imdbId ?? null) : (blob?.imdbId ?? existing.imdbId ?? null),
+        traktId: existing.tmdbId != null ? (existing.traktId ?? null) : (blob?.traktId ?? existing.traktId ?? null),
+        calibrated: true,
+        agent: null,
+      })
+      .where(eq(doubanMapping.doubanId, numericId));
+    return c.redirect("/dash/tidy-up");
+  }
+
+  if (intent === "reject") {
+    const wroteOfficial =
+      existing.tmdbId != null && blob?.tmdbId != null && existing.tmdbId === blob.tmdbId && blob.status !== "suggested";
+    await api.db
+      .update(doubanMapping)
+      .set({
+        tmdbId: wroteOfficial ? null : existing.tmdbId,
+        imdbId: wroteOfficial ? null : existing.imdbId,
+        traktId: wroteOfficial ? null : existing.traktId,
+        agent: serializeAgent({
+          status: "no_match",
+          confidence: blob?.confidence,
+          reason: blob?.reason,
+          candidateId: blob?.candidateId,
+          tmdbId: blob?.tmdbId ?? null,
+          imdbId: blob?.imdbId ?? null,
+          traktId: blob?.traktId ?? null,
+        }),
+      })
+      .where(eq(doubanMapping.doubanId, numericId));
+    return c.redirect("/dash/tidy-up?view=no_match");
+  }
+
+  const emptyToNull = (value: FormDataEntryValue | null) => {
+    if (value == null) return null;
+    const text = String(value).trim();
+    return text === "" ? null : text;
+  };
+  const optionalPositiveInt = z.union([
+    z.null(),
+    z
+      .string()
+      .regex(/^[1-9]\d*$/)
+      .transform((value) => Number(value)),
+  ]);
+  const tmdbParsed = optionalPositiveInt.safeParse(emptyToNull(form.get("tmdbId")));
+  const traktParsed = optionalPositiveInt.safeParse(emptyToNull(form.get("traktId")));
+  if (!tmdbParsed.success || !traktParsed.success) {
+    return c.json({ error: "invalid_id" }, 400);
+  }
   const result = doubanMappingSchema.safeParse({
     doubanId,
-    tmdbId: form.get("tmdbId"),
-    imdbId: form.get("imdbId"),
-    traktId: form.get("traktId"),
+    tmdbId: tmdbParsed.data,
+    imdbId: emptyToNull(form.get("imdbId")),
+    traktId: traktParsed.data,
     calibrated: form.get("calibrated") === "on",
   });
 
@@ -44,8 +108,14 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
   const { tmdbId, imdbId, traktId, calibrated } = result.data;
   await api.db
     .update(doubanMapping)
-    .set({ tmdbId, imdbId, traktId, calibrated })
-    .where(eq(doubanMapping.doubanId, Number.parseInt(doubanId, 10)));
+    .set({
+      tmdbId: tmdbId ?? null,
+      imdbId: imdbId ?? null,
+      traktId: traktId ?? null,
+      calibrated,
+      agent: null,
+    })
+    .where(eq(doubanMapping.doubanId, numericId));
 
   return c.redirect("/dash/tidy-up");
 });
@@ -412,7 +482,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                       id="tmdbId"
                       name="tmdbId"
                       type="number"
-                      defaultValue={idMapping?.tmdbId ?? ""}
+                      defaultValue={idMapping?.tmdbId ?? parseAgent(idMapping?.agent)?.tmdbId ?? ""}
                       placeholder="请输入 TMDB ID"
                     />
                   </div>
@@ -424,7 +494,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                       id="imdbId"
                       name="imdbId"
                       type="text"
-                      defaultValue={idMapping?.imdbId ?? ""}
+                      defaultValue={idMapping?.imdbId ?? parseAgent(idMapping?.agent)?.imdbId ?? ""}
                       placeholder="请输入 IMDb ID (如 tt1234567)"
                     />
                   </div>
@@ -436,7 +506,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                       id="traktId"
                       name="traktId"
                       type="number"
-                      defaultValue={idMapping?.traktId ?? ""}
+                      defaultValue={idMapping?.traktId ?? parseAgent(idMapping?.agent)?.traktId ?? ""}
                       placeholder="请输入 Trakt ID"
                     />
                   </div>
@@ -453,13 +523,29 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                     </label>
                   </div>
                 </CardContent>
+                {idMapping?.agent ? (
+                  <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                    <p>Agent 置信度：{parseAgent(idMapping.agent)?.confidence ?? "-"}</p>
+                    <p>原因：{parseAgent(idMapping.agent)?.reason ?? "-"}</p>
+                    <p>建议 TMDB：{parseAgent(idMapping.agent)?.tmdbId ?? "-"}</p>
+                    <p>建议 IMDb：{parseAgent(idMapping.agent)?.imdbId ?? "-"}</p>
+                    <p>建议 Trakt：{parseAgent(idMapping.agent)?.traktId ?? "-"}</p>
+                  </div>
+                ) : null}
                 <CardFooter className="justify-end gap-3">
                   <a href="/dash/tidy-up">
                     <Button type="button" variant="ghost">
                       取消
                     </Button>
                   </a>
-                  <Button type="submit">
+                  <Button type="submit" name="intent" value="reject" variant="outline">
+                    <X className="h-4 w-4" />
+                    驳回
+                  </Button>
+                  <Button type="submit" name="intent" value="confirm" variant="secondary">
+                    确认
+                  </Button>
+                  <Button type="submit" name="intent" value="save">
                     <Check className="h-4 w-4" />
                     保存
                   </Button>

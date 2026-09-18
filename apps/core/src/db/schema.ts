@@ -8,6 +8,7 @@ export const doubanMapping = sqliteTable("douban_mapping", {
   imdbId: text("imdb_id"),
   traktId: int("trakt_id"),
   calibrated: int("calibrated", { mode: "boolean" }).default(false),
+  agent: text("agent"),
 
   createdAt: int("created_at", { mode: "timestamp_ms" }).$defaultFn(() => new Date()),
   updatedAt: int("updated_at", { mode: "timestamp_ms" })
@@ -21,6 +22,7 @@ export const doubanMappingSchema = z.object({
   imdbId: z.string().nullish(),
   traktId: z.coerce.number().nullish(),
   calibrated: z.boolean().nullish(),
+  agent: z.string().nullish(),
 });
 
 export type DoubanIdMapping = z.output<typeof doubanMappingSchema>;

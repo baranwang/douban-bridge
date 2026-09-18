@@ -37,7 +37,7 @@ api/
 - Use caller-supplied cache keys; no cache key means no BaseAPI persistent cache or dedupe.
 - Cache types are bit flags: LOCAL is `caches.default`, KV is `env.KV`, and callers can combine them.
 - Non-critical enrichments should return `null`/`[]` on provider failure and let Stremio responses degrade gracefully.
-- Persist ID mappings through the `api` facade so conflict handling keeps existing IDs when incoming values are empty.
+- Persist ID mappings through the `api` facade so an existing TMDB tuple is kept intact; establishing TMDB replaces the whole ID tuple instead of coalescing leftover IMDb/Trakt.
 - Schema files intentionally use `.catch`, `.nullish`, transforms, and normalization for unstable third-party payloads.
 - Use `waitUntil()` for cache/DB writes that should not block the user response.
 

@@ -3,6 +3,8 @@ import type { z } from "zod/v4";
 import { type DoubanIdMapping, doubanMapping } from "@/db";
 import { api, type doubanSubjectDetailSchema } from "@/libs/api";
 import { ImdbAPI } from "./libs/api/imdb";
+import { AGENT_MATCH_HOURLY_LIMIT } from "./libs/agent-match/constants";
+import { claimAgentJobs, recoverExpiredClaims } from "./libs/agent-match/pool";
 import { asyncLocalStorage } from "./libs/middleware";
 
 export const scheduled = async (_controller: ScheduledController, env: CloudflareBindings, ctx: ExecutionContext) => {
@@ -34,7 +36,6 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
           return {
             ...mapping,
             doubanId,
-            calibrated: true,
           };
         }
         return null;
@@ -53,9 +54,17 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
                 // 豆瓣有些剧是用的某一季的 imdb，尝试搜索一下
                 doubanDetail = await api.doubanAPI.getSubjectDetail(doubanId).catch(() => null);
                 if (doubanDetail && doubanDetail.type === "tv") {
-                  const resp = await imdbAPI.search(imdbId);
-                  if (resp.top?.series?.series?.id) {
-                    data = await api.traktAPI.searchByImdbId(resp.top.series.series.id).catch(() => []);
+                  try {
+                    const resp = await imdbAPI.search(imdbId);
+                    if (resp.top?.series?.series?.id) {
+                      data = await api.traktAPI.searchByImdbId(resp.top.series.series.id).catch(() => []);
+                    }
+                  } catch (error) {
+                    console.warn(
+                      "⚠️ IMDb parent lookup failed",
+                      doubanId,
+                      error instanceof Error ? error.message : String(error),
+                    );
                   }
                 }
               }
@@ -87,10 +96,11 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
 
               // 电影尝试比对一下年份，如果只有一个结果，则直接返回
               if (doubanDetail.type === "movie") {
-                const yearsMatches = results.filter(
-                  (item) =>
-                    api.traktAPI.getSearchResultField(item, "year")?.toString() === doubanDetail.year?.toString(),
-                );
+                const doubanYear = doubanDetail.year?.toString();
+                const yearsMatches = results.filter((item) => {
+                  const candidateYear = api.traktAPI.getSearchResultField(item, "year")?.toString();
+                  return Boolean(doubanYear && candidateYear && candidateYear === doubanYear);
+                });
                 if (yearsMatches.length === 1) {
                   return formatIdMapping(doubanId, api.traktAPI.getSearchResultField(yearsMatches[0], "ids"));
                 }
@@ -116,11 +126,16 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
           return [];
         });
         if (validResults.length > 0) {
-          ctx.waitUntil(api.persistIdMapping(validResults));
+          await api.persistIdMapping(validResults);
           successCount += validResults.length;
         }
       }
       console.info("🎉 Successfully processed", successCount, "items");
+      await recoverExpiredClaims();
+      const jobs = await claimAgentJobs(AGENT_MATCH_HOURLY_LIMIT);
+      for (const job of jobs) {
+        ctx.waitUntil(env.AGENT_MATCH_QUEUE?.send(job));
+      }
     },
   );
 };
