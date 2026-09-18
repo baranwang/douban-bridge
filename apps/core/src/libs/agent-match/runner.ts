@@ -15,11 +15,10 @@ export type { AgentMatchJob } from "./types";
 
 export const agentMatchRuntime = {
   async runPiSession(input: { system: string; user: string; tools: AgentTool[]; sessionId: string }): Promise<void> {
-    const [{ Agent }, { createModels, createProvider }, { openAICompletionsApi }, { Type }] = await Promise.all([
+    const [{ Agent }, { Type, createModels, createProvider }, { openAICompletionsApi }] = await Promise.all([
       import("@earendil-works/pi-agent-core"),
       import("@earendil-works/pi-ai"),
       import("@earendil-works/pi-ai/api/openai-completions.lazy"),
-      import("typebox"),
     ]);
     const env = getContext().env;
     const baseUrl = env.AGENT_MATCH_BASE_URL?.replace(/\/+$/, "");
