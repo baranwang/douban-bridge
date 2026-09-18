@@ -9,6 +9,23 @@ import * as runner from "../src/libs/agent-match/runner";
 import { api } from "../src/libs/api";
 import { withTestContext } from "./context";
 
+test("customCostHeaderFromOpenRouterPricing maps OpenRouter prices", () => {
+  const cost = JSON.parse(
+    runner.customCostHeaderFromOpenRouterPricing({
+      prompt: "0.000002",
+      completion: "0.000006",
+      input_cache_read: "0.0000005",
+      input_cache_write: "0.0000025",
+    }) ?? "{}",
+  );
+  assert.equal(cost.per_token_in, 0.000002);
+  assert.equal(cost.per_token_out, 0.000006);
+  assert.equal(cost.per_cache_read_token, 5e-7);
+  assert.equal(cost.per_cache_write_token, 0.0000025);
+  assert.equal(runner.openRouterModelBySlug([{ id: "x-ai/grok-4.6" }], "grok-4.6")?.id, "x-ai/grok-4.6");
+  assert.equal(runner.customCostHeaderFromOpenRouterPricing({ prompt: "nope", completion: "0" }), undefined);
+});
+
 test("withAgentMatchStreamOptions forwards sessionId for aio-proxy Responses", () => {
   const options = runner.withAgentMatchStreamOptions(
     { temperature: 0, headers: { Authorization: null } },

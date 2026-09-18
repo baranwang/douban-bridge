@@ -34,6 +34,57 @@ export function withAgentMatchStreamOptions<T extends { sessionId?: string; head
   };
 }
 
+const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
+const OPENROUTER_MODELS_CACHE_TTL_SECONDS = 6 * 60 * 60;
+
+type OpenRouterModel = { id?: string; pricing?: Record<string, string> };
+
+export function customCostHeaderFromOpenRouterPricing(
+  pricing: Record<string, string> | undefined,
+): string | undefined {
+  if (!pricing) return undefined;
+  const perTokenIn = Number(pricing.prompt);
+  const perTokenOut = Number(pricing.completion);
+  if (!Number.isFinite(perTokenIn) || !Number.isFinite(perTokenOut) || perTokenIn < 0 || perTokenOut < 0) {
+    return undefined;
+  }
+  const cost: Record<string, number> = { per_token_in: perTokenIn, per_token_out: perTokenOut };
+  const cacheRead = Number(pricing.input_cache_read);
+  if (Number.isFinite(cacheRead) && cacheRead >= 0) cost.per_cache_read_token = cacheRead;
+  const cacheWrite = Number(pricing.input_cache_write);
+  if (Number.isFinite(cacheWrite) && cacheWrite >= 0) cost.per_cache_write_token = cacheWrite;
+  return JSON.stringify(cost);
+}
+
+export function openRouterModelBySlug(models: OpenRouterModel[], modelId: string): OpenRouterModel | undefined {
+  return models.find((item) => item.id?.split("/")[1] === modelId);
+}
+
+async function openRouterCustomCostHeader(modelId: string): Promise<string | undefined> {
+  const cacheKey = new Request("https://cache.internal/openrouter/models");
+  const cached = await caches.default.match(cacheKey);
+  let models: OpenRouterModel[] | undefined = cached ? await cached.json() : undefined;
+  if (!models) {
+    try {
+      const response = await fetch(OPENROUTER_MODELS_URL);
+      if (!response.ok) return undefined;
+      const body = (await response.json()) as { data?: OpenRouterModel[] };
+      models = body.data ?? [];
+    } catch {
+      return undefined;
+    }
+    getContext().ctx.waitUntil(
+      caches.default.put(
+        cacheKey,
+        new Response(JSON.stringify(models), {
+          headers: { "Cache-Control": `public, max-age=${OPENROUTER_MODELS_CACHE_TTL_SECONDS}` },
+        }),
+      ),
+    );
+  }
+  return customCostHeaderFromOpenRouterPricing(openRouterModelBySlug(models, modelId)?.pricing);
+}
+
 export function assistantMessageText(message: { role?: string; content?: unknown }): string | undefined {
   if (message.role !== "assistant") return undefined;
   const content = message.content;
@@ -140,10 +191,12 @@ export const agentMatchRuntime = {
     }
     const baseUrl = `https://workers-binding.ai/ai-gateway/gateways/${gatewayId}/custom-${providerSlug}`;
     const aiFetch = createAiBindingFetch(env.AI);
+    const customCost = await openRouterCustomCostHeader(modelId);
     const streamHeaders = {
       "cf-aig-authorization": `Bearer ${CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL}`,
       Authorization: null,
       "x-api-key": null,
+      ...(customCost ? { "cf-aig-custom-cost": customCost } : {}),
     };
     const models = createModels();
     models.setProvider(
