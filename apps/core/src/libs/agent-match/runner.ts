@@ -21,8 +21,12 @@ export const agentMatchRuntime = {
       import("@earendil-works/pi-ai/api/openai-completions.lazy"),
     ]);
     const env = getContext().env;
-    const baseUrl = env.AGENT_MATCH_BASE_URL?.replace(/\/+$/, "");
-    const apiKey = (env as CloudflareBindings & { AGENT_MATCH_API_KEY?: string }).AGENT_MATCH_API_KEY;
+    const secrets = env as CloudflareBindings & {
+      AGENT_MATCH_API_KEY?: string;
+      AGENT_MATCH_BASE_URL?: string;
+    };
+    const baseUrl = secrets.AGENT_MATCH_BASE_URL?.replace(/\/+$/, "");
+    const apiKey = secrets.AGENT_MATCH_API_KEY;
     const modelId = env.AGENT_MATCH_MODEL;
     if (!baseUrl || !apiKey || !modelId) {
       throw new Error("AGENT_MATCH_BASE_URL, AGENT_MATCH_API_KEY, and AGENT_MATCH_MODEL are required");

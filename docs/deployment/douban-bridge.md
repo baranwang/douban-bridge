@@ -11,7 +11,7 @@
 | core（Worker `douban-bridge-core`，域名 `douban-bridge.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件；dash basic auth 读取 KV 键 `DASH_USER` / `DASH_PASS`）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *`、queue `douban-agent-match`（binding `AGENT_MATCH_QUEUE`）。公开 `/v1` 只认 Bearer `sk` |
 | stremio（`stremio-addon-douban`，旧 custom domain `stremio-addon-douban.baran.wang`） | `CORE_STREMIO` → `StremioEntrypoint`、`CORE_WEB` → 默认入口、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、旧 custom domain。无 D1 / KV / cron / 上游凭据 |
 
-当前 `apps/core/wrangler.jsonc` 的 **vars**（明文配置，不是 secret）：`DOUBAN_API_KEY`、`TRAKT_CLIENT_ID`、`GITHUB_CLIENT_ID`、`STREMIO_ORIGIN`、`DASH_ORIGIN`、`AGENT_MATCH_BASE_URL`、`AGENT_MATCH_MODEL`。代码还读取以下名称，它们应作为 **secrets**（或尚未配置）：`JWT_SECRET`、`GITHUB_CLIENT_SECRET`、`TMDB_API_KEY`、`AGENT_MATCH_API_KEY`、`EXA_API_KEY`；可选 `FANART_API_KEY` / `TRAKT_CLIENT_SECRET`。获得授权后用下面命令核对实际存在的名称，**不要把值写入仓库或本文**：
+当前 `apps/core/wrangler.jsonc` 的 **vars**（明文配置，不是 secret）：`DOUBAN_API_KEY`、`TRAKT_CLIENT_ID`、`GITHUB_CLIENT_ID`、`STREMIO_ORIGIN`、`DASH_ORIGIN`、`AGENT_MATCH_MODEL`。代码还读取以下名称，它们应作为 **secrets**（或尚未配置）：`JWT_SECRET`、`GITHUB_CLIENT_SECRET`、`TMDB_API_KEY`、`AGENT_MATCH_BASE_URL`、`AGENT_MATCH_API_KEY`、`EXA_API_KEY`；可选 `FANART_API_KEY` / `TRAKT_CLIENT_SECRET`。获得授权后用下面命令核对实际存在的名称，**不要把值写入仓库或本文**：
 
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler secret list
@@ -68,7 +68,7 @@ OAuth callback 与 cron 从现网 Worker / GitHub OAuth App 读取，不在此�
 
 ### 2. 增量迁移
 
-待应用 SQL 现在还包括 `apps/core/drizzle/0004_agent_matching.sql`（给 `douban_mapping` 加 `agent` 列）。先 `migrations list --remote`，确认 pending 列表后再应用到远端。不要用 fresh-local `migrations apply` 当 rehearsal：`0000` 是 introspect 注释 dump，本地空库 apply 会失败，不能代表远端增量。开启 agent 队列前必须先有 `AGENT_MATCH_API_KEY`；`EXA_API_KEY` 缺了会让 Exa 工具失败。
+待应用 SQL 现在还包括 `apps/core/drizzle/0004_agent_matching.sql`（给 `douban_mapping` 加 `agent` 列）。先 `migrations list --remote`，确认 pending 列表后再应用到远端。不要用 fresh-local `migrations apply` 当 rehearsal：`0000` 是 introspect 注释 dump，本地空库 apply 会失败，不能代表远端增量。开启 agent 队列前必须先有 `AGENT_MATCH_BASE_URL` 和 `AGENT_MATCH_API_KEY`；`EXA_API_KEY` 缺了会让 Exa 工具失败。
 
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations list stremio-addon-douban --remote
@@ -128,7 +128,7 @@ Workers 仍按上面 1–6 步手动 `wrangler deploy`。
 
 1. 先停发新 Widget 流量（再发一个 patch 覆盖 `latest`，必要时 `npm deprecate`；不要 unpublish。必要时停 `/v1` 或 Worker）。
 2. 若回滚旧 Stremio Worker 版本：先停 core cron（清空 `triggers.crons` 后 `rtk proxy pnpm --filter @douban-bridge/core deploy`），再恢复旧 Worker 部署及其旧绑定 / secrets / cron。
-3. 新加 `api_keys` 表和 `douban_mapping.agent` 列可保留。**不能 DROP 原表**，也**不能用旧备份覆盖用户新配置**。回滚 agent 队列时先停 cron / 清空 `queues.consumers`，再撤 `AGENT_MATCH_API_KEY` / `EXA_API_KEY`。
+3. 新加 `api_keys` 表和 `douban_mapping.agent` 列可保留。**不能 DROP 原表**，也**不能用旧备份覆盖用户新配置**。回滚 agent 队列时先停 cron / 清空 `queues.consumers`，再撤 `AGENT_MATCH_BASE_URL` / `AGENT_MATCH_API_KEY` / `EXA_API_KEY`。
 4. 若旧 Worker secrets 已清理，从受控备份恢复后再回滚。
 5. 保留 core 及其 D1 / KV 直到旧路由验证通过，最后再处理不再使用的部署。
 
