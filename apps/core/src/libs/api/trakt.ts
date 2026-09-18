@@ -17,7 +17,7 @@ const titleSchema = z
   .object({
     title: z.string().optional(),
     original_title: z.string().optional(),
-    year: z.number().optional(),
+    year: z.number().nullish(),
     ids: idsSchema.optional(),
   })
   .loose();
