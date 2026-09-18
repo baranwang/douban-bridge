@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { DEFAULT_COLLECTION_IDS, getLatestYearlyRanking, MOVIE_YEARLY_RANKING_ID } from "../src/collections";
 import { doubanRecommendSchema, doubanSearchSchema, doubanSubjectCollectionSchema } from "../src/douban";
-import { imageProviderSchema, imageProvidersSchema, TMDB_IMAGE_LANGUAGE } from "../src/image-providers";
+import {
+  imageProviderSchema,
+  imageProvidersSchema,
+  isTmdbReadAccessToken,
+  resolveTmdbAccessToken,
+  TMDB_IMAGE_LANGUAGE,
+} from "../src/image-providers";
 import {
   bridgeItemSchema,
   catalogQuerySchema,
@@ -25,6 +31,19 @@ test("image provider contract accepts supported providers and rejects unknown pr
   );
   assert.equal(imageProviderSchema.safeParse({ provider: "unknown", extra: {} }).success, false);
   assert.equal(imageProvidersSchema.safeParse([]).success, true);
+});
+
+test("TMDB user tokens must look like a v4 JWT, otherwise the system token is used", () => {
+  const jwt = "eyJhbGciOiJIUzI1NiJ9.e30.sig";
+  assert.equal(isTmdbReadAccessToken(jwt), true);
+  assert.equal(isTmdbReadAccessToken(` ${jwt} `), true);
+  assert.equal(isTmdbReadAccessToken("0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d"), false);
+  assert.equal(isTmdbReadAccessToken("tmdb-token"), false);
+  assert.equal(isTmdbReadAccessToken(""), false);
+  assert.equal(isTmdbReadAccessToken(), false);
+  assert.equal(resolveTmdbAccessToken("0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d", "system-jwt"), "system-jwt");
+  assert.equal(resolveTmdbAccessToken(jwt, "system-jwt"), jwt);
+  assert.equal(resolveTmdbAccessToken("", "system-jwt"), "system-jwt");
 });
 
 test("pagination and empty pages have different meanings from failures", () => {
