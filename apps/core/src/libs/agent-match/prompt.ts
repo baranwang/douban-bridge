@@ -1,5 +1,3 @@
-export const DEFAULT_AGENT_MATCH_MODEL = "openai/gpt-4.1-mini";
-
 export const AGENT_MATCH_SYSTEM_PROMPT = `把当前豆瓣条目匹配到 TMDB movie 或 tv。只许用工具，不许编造 candidateId / TMDB / IMDb。
 
 流程：

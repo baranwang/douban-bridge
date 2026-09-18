@@ -44,7 +44,8 @@
     "GITHUB_CLIENT_ID": "Ov23liAcIeCqxTwANWoZ",
     "STREMIO_ORIGIN": "https://stremio-addon-douban.baran.wang",
     "DASH_ORIGIN": "https://douban-bridge.baran.wang",
-    "AGENT_MATCH_MODEL": "openai/gpt-4.1-mini"
+    "AGENT_MATCH_BASE_URL": "https://api.openai.com/v1",
+    "AGENT_MATCH_MODEL": "gpt-4.1-mini"
   },
   "ratelimits": [
     {

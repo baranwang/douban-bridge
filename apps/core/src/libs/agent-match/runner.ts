@@ -5,7 +5,7 @@ import { getContext } from "@/libs/middleware";
 import { parseAgent, serializeAgent } from "./blob";
 import { CandidateRegistry } from "./candidates";
 import { AGENT_LEASE_MS } from "./constants";
-import { AGENT_MATCH_SYSTEM_PROMPT, DEFAULT_AGENT_MATCH_MODEL } from "./prompt";
+import { AGENT_MATCH_SYSTEM_PROMPT } from "./prompt";
 import { type AgentTool, createAgentMatchTools } from "./tools";
 import type { AgentMatchJob } from "./types";
 import { verifyConcludeMatch } from "./verifier";
@@ -15,26 +15,54 @@ export type { AgentMatchJob } from "./types";
 
 export const agentMatchRuntime = {
   async runPiSession(input: { system: string; user: string; tools: AgentTool[] }): Promise<void> {
-    const [{ Agent }, { createModels }, { openrouterProvider }, { Type }] = await Promise.all([
+    const [{ Agent }, { createModels, createProvider }, { openAICompletionsApi }, { Type }] = await Promise.all([
       import("@earendil-works/pi-agent-core"),
       import("@earendil-works/pi-ai"),
-      import("@earendil-works/pi-ai/providers/openrouter"),
+      import("@earendil-works/pi-ai/api/openai-completions.lazy"),
       import("typebox"),
     ]);
     const env = getContext().env;
+    const baseUrl = env.AGENT_MATCH_BASE_URL?.replace(/\/+$/, "");
+    const apiKey = (env as CloudflareBindings & { AGENT_MATCH_API_KEY?: string }).AGENT_MATCH_API_KEY;
+    const modelId = env.AGENT_MATCH_MODEL;
+    if (!baseUrl || !apiKey || !modelId) {
+      throw new Error("AGENT_MATCH_BASE_URL, AGENT_MATCH_API_KEY, and AGENT_MATCH_MODEL are required");
+    }
     const models = createModels();
-    models.setProvider(openrouterProvider());
-    const modelId = env.AGENT_MATCH_MODEL || DEFAULT_AGENT_MATCH_MODEL;
-    const model = models.getModel("openrouter", modelId);
+    models.setProvider(
+      createProvider({
+        id: "agent-match",
+        name: "Agent match",
+        baseUrl,
+        auth: {
+          apiKey: {
+            name: "Agent match API key",
+            resolve: async () => ({ auth: { apiKey } }),
+          },
+        },
+        models: [
+          {
+            id: modelId,
+            name: modelId,
+            api: "openai-completions",
+            provider: "agent-match",
+            baseUrl,
+            reasoning: false,
+            input: ["text"],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            contextWindow: 128000,
+            maxTokens: 4096,
+          },
+        ],
+        api: openAICompletionsApi(),
+      }),
+    );
+    const model = models.getModel("agent-match", modelId);
     if (!model) {
       throw new Error(`Unknown agent match model: ${modelId}`);
     }
     const agent = new Agent({
       streamFn: models.streamSimple.bind(models),
-      getApiKey: (provider: string) => {
-        if (provider === "openrouter") return env.OPENROUTER_API_KEY;
-        return undefined;
-      },
       initialState: {
         systemPrompt: input.system,
         model,

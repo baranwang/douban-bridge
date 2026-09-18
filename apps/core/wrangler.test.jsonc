@@ -26,6 +26,8 @@
     "STREMIO_ORIGIN": "https://stremio-addon-douban.baran.wang",
     "DASH_ORIGIN": "https://douban-bridge.baran.wang",
     "GITHUB_CLIENT_ID": "stremio-gh-id",
-    "AGENT_MATCH_MODEL": "openai/gpt-4.1-mini"
+    "AGENT_MATCH_BASE_URL": "https://example.invalid/v1",
+    "AGENT_MATCH_MODEL": "test-model",
+    "AGENT_MATCH_API_KEY": "test-key"
   }
 }
