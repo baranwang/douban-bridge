@@ -21,6 +21,19 @@ function compact(value: unknown): string {
   return text.length <= LOG_MAX_CHARS ? text : `${text.slice(0, LOG_MAX_CHARS)}…`;
 }
 
+export function withAgentMatchStreamOptions<T extends { sessionId?: string; headers?: Record<string, unknown> }>(
+  options: T,
+  fallbackSessionId: string,
+  baseHeaders: Record<string, unknown>,
+): T & { sessionId: string; headers: Record<string, unknown> } {
+  const sessionId = options.sessionId ?? fallbackSessionId;
+  return {
+    ...options,
+    sessionId,
+    headers: { ...baseHeaders, "x-grok-conv-id": sessionId },
+  };
+}
+
 export function assistantMessageText(message: { role?: string; content?: unknown }): string | undefined {
   if (message.role !== "assistant") return undefined;
   const content = message.content;
@@ -179,11 +192,11 @@ export const agentMatchRuntime = {
     logAgentMatch(doubanId, "prompt", { sessionId: input.sessionId, user: compact(input.user) });
     const agent = new Agent({
       streamFn: (model, context, options) =>
-        models.streamSimple(model, context, {
-          ...options,
-          fetch: aiFetch,
-          headers: streamHeaders,
-        }),
+        models.streamSimple(
+          model,
+          context,
+          withAgentMatchStreamOptions({ ...options, fetch: aiFetch }, input.sessionId, streamHeaders),
+        ),
       sessionId: input.sessionId,
       initialState: {
         systemPrompt: input.system,
