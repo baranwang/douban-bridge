@@ -142,11 +142,14 @@ export const agentMatchRuntime = {
           apiKey: {
             name: "Agent match gateway binding",
             resolve: async () => ({
-              headers: {
-                "cf-aig-authorization": `Bearer ${CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL}`,
-                Authorization: null,
-                "x-api-key": null,
+              auth: {
+                headers: {
+                  "cf-aig-authorization": `Bearer ${CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL}`,
+                  Authorization: null,
+                  "x-api-key": null,
+                },
               },
+              source: "gateway binding",
             }),
           },
         },
