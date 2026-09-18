@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { app } from "../src/app";
 import { getDrizzle, users } from "../src/db";
 import { DoubanAPI } from "../src/libs/api";
+import { imageETag } from "../src/routes/image-proxy";
 import { withTestContext } from "./context";
 
 const PUBLIC = "https://douban-bridge.baran.wang";
@@ -67,6 +68,8 @@ describe("image proxy", { concurrency: false }, () => {
         );
         assert.equal(ok.status, 200);
         assert.equal(ok.headers.get("Content-Type"), "image/jpeg");
+        assert.equal(ok.headers.get("ETag"), imageETag(POSTER));
+        assert.equal(ok.headers.get("Cache-Control"), "private, no-cache");
         assert.equal(ok.headers.get("Access-Control-Allow-Origin"), "*");
         assert.equal(ok.headers.get("Set-Cookie"), null);
         assert.equal(ok.headers.get("X-Powered-By"), null);
@@ -104,7 +107,7 @@ describe("image proxy", { concurrency: false }, () => {
         assert.equal(first.status, 200);
         await getDrizzle(env).update(users).set({ hasStarred: false }).where(eq(users.id, userId));
         const conditional = await app.fetch(
-          new Request(imageUrl(PUBLIC, userId, POSTER), { headers: { "If-None-Match": POSTER } }),
+          new Request(imageUrl(PUBLIC, userId, POSTER), { headers: { "If-None-Match": imageETag(POSTER) } }),
           limited,
           ctx,
         );
@@ -195,6 +198,35 @@ describe("image proxy", { concurrency: false }, () => {
       assert.equal(response.status, 429);
       assert.equal(response.headers.get("Retry-After"), "60");
       assert.deepEqual(keys, [userId]);
+    });
+  });
+
+  test("304s matching URL-hash ETag without fetching origin", async () => {
+    await withTestContext(async (env, ctx) => {
+      try {
+        const userId = await insertUser(env);
+        const limited = withRateLimits(env);
+        let fetchCalls = 0;
+        mock.method(globalThis, "fetch", async () => {
+          fetchCalls += 1;
+          return new Response("img", { status: 200, headers: { "Content-Type": "image/jpeg" } });
+        });
+        const first = await app.fetch(new Request(imageUrl(PUBLIC, userId, POSTER)), limited, ctx);
+        assert.equal(first.status, 200);
+        assert.equal(first.headers.get("ETag"), imageETag(POSTER));
+        assert.equal(first.headers.get("Cache-Control"), "private, no-cache");
+        const revalidated = await app.fetch(
+          new Request(imageUrl(PUBLIC, userId, POSTER), { headers: { "If-None-Match": imageETag(POSTER) } }),
+          limited,
+          ctx,
+        );
+        assert.equal(revalidated.status, 304);
+        assert.equal(revalidated.headers.get("ETag"), imageETag(POSTER));
+        assert.equal(revalidated.headers.get("Cache-Control"), "private, no-cache");
+        assert.equal(fetchCalls, 1);
+      } finally {
+        mock.restoreAll();
+      }
     });
   });
 

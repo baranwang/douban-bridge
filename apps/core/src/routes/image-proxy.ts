@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { zValidator } from "@hono/zod-validator";
 import { and, eq } from "drizzle-orm";
 import { type Env, Hono } from "hono";
@@ -6,6 +7,8 @@ import { getDrizzle, users } from "@/db";
 import { DoubanAPI } from "@/libs/api";
 
 export const imageProxyRoute = new Hono<Env>();
+
+export const imageETag = (url: string) => `"${createHash("sha256").update(url).digest("base64url")}"`;
 
 const imageProxySchema = z.object({
   url: z.url(),
@@ -25,8 +28,9 @@ imageProxyRoute.get("/:userId", zValidator("query", imageProxySchema), async (c)
     return c.text("Unauthorized", 401);
   }
 
-  if (c.req.header("If-None-Match") === url) {
-    return c.body(null, 304);
+  const etag = imageETag(url);
+  if (c.req.header("If-None-Match") === etag) {
+    return c.body(null, 304, { ETag: etag, "Cache-Control": "private, no-cache" });
   }
 
   const image = new URL(url);
@@ -52,7 +56,8 @@ imageProxyRoute.get("/:userId", zValidator("query", imageProxySchema), async (c)
   const contentType = response.headers.get("Content-Type");
   if (contentType) headers.set("Content-Type", contentType);
   if (response.status === 200) {
-    headers.set("ETag", url);
+    headers.set("ETag", etag);
+    headers.set("Cache-Control", "private, no-cache");
     headers.set("Access-Control-Allow-Origin", "*");
   }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
