@@ -262,3 +262,126 @@ test("queue retries when persist throws after conclude_match starts", async () =
     }
   });
 });
+
+test("queue consumer renews an expired lease before running", async () => {
+  await withTestContext(async (env) => {
+    try {
+      await api.db.insert(doubanMapping).values({
+        doubanId: 38,
+        agent: JSON.stringify({ token: "tok-38", leaseUntil: Date.now() - 1 }),
+      });
+      mock.method((await import("../src/libs/api/tmdb")).TmdbAPI.prototype, "search", async () => ({
+        results: [{ id: 27205, title: "Inception", original_title: "Inception" }],
+        total_results: 1,
+      }));
+      mock.method(
+        runner.agentMatchRuntime,
+        "runPiSession",
+        async (input: {
+          tools: Array<{ name: string; execute: (args: Record<string, unknown>) => Promise<unknown> }>;
+        }) => {
+          const search = input.tools.find((tool) => tool.name === "search_tmdb");
+          const conclude = input.tools.find((tool) => tool.name === "conclude_match");
+          const searched = (await search?.execute({ type: "movie", query: "Inception", year: "2010" })) as {
+            results: Array<{ candidateId: string }>;
+          };
+          await conclude?.execute({
+            decision: "match",
+            candidateId: searched.results[0].candidateId,
+            confidence: 0.95,
+            reason: "原名一致",
+          });
+        },
+      );
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        id: 38,
+        type: "movie",
+        title: "盗梦空间",
+        original_title: "Inception",
+        year: "2010",
+      }));
+      let acked = false;
+      await handleAgentMatchBatch(
+        {
+          messages: [
+            {
+              body: { doubanId: 38, agentToken: "tok-38" },
+              ack() {
+                acked = true;
+              },
+              retry() {},
+            },
+          ],
+        } as unknown as MessageBatch<AgentJob>,
+        env,
+        executionContext([]),
+      );
+      const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 38) });
+      assert.equal(row?.tmdbId, 27205);
+      assert.equal(acked, true);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("queue consumer suggests when a concurrent imdb appears mid-session", async () => {
+  await withTestContext(async (env) => {
+    try {
+      await api.db.insert(doubanMapping).values({
+        doubanId: 39,
+        agent: JSON.stringify({ token: "tok-39", leaseUntil: Date.now() + 60_000 }),
+      });
+      mock.method((await import("../src/libs/api/tmdb")).TmdbAPI.prototype, "search", async () => ({
+        results: [{ id: 27205, title: "Inception", original_title: "Inception" }],
+        total_results: 1,
+      }));
+      mock.method(
+        runner.agentMatchRuntime,
+        "runPiSession",
+        async (input: {
+          tools: Array<{ name: string; execute: (args: Record<string, unknown>) => Promise<unknown> }>;
+        }) => {
+          const search = input.tools.find((tool) => tool.name === "search_tmdb");
+          const conclude = input.tools.find((tool) => tool.name === "conclude_match");
+          const searched = (await search?.execute({ type: "movie", query: "Inception", year: "2010" })) as {
+            results: Array<{ candidateId: string }>;
+          };
+          await api.db.update(doubanMapping).set({ imdbId: "tt-new" }).where(eq(doubanMapping.doubanId, 39));
+          await conclude?.execute({
+            decision: "match",
+            candidateId: searched.results[0].candidateId,
+            confidence: 0.95,
+            reason: "原名一致",
+          });
+        },
+      );
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        id: 39,
+        type: "movie",
+        title: "盗梦空间",
+        original_title: "Inception",
+        year: "2010",
+      }));
+      await handleAgentMatchBatch(
+        {
+          messages: [
+            {
+              body: { doubanId: 39, agentToken: "tok-39" },
+              ack() {},
+              retry() {},
+            },
+          ],
+        } as unknown as MessageBatch<AgentJob>,
+        env,
+        executionContext([]),
+      );
+      const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 39) });
+      assert.equal(row?.tmdbId ?? null, null);
+      assert.equal(row?.imdbId, "tt-new");
+      assert.equal(JSON.parse(row?.agent ?? "{}").status, "suggested");
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});

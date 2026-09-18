@@ -123,6 +123,7 @@ test("tidyUpListFilter splits suggested auto and no_match views", () => {
     { doubanId: 1, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }), calibrated: false, tmdbId: null },
     { doubanId: 2, agent: JSON.stringify({ tmdbId: 10 }), calibrated: false, tmdbId: 10 },
     { doubanId: 3, agent: JSON.stringify({ status: "no_match" }), calibrated: false, tmdbId: null },
+    { doubanId: 4, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }), calibrated: false, tmdbId: 101 },
   ];
   assert.deepEqual(
     tidyUpListFilter(rows, "suggested").map((row) => row.doubanId),
@@ -186,5 +187,40 @@ test("confirming no_match without a candidate is rejected", async () => {
     assert.equal(response.status, 400);
     const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 48) });
     assert.equal(row?.calibrated, false);
+  });
+});
+
+test("tidyUpListFilter excludes cron-resolved suggestions from auto", () => {
+  const rows = [
+    { doubanId: 4, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }), calibrated: false, tmdbId: 101 },
+    { doubanId: 5, agent: JSON.stringify({ tmdbId: 101 }), calibrated: false, tmdbId: 101 },
+  ];
+  assert.deepEqual(
+    tidyUpListFilter(rows, "auto").map((row) => row.doubanId),
+    [5],
+  );
+  assert.deepEqual(
+    tidyUpListFilter(rows, "suggested").map((row) => row.doubanId),
+    [],
+  );
+});
+
+test("confirming an auto-written mapping keeps the official tuple", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({
+      doubanId: 48,
+      tmdbId: 101,
+      imdbId: "tt-cron",
+      traktId: 9,
+      agent: JSON.stringify({ status: "suggested", tmdbId: 10, imdbId: "tt-agent", traktId: 7 }),
+    });
+    const response = await postTidyUp(48, { intent: "confirm" });
+    assert.equal(response.status, 302);
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 48) });
+    assert.equal(row?.tmdbId, 101);
+    assert.equal(row?.imdbId, "tt-cron");
+    assert.equal(row?.traktId, 9);
+    assert.equal(row?.calibrated, true);
+    assert.equal(row?.agent ?? null, null);
   });
 });

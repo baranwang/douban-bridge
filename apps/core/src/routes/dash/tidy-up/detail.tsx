@@ -38,14 +38,14 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
   const blob = parseAgent(existing.agent);
 
   if (intent === "confirm") {
-    const tmdbId = blob?.tmdbId ?? existing.tmdbId ?? null;
+    const tmdbId = existing.tmdbId ?? blob?.tmdbId ?? null;
     if (tmdbId == null) return c.json({ error: "missing_candidate" }, 400);
     await api.db
       .update(doubanMapping)
       .set({
         tmdbId,
-        imdbId: blob?.imdbId ?? existing.imdbId ?? null,
-        traktId: blob?.traktId ?? existing.traktId ?? null,
+        imdbId: existing.tmdbId != null ? (existing.imdbId ?? null) : (blob?.imdbId ?? existing.imdbId ?? null),
+        traktId: existing.tmdbId != null ? (existing.traktId ?? null) : (blob?.traktId ?? existing.traktId ?? null),
         calibrated: true,
         agent: null,
       })

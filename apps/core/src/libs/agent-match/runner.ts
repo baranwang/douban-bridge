@@ -120,7 +120,12 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
   if (!row) return "stale";
   const blob = parseAgent(row.agent);
   const now = Date.now();
-  if (blob?.token !== job.agentToken || blob.leaseUntil == null || blob.leaseUntil <= now || row.calibrated === true) {
+  if (
+    blob?.token !== job.agentToken ||
+    row.calibrated === true ||
+    blob.status === "suggested" ||
+    blob.status === "no_match"
+  ) {
     return "stale";
   }
 
@@ -137,6 +142,9 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
   let persisted = false;
   let operationalError: Error | undefined;
   let lastStatus: "written" | "suggested" | "no_match" | "stale" = "stale";
+
+  const currentImdbId = async () =>
+    (await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, job.doubanId) }))?.imdbId ?? null;
 
   const concludeTool: AgentTool = {
     name: "conclude_match",
@@ -167,7 +175,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
             title: detail.title,
             originalTitle: detail.original_title,
             year: detail.year,
-            imdbId: row.imdbId,
+            imdbId: await currentImdbId(),
           },
         });
         lastStatus = await agentMatchWriter.applyAgentVerdict({
@@ -208,7 +216,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
           title: detail.title,
           originalTitle: detail.original_title,
           year: detail.year,
-          imdbId: row.imdbId,
+          imdbId: await currentImdbId(),
         },
       }),
       confidence: 0,

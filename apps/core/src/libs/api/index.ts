@@ -65,10 +65,12 @@ class API extends BaseAPI {
             ELSE ${doubanMapping.tmdbId}
           END`,
           imdbId: sql`CASE
+            WHEN ${doubanMapping.tmdbId} IS NULL AND excluded.tmdb_id IS NOT NULL THEN excluded.imdb_id
             WHEN ${doubanMapping.tmdbId} IS NULL THEN COALESCE(excluded.imdb_id, ${doubanMapping.imdbId})
             ELSE ${doubanMapping.imdbId}
           END`,
           traktId: sql`CASE
+            WHEN ${doubanMapping.tmdbId} IS NULL AND excluded.tmdb_id IS NOT NULL THEN excluded.trakt_id
             WHEN ${doubanMapping.tmdbId} IS NULL THEN COALESCE(excluded.trakt_id, ${doubanMapping.traktId})
             ELSE ${doubanMapping.traktId}
           END`,

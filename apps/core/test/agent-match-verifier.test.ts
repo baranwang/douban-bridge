@@ -135,3 +135,18 @@ test("percentage confidence cannot auto-write", () => {
   assert.equal(verdict.tier, "none");
   assert.equal(verdict.code, "invalid_confidence");
 });
+
+test("row imdb without candidate imdb cannot auto-write", () => {
+  const registry = new CandidateRegistry();
+  const candidate = registry.register({ type: "movie", tmdbId: 27205, title: "Inception", year: "2010" });
+  const verdict = verifyConcludeMatch({
+    decision: "match",
+    candidateId: candidate.candidateId,
+    confidence: 0.95,
+    reason: "没查外部 ID",
+    registry,
+    douban: { ...douban, imdbId: "tt1375666" },
+  });
+  assert.equal(verdict.tier, "suggest");
+  assert.equal(verdict.code, "missing_imdb");
+});

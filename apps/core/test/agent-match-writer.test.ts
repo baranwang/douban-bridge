@@ -104,3 +104,40 @@ test("medium confidence stores a suggestion without official ids", async () => {
     assert.equal(row?.tmdbId ?? null, null);
   });
 });
+
+test("auto write is stale when a concurrent imdb conflicts", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({
+      doubanId: 4,
+      imdbId: "tt-new",
+      agent: runningAgent(),
+    });
+    const registry = new CandidateRegistry();
+    const candidate = registry.register({
+      type: "movie",
+      tmdbId: 10,
+      title: "A",
+      originalTitle: "A",
+      imdbId: "tt-old",
+    });
+    const verdict = verifyConcludeMatch({
+      decision: "match",
+      candidateId: candidate.candidateId,
+      confidence: 0.95,
+      reason: "ok",
+      registry,
+      douban: { type: "movie", title: "A", imdbId: "tt-old" },
+    });
+    const status = await applyAgentVerdict({
+      doubanId: 4,
+      agentToken: "tok",
+      verdict,
+      confidence: 0.95,
+      reason: "ok",
+    });
+    assert.equal(status, "stale");
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 4) });
+    assert.equal(row?.tmdbId ?? null, null);
+    assert.equal(row?.imdbId, "tt-new");
+  });
+});

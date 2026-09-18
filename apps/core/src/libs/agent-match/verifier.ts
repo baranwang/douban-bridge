@@ -87,6 +87,9 @@ export function verifyConcludeMatch(input: {
   if (imdbConflict) {
     return { tier: "suggest", code: "imdb_conflict", candidate, reason };
   }
+  if (input.douban.imdbId && !candidate.imdbId) {
+    return { tier: "suggest", code: "missing_imdb", candidate, reason };
+  }
   if (input.confidence >= AGENT_AUTO_WRITE_MIN_CONFIDENCE) {
     if (!titlesCompatible(input.douban, candidate)) {
       return { tier: "suggest", code: "title_mismatch", candidate, reason };

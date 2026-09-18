@@ -20,7 +20,16 @@ export function tidyUpListFilter<
   if (view === "suggested")
     return rows.filter((row) => parseAgent(row.agent)?.status === "suggested" && row.tmdbId == null);
   if (view === "auto")
-    return rows.filter((row) => row.tmdbId != null && row.calibrated !== true && parseAgent(row.agent) != null);
+    return rows.filter((row) => {
+      const blob = parseAgent(row.agent);
+      return (
+        row.tmdbId != null &&
+        row.calibrated !== true &&
+        blob != null &&
+        blob.status == null &&
+        blob.tmdbId === row.tmdbId
+      );
+    });
   return rows.filter((row) => parseAgent(row.agent)?.status === "no_match");
 }
 
@@ -42,7 +51,8 @@ tidyUpRoute.get("/", async (c) => {
         ? and(
             isNotNull(doubanMapping.tmdbId),
             or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
-            isNotNull(doubanMapping.agent),
+            sql`json_extract(${doubanMapping.agent}, '$.status') IS NULL`,
+            sql`json_extract(${doubanMapping.agent}, '$.tmdbId') = ${doubanMapping.tmdbId}`,
           )
         : sql`json_extract(${doubanMapping.agent}, '$.status') = 'no_match'`;
   const data = await api.db.select().from(doubanMapping).where(viewWhere);
