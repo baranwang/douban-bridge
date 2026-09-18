@@ -14,7 +14,7 @@ import { agentMatchWriter } from "./writer";
 export type { AgentMatchJob } from "./types";
 
 export const agentMatchRuntime = {
-  async runPiSession(input: { system: string; user: string; tools: AgentTool[] }): Promise<void> {
+  async runPiSession(input: { system: string; user: string; tools: AgentTool[]; sessionId: string }): Promise<void> {
     const [{ Agent }, { createModels, createProvider }, { openAICompletionsApi }, { Type }] = await Promise.all([
       import("@earendil-works/pi-agent-core"),
       import("@earendil-works/pi-ai"),
@@ -52,6 +52,7 @@ export const agentMatchRuntime = {
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
             contextWindow: 128000,
             maxTokens: 4096,
+            compat: { sendSessionAffinityHeaders: true },
           },
         ],
         api: openAICompletionsApi(),
@@ -63,6 +64,7 @@ export const agentMatchRuntime = {
     }
     const agent = new Agent({
       streamFn: models.streamSimple.bind(models),
+      sessionId: input.sessionId,
       initialState: {
         systemPrompt: input.system,
         model,
@@ -104,7 +106,12 @@ export const agentMatchRuntime = {
   },
 };
 
-export async function runPiSession(input: { system: string; user: string; tools: AgentTool[] }): Promise<void> {
+export async function runPiSession(input: {
+  system: string;
+  user: string;
+  tools: AgentTool[];
+  sessionId: string;
+}): Promise<void> {
   return agentMatchRuntime.runPiSession(input);
 }
 
@@ -181,6 +188,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
     system: AGENT_MATCH_SYSTEM_PROMPT,
     user: `请匹配豆瓣条目 ${job.doubanId}。标题：${detail.title}。年份：${detail.year ?? "未知"}。类型：${detail.type}。`,
     tools: [...tools, concludeTool],
+    sessionId: `douban-match:${job.doubanId}`,
   });
   if (operationalError) throw operationalError;
 
