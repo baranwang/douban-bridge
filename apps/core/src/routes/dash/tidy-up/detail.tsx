@@ -38,15 +38,14 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
   const blob = parseAgent(existing.agent);
 
   if (intent === "confirm") {
-    const tmdbId = existing.tmdbId ?? blob?.tmdbId ?? null;
-    const imdbId = existing.imdbId ?? blob?.imdbId ?? null;
-    const traktId = existing.traktId ?? blob?.traktId ?? null;
+    const tmdbId = blob?.tmdbId ?? existing.tmdbId ?? null;
+    if (tmdbId == null) return c.json({ error: "missing_candidate" }, 400);
     await api.db
       .update(doubanMapping)
       .set({
         tmdbId,
-        imdbId,
-        traktId,
+        imdbId: blob?.imdbId ?? existing.imdbId ?? null,
+        traktId: blob?.traktId ?? existing.traktId ?? null,
         calibrated: true,
         agent: null,
       })
@@ -55,12 +54,14 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
   }
 
   if (intent === "reject") {
+    const wroteOfficial =
+      existing.tmdbId != null && blob?.tmdbId != null && existing.tmdbId === blob.tmdbId && blob.status !== "suggested";
     await api.db
       .update(doubanMapping)
       .set({
-        tmdbId: existing.tmdbId != null && blob ? null : existing.tmdbId,
-        imdbId: existing.tmdbId != null && blob ? null : existing.imdbId,
-        traktId: existing.tmdbId != null && blob ? null : existing.traktId,
+        tmdbId: wroteOfficial ? null : existing.tmdbId,
+        imdbId: wroteOfficial ? null : existing.imdbId,
+        traktId: wroteOfficial ? null : existing.traktId,
         agent: serializeAgent({
           status: "no_match",
           confidence: blob?.confidence,
@@ -481,7 +482,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                       id="tmdbId"
                       name="tmdbId"
                       type="number"
-                      defaultValue={idMapping?.tmdbId ?? ""}
+                      defaultValue={idMapping?.tmdbId ?? parseAgent(idMapping?.agent)?.tmdbId ?? ""}
                       placeholder="请输入 TMDB ID"
                     />
                   </div>
@@ -493,7 +494,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                       id="imdbId"
                       name="imdbId"
                       type="text"
-                      defaultValue={idMapping?.imdbId ?? ""}
+                      defaultValue={idMapping?.imdbId ?? parseAgent(idMapping?.agent)?.imdbId ?? ""}
                       placeholder="请输入 IMDb ID (如 tt1234567)"
                     />
                   </div>
@@ -505,7 +506,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                       id="traktId"
                       name="traktId"
                       type="number"
-                      defaultValue={idMapping?.traktId ?? ""}
+                      defaultValue={idMapping?.traktId ?? parseAgent(idMapping?.agent)?.traktId ?? ""}
                       placeholder="请输入 Trakt ID"
                     />
                   </div>
@@ -526,6 +527,9 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                   <div className="rounded-md border bg-muted/40 p-3 text-sm">
                     <p>Agent 置信度：{parseAgent(idMapping.agent)?.confidence ?? "-"}</p>
                     <p>原因：{parseAgent(idMapping.agent)?.reason ?? "-"}</p>
+                    <p>建议 TMDB：{parseAgent(idMapping.agent)?.tmdbId ?? "-"}</p>
+                    <p>建议 IMDb：{parseAgent(idMapping.agent)?.imdbId ?? "-"}</p>
+                    <p>建议 Trakt：{parseAgent(idMapping.agent)?.traktId ?? "-"}</p>
                   </div>
                 ) : null}
                 <CardFooter className="justify-end gap-3">

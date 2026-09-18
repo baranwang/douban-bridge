@@ -54,6 +54,9 @@ export function verifyConcludeMatch(input: {
   if (input.decision === "none") {
     return { tier: "none", code: "none", reason };
   }
+  if (!Number.isFinite(input.confidence) || input.confidence < 0 || input.confidence > 1) {
+    return { tier: "none", code: "invalid_confidence", reason };
+  }
   if (input.confidence < AGENT_SUGGEST_MIN_CONFIDENCE) {
     return { tier: "none", code: "low_confidence", reason };
   }

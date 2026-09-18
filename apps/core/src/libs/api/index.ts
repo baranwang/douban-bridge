@@ -64,8 +64,14 @@ class API extends BaseAPI {
             WHEN ${doubanMapping.tmdbId} IS NULL THEN excluded.tmdb_id
             ELSE ${doubanMapping.tmdbId}
           END`,
-          imdbId: sql`COALESCE(excluded.imdb_id, ${doubanMapping.imdbId})`,
-          traktId: sql`COALESCE(excluded.trakt_id, ${doubanMapping.traktId})`,
+          imdbId: sql`CASE
+            WHEN ${doubanMapping.tmdbId} IS NULL THEN COALESCE(excluded.imdb_id, ${doubanMapping.imdbId})
+            ELSE ${doubanMapping.imdbId}
+          END`,
+          traktId: sql`CASE
+            WHEN ${doubanMapping.tmdbId} IS NULL THEN COALESCE(excluded.trakt_id, ${doubanMapping.traktId})
+            ELSE ${doubanMapping.traktId}
+          END`,
         },
         setWhere: or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
       });

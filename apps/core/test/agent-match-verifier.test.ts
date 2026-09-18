@@ -114,3 +114,24 @@ test("missing year can still auto-write when titles match", () => {
   });
   assert.equal(verdict.tier, "auto");
 });
+
+test("percentage confidence cannot auto-write", () => {
+  const registry = new CandidateRegistry();
+  const candidate = registry.register({
+    type: "movie",
+    tmdbId: 27205,
+    title: "Inception",
+    originalTitle: "Inception",
+    year: "2010",
+  });
+  const verdict = verifyConcludeMatch({
+    decision: "match",
+    candidateId: candidate.candidateId,
+    confidence: 95,
+    reason: "百分数",
+    registry,
+    douban,
+  });
+  assert.equal(verdict.tier, "none");
+  assert.equal(verdict.code, "invalid_confidence");
+});

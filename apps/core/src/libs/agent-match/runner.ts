@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
 import { getContext } from "@/libs/middleware";
@@ -124,10 +124,12 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
     return "stale";
   }
 
-  await api.db
+  const extended = await api.db
     .update(doubanMapping)
     .set({ agent: serializeAgent({ ...blob, token: job.agentToken, leaseUntil: now + AGENT_LEASE_MS }) })
-    .where(eq(doubanMapping.doubanId, job.doubanId));
+    .where(and(eq(doubanMapping.doubanId, job.doubanId), eq(doubanMapping.agent, row.agent)))
+    .returning({ doubanId: doubanMapping.doubanId });
+  if (extended.length === 0) return "stale";
 
   const detail = await api.doubanAPI.getSubjectDetail(job.doubanId);
   const registry = new CandidateRegistry();

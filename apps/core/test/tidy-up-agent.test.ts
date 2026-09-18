@@ -5,9 +5,9 @@ import { doubanMapping } from "../src/db";
 import { CandidateRegistry } from "../src/libs/agent-match/candidates";
 import { verifyConcludeMatch } from "../src/libs/agent-match/verifier";
 import { applyAgentVerdict } from "../src/libs/agent-match/writer";
+import { api } from "../src/libs/api";
 import { tidyUpListFilter } from "../src/routes/dash/tidy-up";
 import { tidyUpDetailRoute } from "../src/routes/dash/tidy-up/detail";
-import { api } from "../src/libs/api";
 import { withTestContext } from "./context";
 
 async function postTidyUp(doubanId: number, body: Record<string, string>) {
@@ -136,4 +136,55 @@ test("tidyUpListFilter splits suggested auto and no_match views", () => {
     tidyUpListFilter(rows, "no_match").map((row) => row.doubanId),
     [3],
   );
+});
+
+test("confirming an IMDb-conflict suggestion uses the candidate tuple", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({
+      doubanId: 46,
+      imdbId: "tt-old",
+      agent: JSON.stringify({
+        status: "suggested",
+        tmdbId: 10,
+        imdbId: "tt-new",
+        traktId: 7,
+      }),
+    });
+    const response = await postTidyUp(46, { intent: "confirm" });
+    assert.equal(response.status, 302);
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 46) });
+    assert.equal(row?.tmdbId, 10);
+    assert.equal(row?.imdbId, "tt-new");
+    assert.equal(row?.traktId, 7);
+  });
+});
+
+test("rejecting a suggestion does not clear deterministic ids", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({
+      doubanId: 47,
+      tmdbId: 101,
+      imdbId: "tt-cron",
+      agent: JSON.stringify({ status: "suggested", tmdbId: 10, imdbId: "tt-agent" }),
+    });
+    const response = await postTidyUp(47, { intent: "reject" });
+    assert.equal(response.status, 302);
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 47) });
+    assert.equal(row?.tmdbId, 101);
+    assert.equal(row?.imdbId, "tt-cron");
+    assert.equal(JSON.parse(row?.agent ?? "{}").status, "no_match");
+  });
+});
+
+test("confirming no_match without a candidate is rejected", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values({
+      doubanId: 48,
+      agent: JSON.stringify({ status: "no_match", reason: "none" }),
+    });
+    const response = await postTidyUp(48, { intent: "confirm" });
+    assert.equal(response.status, 400);
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 48) });
+    assert.equal(row?.calibrated, false);
+  });
 });

@@ -2,6 +2,7 @@ import { Badge } from "@douban-bridge/ui/components/badge";
 import { Button } from "@douban-bridge/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@douban-bridge/ui/components/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@douban-bridge/ui/components/table";
+import { and, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { type Env, Hono } from "hono";
 import { AlertTriangle, CheckCircle, Hash, Pencil } from "lucide-react";
 import { doubanMapping } from "@/db";
@@ -34,7 +35,17 @@ tidyUpRoute.route("/", tidyUpDetailRoute);
 tidyUpRoute.get("/", async (c) => {
   const viewParam = c.req.query("view");
   const view: TidyUpView = viewParam === "auto" || viewParam === "no_match" ? viewParam : "suggested";
-  const data = tidyUpListFilter(await api.db.select().from(doubanMapping), view);
+  const viewWhere =
+    view === "suggested"
+      ? and(isNull(doubanMapping.tmdbId), sql`json_extract(${doubanMapping.agent}, '$.status') = 'suggested'`)
+      : view === "auto"
+        ? and(
+            isNotNull(doubanMapping.tmdbId),
+            or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
+            isNotNull(doubanMapping.agent),
+          )
+        : sql`json_extract(${doubanMapping.agent}, '$.status') = 'no_match'`;
+  const data = await api.db.select().from(doubanMapping).where(viewWhere);
 
   const withImdbCount = data.filter((item) => item.imdbId).length;
   const withTraktCount = data.filter((item) => item.traktId).length;

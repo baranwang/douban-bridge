@@ -11,7 +11,7 @@ export const AGENT_MATCH_SYSTEM_PROMPT = `把当前豆瓣条目匹配到 TMDB mo
 conclude_match：
 - 同一部作品：decision=match，candidateId 必须来自本轮工具结果。
 - 没把握、多部都像、翻拍分不清：decision=none。
-- confidence：>=0.9 才可能直写；0.6–0.9 只进人工建议；<0.6 当作 none。
+- confidence 用 0 到 1 打分。
 - reason 用一两句中文写依据（标题/年份/IMDb），不要写工具过程。
 
-禁止：封面、任意 URL（除 exa_get_contents）、Trakt 搜索、把季/集 ID 当成剧、为凑 confidence 编理由。`;
+禁止：把季/集 ID 当成剧、为凑分数编理由。`;

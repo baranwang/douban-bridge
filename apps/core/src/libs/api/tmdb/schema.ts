@@ -14,11 +14,15 @@ export const tmdbSearchResultItemSchema = z
       ...tmdbSearchResultItemBaseSchema.shape,
       title: z.string().nullish(),
       original_title: z.string().nullish(),
+      release_date: z.string().nullish(),
+      first_air_date: z.string().nullish(),
     }),
     z.object({
       ...tmdbSearchResultItemBaseSchema.shape,
       name: z.string().nullish(),
       original_name: z.string().nullish(),
+      release_date: z.string().nullish(),
+      first_air_date: z.string().nullish(),
     }),
   ])
   .transform((v) => ({

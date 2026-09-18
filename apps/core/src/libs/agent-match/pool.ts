@@ -42,8 +42,12 @@ export async function recoverExpiredClaims(now = Date.now()): Promise<number> {
           }
         : null,
     );
-    await api.db.update(doubanMapping).set({ agent: next }).where(eq(doubanMapping.doubanId, row.doubanId));
-    recovered += 1;
+    const updated = await api.db
+      .update(doubanMapping)
+      .set({ agent: next })
+      .where(and(eq(doubanMapping.doubanId, row.doubanId), eq(doubanMapping.agent, row.agent)))
+      .returning({ doubanId: doubanMapping.doubanId });
+    if (updated.length > 0) recovered += 1;
   }
   return recovered;
 }
