@@ -82,6 +82,9 @@ export function verifyConcludeMatch(input: {
     return { tier: "none", code: "year_conflict", candidate, reason };
   }
 
+  if (input.confidence >= AGENT_AUTO_WRITE_MIN_CONFIDENCE) {
+    return { tier: "auto", code: "auto", candidate, reason };
+  }
   const bothImdb = input.douban.imdbId && candidate.imdbId;
   const imdbConflict = Boolean(bothImdb && input.douban.imdbId !== candidate.imdbId);
   if (imdbConflict) {
@@ -90,11 +93,8 @@ export function verifyConcludeMatch(input: {
   if (input.douban.imdbId && !candidate.imdbId) {
     return { tier: "suggest", code: "missing_imdb", candidate, reason };
   }
-  if (input.confidence >= AGENT_AUTO_WRITE_MIN_CONFIDENCE) {
-    if (!titlesCompatible(input.douban, candidate)) {
-      return { tier: "suggest", code: "title_mismatch", candidate, reason };
-    }
-    return { tier: "auto", code: "auto", candidate, reason };
+  if (!titlesCompatible(input.douban, candidate)) {
+    return { tier: "suggest", code: "title_mismatch", candidate, reason };
   }
   return { tier: "suggest", code: "suggest", candidate, reason };
 }

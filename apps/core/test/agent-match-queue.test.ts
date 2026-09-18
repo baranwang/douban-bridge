@@ -435,7 +435,7 @@ test("queue consumer renews an expired lease before running", async () => {
   });
 });
 
-test("queue consumer suggests when a concurrent imdb appears mid-session", async () => {
+test("queue consumer writes when a concurrent imdb appears mid-session", async () => {
   await withTestContext(async (env) => {
     try {
       await api.db.insert(doubanMapping).values({
@@ -487,9 +487,9 @@ test("queue consumer suggests when a concurrent imdb appears mid-session", async
         executionContext([]),
       );
       const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 39) });
-      assert.equal(row?.tmdbId ?? null, null);
+      assert.equal(row?.tmdbId, 27205);
       assert.equal(row?.imdbId, "tt-new");
-      assert.equal(JSON.parse(row?.agent ?? "{}").status, "suggested");
+      assert.equal(JSON.parse(row?.agent ?? "{}").status, undefined);
     } finally {
       mock.restoreAll();
     }
