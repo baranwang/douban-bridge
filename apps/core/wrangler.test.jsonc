@@ -27,7 +27,7 @@
     "DASH_ORIGIN": "https://douban-bridge.baran.wang",
     "GITHUB_CLIENT_ID": "stremio-gh-id",
     "AGENT_MATCH_MODEL": "test-model",
-    "AGENT_MATCH_GATEWAY_ID": "default",
+    "AGENT_MATCH_GATEWAY_ID": "gateway",
     "AGENT_MATCH_GATEWAY_PROVIDER": "carpool"
   }
 }
