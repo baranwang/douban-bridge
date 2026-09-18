@@ -30,7 +30,7 @@ export function withAgentMatchStreamOptions<T extends { sessionId?: string; head
   return {
     ...options,
     sessionId,
-    headers: { ...baseHeaders, "x-grok-conv-id": sessionId },
+    headers: { ...baseHeaders, session_id: sessionId },
   };
 }
 
@@ -124,11 +124,11 @@ export const agentMatchRuntime = {
     sessionId: string;
     doubanId?: number;
   }): Promise<void> {
-    const [{ Agent }, { Type, createModels, createProvider }, { openAICompletionsApi }, { CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL, createAiBindingFetch }] =
+    const [{ Agent }, { Type, createModels, createProvider }, { openAIResponsesApi }, { CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL, createAiBindingFetch }] =
       await Promise.all([
         import("@earendil-works/pi-agent-core"),
         import("@earendil-works/pi-ai"),
-        import("@earendil-works/pi-ai/api/openai-completions.lazy"),
+        import("@earendil-works/pi-ai/api/openai-responses.lazy"),
         import("@earendil-works/pi-ai/api/cloudflare-ai-binding"),
       ]);
     const env = getContext().env;
@@ -138,7 +138,7 @@ export const agentMatchRuntime = {
     if (!modelId || !gatewayId || !providerSlug) {
       throw new Error("AGENT_MATCH_MODEL, AGENT_MATCH_GATEWAY_ID, and AGENT_MATCH_GATEWAY_PROVIDER are required");
     }
-    const baseUrl = `https://workers-binding.ai/ai-gateway/gateways/${gatewayId}/custom-${providerSlug}/v1`;
+    const baseUrl = `https://workers-binding.ai/ai-gateway/gateways/${gatewayId}/custom-${providerSlug}`;
     const aiFetch = createAiBindingFetch(env.AI);
     const streamHeaders = {
       "cf-aig-authorization": `Bearer ${CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL}`,
@@ -170,7 +170,7 @@ export const agentMatchRuntime = {
           {
             id: modelId,
             name: modelId,
-            api: "openai-completions",
+            api: "openai-responses",
             provider: "agent-match",
             baseUrl,
             reasoning: false,
@@ -178,10 +178,9 @@ export const agentMatchRuntime = {
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
             contextWindow: 128000,
             maxTokens: 4096,
-            compat: { sendSessionAffinityHeaders: true },
           },
         ],
-        api: openAICompletionsApi(),
+        api: openAIResponsesApi(),
       }),
     );
     const model = models.getModel("agent-match", modelId);

@@ -9,14 +9,14 @@ import * as runner from "../src/libs/agent-match/runner";
 import { api } from "../src/libs/api";
 import { withTestContext } from "./context";
 
-test("withAgentMatchStreamOptions forwards sessionId as x-grok-conv-id", () => {
+test("withAgentMatchStreamOptions forwards sessionId for aio-proxy Responses", () => {
   const options = runner.withAgentMatchStreamOptions(
     { temperature: 0, headers: { Authorization: null } },
     "douban-match:37134256",
     { "cf-aig-authorization": "Bearer cloudflare-gateway-binding" },
   );
   assert.equal(options.sessionId, "douban-match:37134256");
-  assert.equal(options.headers["x-grok-conv-id"], "douban-match:37134256");
+  assert.equal(options.headers.session_id, "douban-match:37134256");
   assert.equal(options.headers["cf-aig-authorization"], "Bearer cloudflare-gateway-binding");
 });
 
