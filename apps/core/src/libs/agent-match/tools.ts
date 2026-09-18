@@ -3,6 +3,7 @@ import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
 import { ImdbAPI } from "@/libs/api/imdb";
 import { TmdbAPI } from "@/libs/api/tmdb";
+import { getContext } from "@/libs/middleware";
 import { type CandidateRegistry, makeCandidateId } from "./candidates";
 import type { CanonicalCandidate } from "./types";
 
@@ -183,6 +184,62 @@ export function createAgentMatchTools(
       async execute(args) {
         const resp = await imdbAPI.search(String(args.imdbId));
         return { seriesImdbId: resp.top?.series?.series?.id ?? null };
+      },
+    },
+    {
+      name: "exa_search",
+      description: "Search the web with Exa for extra evidence. Does not register TMDB candidates.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+        },
+        required: ["query"],
+      },
+      async execute(args) {
+        const { default: Exa } = await import("exa-js");
+        const apiKey = (getContext().env as CloudflareBindings & { EXA_API_KEY?: string }).EXA_API_KEY;
+        if (!apiKey) throw new Error("EXA_API_KEY is required");
+        const exa = new Exa(apiKey);
+        const resp = await exa.search(String(args.query ?? ""), { numResults: 5 });
+        return {
+          results: (resp.results ?? []).slice(0, 5).map((item) => ({
+            title: item.title ?? null,
+            url: item.url,
+            publishedDate: item.publishedDate ?? null,
+          })),
+        };
+      },
+    },
+    {
+      name: "exa_get_contents",
+      description: "Fetch trimmed page text from URLs returned by exa_search.",
+      parameters: {
+        type: "object",
+        properties: {
+          urls: { type: "string" },
+        },
+        required: ["urls"],
+      },
+      async execute(args) {
+        const { default: Exa } = await import("exa-js");
+        const apiKey = (getContext().env as CloudflareBindings & { EXA_API_KEY?: string }).EXA_API_KEY;
+        if (!apiKey) throw new Error("EXA_API_KEY is required");
+        const raw = args.urls;
+        const urls = (Array.isArray(raw) ? raw.map(String) : String(raw ?? "").split(/[\s,]+/))
+          .map((url) => url.trim())
+          .filter(Boolean)
+          .slice(0, 3);
+        if (urls.length === 0) return { results: [] };
+        const exa = new Exa(apiKey);
+        const resp = await exa.getContents(urls, { text: { maxCharacters: 1500 } });
+        return {
+          results: (resp.results ?? []).map((item) => ({
+            title: item.title ?? null,
+            url: item.url,
+            text: item.text?.slice(0, 1500) ?? null,
+          })),
+        };
       },
     },
   ];

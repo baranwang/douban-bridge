@@ -59,3 +59,41 @@ test("lift_imdb_series throws infrastructure failures", async () => {
     }
   });
 });
+
+test("exa_search returns trimmed titles and urls", async () => {
+  await withTestContext(async (env) => {
+    try {
+      (env as CloudflareBindings & { EXA_API_KEY?: string }).EXA_API_KEY = "test-exa";
+      const { default: Exa } = await import("exa-js");
+      mock.method(Exa.prototype, "search", async () => ({
+        results: [{ title: "Inception", url: "https://example.com/inception", publishedDate: "2010-01-01" }],
+      }));
+      const tools = createAgentMatchTools(new CandidateRegistry());
+      const search = tools.find((t) => t.name === "exa_search");
+      assert.ok(search);
+      const out = await search.execute({ query: "盗梦空间 2010" });
+      assert.equal(out.results[0].url, "https://example.com/inception");
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("exa_get_contents trims page text", async () => {
+  await withTestContext(async (env) => {
+    try {
+      (env as CloudflareBindings & { EXA_API_KEY?: string }).EXA_API_KEY = "test-exa";
+      const { default: Exa } = await import("exa-js");
+      mock.method(Exa.prototype, "getContents", async () => ({
+        results: [{ title: "Inception", url: "https://example.com/inception", text: "x".repeat(2000) }],
+      }));
+      const tools = createAgentMatchTools(new CandidateRegistry());
+      const getContents = tools.find((t) => t.name === "exa_get_contents");
+      assert.ok(getContents);
+      const out = await getContents.execute({ urls: "https://example.com/inception" });
+      assert.equal(out.results[0].text.length, 1500);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});

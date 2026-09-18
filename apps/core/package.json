@@ -26,6 +26,7 @@
     "cheerio": "^1.2.0",
     "drizzle-orm": "^0.45.2",
     "es-toolkit": "^1.52.0",
+    "exa-js": "^2.21.0",
     "hono": "^4.13.7",
     "liquidjs": "^10.29.0",
     "lucide-react": "^1.45.0",
