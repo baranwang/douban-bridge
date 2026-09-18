@@ -37,6 +37,68 @@ export function assistantMessageText(message: { role?: string; content?: unknown
   return text || undefined;
 }
 
+type PiLogEvent = {
+  type: string;
+  toolCallId?: string;
+  toolName?: string;
+  args?: unknown;
+  result?: unknown;
+  isError?: boolean;
+  message?: {
+    role?: string;
+    content?: unknown;
+    stopReason?: string;
+    rawStopReason?: string;
+    errorMessage?: string;
+  };
+  toolResults?: Array<{ toolName?: string; isError?: boolean; content?: unknown }>;
+};
+
+function toolCallParts(content: unknown): Array<{ id?: unknown; name?: unknown; arguments?: unknown }> {
+  if (!Array.isArray(content)) return [];
+  return content.flatMap((part) =>
+    part && typeof part === "object" && (part as { type?: string }).type === "toolCall"
+      ? [part as { id?: unknown; name?: unknown; arguments?: unknown }]
+      : [],
+  );
+}
+
+export function logPiAgentEvent(doubanId: number, event: PiLogEvent): void {
+  if (event.type === "tool_execution_start") {
+    logAgentMatch(doubanId, "pi_tool_start", {
+      tool: event.toolName,
+      toolCallId: event.toolCallId,
+      args: compact(event.args),
+    });
+    return;
+  }
+  if (event.type === "tool_execution_end") {
+    logAgentMatch(doubanId, "pi_tool_end", {
+      tool: event.toolName,
+      toolCallId: event.toolCallId,
+      isError: event.isError ?? false,
+      result: compact(event.result),
+    });
+    return;
+  }
+  if (event.type !== "turn_end") return;
+  logAgentMatch(doubanId, "turn_end", {
+    stopReason: event.message?.stopReason ?? null,
+    rawStopReason: event.message?.rawStopReason ?? null,
+    errorMessage: event.message?.errorMessage ?? null,
+    toolCalls: toolCallParts(event.message?.content).map((part) => ({
+      id: part.id,
+      name: part.name,
+      args: compact(part.arguments),
+    })),
+    toolResults: (event.toolResults ?? []).map((result) => ({
+      tool: result.toolName,
+      isError: result.isError ?? false,
+      content: compact(result.content),
+    })),
+  });
+}
+
 function logAgentMatch(doubanId: number, event: string, extra: Record<string, unknown> = {}): void {
   console.info("agent-match", { doubanId, event, ...extra });
 }
@@ -138,6 +200,7 @@ export const agentMatchRuntime = {
       },
     });
     agent.subscribe((event) => {
+      logPiAgentEvent(doubanId, event);
       if (event.type === "message_end") {
         const text = assistantMessageText(event.message);
         if (text) logAgentMatch(doubanId, "assistant", { text: compact(text) });

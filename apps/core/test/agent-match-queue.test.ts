@@ -21,6 +21,62 @@ test("assistantMessageText keeps only assistant text", () => {
   );
 });
 
+test("logPiAgentEvent records validation failures that never reach wrapTool", () => {
+  const logs: unknown[][] = [];
+  const originalInfo = console.info;
+  console.info = (...args: unknown[]) => {
+    logs.push(args);
+  };
+  try {
+    runner.logPiAgentEvent(33459999, {
+      type: "tool_execution_start",
+      toolCallId: "call-1",
+      toolName: "conclude_match",
+      args: { type: "show", query: "Magnolia Awards" },
+    });
+    runner.logPiAgentEvent(33459999, {
+      type: "tool_execution_end",
+      toolCallId: "call-1",
+      toolName: "conclude_match",
+      isError: true,
+      result: { content: [{ type: "text", text: 'Validation failed for tool "conclude_match"' }] },
+    });
+    runner.logPiAgentEvent(33459999, {
+      type: "turn_end",
+      message: {
+        role: "assistant",
+        stopReason: "stop",
+        content: [
+          {
+            type: "toolCall",
+            id: "call-1",
+            name: "conclude_match",
+            arguments: { type: "show", query: "Magnolia Awards" },
+          },
+        ],
+      },
+      toolResults: [
+        {
+          toolName: "conclude_match",
+          isError: true,
+          content: [{ type: "text", text: 'Validation failed for tool "conclude_match"' }],
+        },
+      ],
+    });
+    const events = logs
+      .filter((args) => args[0] === "agent-match" && typeof args[1] === "object" && args[1] !== null)
+      .map((args) => args[1] as { event: string; tool?: string; isError?: boolean; toolCalls?: Array<{ name?: string }> });
+    assert.equal(events[0]?.event, "pi_tool_start");
+    assert.equal(events[0]?.tool, "conclude_match");
+    assert.equal(events[1]?.event, "pi_tool_end");
+    assert.equal(events[1]?.isError, true);
+    assert.equal(events[2]?.event, "turn_end");
+    assert.equal(events[2]?.toolCalls?.[0]?.name, "conclude_match");
+  } finally {
+    console.info = originalInfo;
+  }
+});
+
 type AgentJob = {
   doubanId: number;
   agentToken: string;
