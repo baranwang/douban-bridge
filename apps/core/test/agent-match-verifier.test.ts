@@ -79,3 +79,38 @@ test("truncateReason caps length", () => {
   const reason = truncateReason("x".repeat(500));
   assert.equal(reason.length, AGENT_REASON_MAX_CHARS);
 });
+
+test("wrong title cannot auto-write even at high confidence", () => {
+  const registry = new CandidateRegistry();
+  const candidate = registry.register({
+    type: "movie",
+    tmdbId: 1,
+    title: "Unrelated Film",
+    originalTitle: "Unrelated Film",
+    year: "2010",
+  });
+  const verdict = verifyConcludeMatch({
+    decision: "match",
+    candidateId: candidate.candidateId,
+    confidence: 0.99,
+    reason: "瞎猜",
+    registry,
+    douban,
+  });
+  assert.equal(verdict.tier, "suggest");
+  assert.equal(verdict.code, "title_mismatch");
+});
+
+test("missing year can still auto-write when titles match", () => {
+  const registry = new CandidateRegistry();
+  const candidate = registry.register({ type: "movie", tmdbId: 27205, title: "Inception", originalTitle: "Inception" });
+  const verdict = verifyConcludeMatch({
+    decision: "match",
+    candidateId: candidate.candidateId,
+    confidence: 0.95,
+    reason: "原名一致",
+    registry,
+    douban: { ...douban, year: null },
+  });
+  assert.equal(verdict.tier, "auto");
+});

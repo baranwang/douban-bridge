@@ -11,9 +11,7 @@ import { withTestContext } from "./context";
 
 type AgentJob = {
   doubanId: number;
-  mappingRevision: number;
   agentToken: string;
-  agentInputHash: string;
 };
 
 function mockQueue(env: CloudflareBindings, sent: AgentJob[]) {
@@ -67,7 +65,9 @@ test("suggested rows are not enqueued", async () => {
     try {
       const sent: AgentJob[] = [];
       mockQueue(env, sent);
-      await api.db.insert(doubanMapping).values({ doubanId: 34, agentState: "suggested" });
+      await api.db
+        .insert(doubanMapping)
+        .values({ doubanId: 34, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }) });
       mock.method(api.doubanAPI, "getSubjectDetail", async () => ({ type: "movie", title: "建议片" }));
       mock.method(api.traktAPI, "search", async () => [
         { type: "movie" as const, movie: { ids: { trakt: 1, tmdb: 1 } } },
@@ -88,27 +88,31 @@ test("queue consumer writes high-confidence matches and acks", async () => {
     try {
       await api.db.insert(doubanMapping).values({
         doubanId: 35,
-        mappingRevision: 1,
-        agentState: "running",
-        agentToken: "tok-35",
+        agent: JSON.stringify({ token: "tok-35", leaseUntil: Date.now() + 60_000 }),
       });
       mock.method((await import("../src/libs/api/tmdb")).TmdbAPI.prototype, "search", async () => ({
         results: [{ id: 27205, title: "Inception", original_title: "Inception" }],
         total_results: 1,
       }));
-      mock.method(runner.agentMatchRuntime, "runPiSession", async (input: { tools: Array<{ name: string; execute: (args: Record<string, unknown>) => Promise<unknown> }> }) => {
-        const search = input.tools.find((tool) => tool.name === "search_tmdb");
-        const conclude = input.tools.find((tool) => tool.name === "conclude_match");
-        const searched = (await search?.execute({ type: "movie", query: "Inception", year: "2010" })) as {
-          results: Array<{ candidateId: string }>;
-        };
-        await conclude?.execute({
-          decision: "match",
-          candidateId: searched.results[0].candidateId,
-          confidence: 0.95,
-          reason: "原名一致",
-        });
-      });
+      mock.method(
+        runner.agentMatchRuntime,
+        "runPiSession",
+        async (input: {
+          tools: Array<{ name: string; execute: (args: Record<string, unknown>) => Promise<unknown> }>;
+        }) => {
+          const search = input.tools.find((tool) => tool.name === "search_tmdb");
+          const conclude = input.tools.find((tool) => tool.name === "conclude_match");
+          const searched = (await search?.execute({ type: "movie", query: "Inception", year: "2010" })) as {
+            results: Array<{ candidateId: string }>;
+          };
+          await conclude?.execute({
+            decision: "match",
+            candidateId: searched.results[0].candidateId,
+            confidence: 0.95,
+            reason: "原名一致",
+          });
+        },
+      );
       mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
         id: 35,
         type: "movie",
@@ -122,7 +126,7 @@ test("queue consumer writes high-confidence matches and acks", async () => {
         {
           messages: [
             {
-              body: { doubanId: 35, mappingRevision: 1, agentToken: "tok-35", agentInputHash: "hash" },
+              body: { doubanId: 35, agentToken: "tok-35" },
               ack() {
                 acked = true;
               },
@@ -170,7 +174,11 @@ test("cron awaits deterministic persist before enqueueing", async () => {
         return originalPersist(...args);
       });
       const pending: Promise<unknown>[] = [];
-      const cronPromise = scheduled({ scheduledTime: 0, cron: "0 * * * *", noRetry() {} }, env, executionContext(pending));
+      const cronPromise = scheduled(
+        { scheduledTime: 0, cron: "0 * * * *", noRetry() {} },
+        env,
+        executionContext(pending),
+      );
       await new Promise((resolve) => setTimeout(resolve, 80));
       assert.equal(sent.length, 0);
       releasePersist();
@@ -179,6 +187,76 @@ test("cron awaits deterministic persist before enqueueing", async () => {
       assert.equal(sent.length, 0);
       const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 36) });
       assert.equal(row?.tmdbId, 88);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("queue retries when persist throws after conclude_match starts", async () => {
+  await withTestContext(async (env) => {
+    try {
+      await api.db.insert(doubanMapping).values({
+        doubanId: 37,
+        agent: JSON.stringify({ token: "tok-37", leaseUntil: Date.now() + 60_000 }),
+      });
+      mock.method((await import("../src/libs/api/tmdb")).TmdbAPI.prototype, "search", async () => ({
+        results: [{ id: 27205, title: "Inception", original_title: "Inception" }],
+        total_results: 1,
+      }));
+      mock.method(
+        runner.agentMatchRuntime,
+        "runPiSession",
+        async (input: {
+          tools: Array<{ name: string; execute: (args: Record<string, unknown>) => Promise<unknown> }>;
+        }) => {
+          const search = input.tools.find((tool) => tool.name === "search_tmdb");
+          const conclude = input.tools.find((tool) => tool.name === "conclude_match");
+          const searched = (await search?.execute({ type: "movie", query: "Inception", year: "2010" })) as {
+            results: Array<{ candidateId: string }>;
+          };
+          const writer = await import("../src/libs/agent-match/writer");
+          mock.method(writer.agentMatchWriter, "applyAgentVerdict", async () => {
+            throw new Error("d1 down");
+          });
+          await conclude?.execute({
+            decision: "match",
+            candidateId: searched.results[0].candidateId,
+            confidence: 0.95,
+            reason: "原名一致",
+          });
+        },
+      );
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        id: 37,
+        type: "movie",
+        title: "盗梦空间",
+        original_title: "Inception",
+        year: "2010",
+      }));
+      let acked = false;
+      let retried = false;
+      await handleAgentMatchBatch(
+        {
+          messages: [
+            {
+              body: { doubanId: 37, agentToken: "tok-37" },
+              ack() {
+                acked = true;
+              },
+              retry() {
+                retried = true;
+              },
+            },
+          ],
+        } as unknown as MessageBatch<AgentJob>,
+        env,
+        executionContext([]),
+      );
+      const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 37) });
+      assert.equal(row?.tmdbId ?? null, null);
+      assert.equal(acked, false);
+      assert.equal(retried, true);
     } finally {
       mock.restoreAll();
     }

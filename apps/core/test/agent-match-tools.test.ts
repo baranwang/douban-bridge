@@ -44,3 +44,18 @@ test("find_tmdb_by_imdb ignores tv episode results", async () => {
     }
   });
 });
+
+test("lift_imdb_series throws infrastructure failures", async () => {
+  await withTestContext(async () => {
+    try {
+      mock.method(ImdbAPI.prototype, "search", async () => {
+        throw new Error("IMDb down");
+      });
+      const tools = createAgentMatchTools(new CandidateRegistry());
+      const lift = tools.find((t) => t.name === "lift_imdb_series")!;
+      await assert.rejects(() => lift.execute({ imdbId: "tt1" }), /IMDb down/);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});

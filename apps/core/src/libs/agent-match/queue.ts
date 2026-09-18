@@ -1,5 +1,5 @@
 import { asyncLocalStorage } from "@/libs/middleware";
-import { runAgentMatchJob, type AgentMatchJob } from "./runner";
+import { type AgentMatchJob, runAgentMatchJob } from "./runner";
 
 export async function handleAgentMatchBatch(
   batch: MessageBatch<AgentMatchJob>,

@@ -39,16 +39,17 @@ class API extends BaseAPI {
   async persistIdMapping(mappings: (DoubanIdMapping | null)[], skipNil = true) {
     const hasValidId = (item: DoubanIdMapping) => !!(item.imdbId || item.tmdbId || item.traktId);
 
-    const data = mappings.filter((item): item is DoubanIdMapping => {
+    const data = mappings.flatMap((item) => {
       const result = doubanMappingSchema.safeParse(item);
       if (!result.success) {
         console.warn("❌ Invalid douban id mapping", z.prettifyError(result.error));
-        return false;
+        return [];
       }
       if (skipNil && !hasValidId(result.data)) {
-        return false;
+        return [];
       }
-      return true;
+      const { doubanId, imdbId, tmdbId, traktId } = result.data;
+      return [{ doubanId, imdbId, tmdbId, traktId }];
     });
     if (data.length === 0) return;
 
@@ -65,12 +66,6 @@ class API extends BaseAPI {
           END`,
           imdbId: sql`COALESCE(excluded.imdb_id, ${doubanMapping.imdbId})`,
           traktId: sql`COALESCE(excluded.trakt_id, ${doubanMapping.traktId})`,
-          mappingRevision: sql`CASE
-            WHEN excluded.tmdb_id IS NOT NULL OR excluded.imdb_id IS NOT NULL OR excluded.trakt_id IS NOT NULL
-            THEN ${doubanMapping.mappingRevision} + 1
-            ELSE ${doubanMapping.mappingRevision}
-          END`,
-          matchSource: sql`COALESCE(${doubanMapping.matchSource}, 'deterministic')`,
         },
         setWhere: or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
       });

@@ -10,13 +10,13 @@ import {
 } from "@douban-bridge/ui/components/card";
 import { Input } from "@douban-bridge/ui/components/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@douban-bridge/ui/components/table";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { uniqBy } from "es-toolkit";
 import { type Env, Hono } from "hono";
 import { ArrowLeft, Check, Search, X } from "lucide-react";
 import { z } from "zod/v4";
 import { doubanMapping, doubanMappingSchema } from "@/db";
-import { computeNextAgentAt } from "@/libs/agent-match/verifier";
+import { parseAgent, serializeAgent } from "@/libs/agent-match/blob";
 import { api } from "@/libs/api";
 import { TmdbAPI } from "@/libs/api/tmdb";
 
@@ -35,28 +35,12 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
   if (!existing) return c.notFound();
 
   const intent = String(form.get("intent") ?? "save");
-  const parsedAgentResult = (() => {
-    if (!existing.agentResult) return null;
-    try {
-      return JSON.parse(existing.agentResult) as {
-        candidateId?: string;
-        tmdbId?: number | null;
-        imdbId?: string | null;
-        traktId?: number | null;
-        reason?: string;
-        confidence?: number;
-        priorMapping?: { tmdbId?: number | null; imdbId?: string | null; traktId?: number | null };
-        rejectedCandidateIds?: string[];
-      };
-    } catch {
-      return null;
-    }
-  })();
+  const blob = parseAgent(existing.agent);
 
   if (intent === "confirm") {
-    const tmdbId = existing.tmdbId ?? parsedAgentResult?.tmdbId ?? null;
-    const imdbId = existing.imdbId ?? parsedAgentResult?.imdbId ?? null;
-    const traktId = existing.traktId ?? parsedAgentResult?.traktId ?? null;
+    const tmdbId = existing.tmdbId ?? blob?.tmdbId ?? null;
+    const imdbId = existing.imdbId ?? blob?.imdbId ?? null;
+    const traktId = existing.traktId ?? blob?.traktId ?? null;
     await api.db
       .update(doubanMapping)
       .set({
@@ -64,37 +48,27 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
         imdbId,
         traktId,
         calibrated: true,
-        matchSource: "human",
-        mappingRevision: sql`${doubanMapping.mappingRevision} + 1`,
-        agentState: null,
-        agentToken: null,
-        agentLeaseUntil: null,
+        agent: null,
       })
       .where(eq(doubanMapping.doubanId, numericId));
     return c.redirect("/dash/tidy-up");
   }
 
   if (intent === "reject") {
-    const prior = parsedAgentResult?.priorMapping;
-    const rejected = new Set(parsedAgentResult?.rejectedCandidateIds ?? []);
-    if (parsedAgentResult?.candidateId) rejected.add(parsedAgentResult.candidateId);
-    const restoreAgentWrite = existing.matchSource === "agent" && prior;
     await api.db
       .update(doubanMapping)
       .set({
-        tmdbId: restoreAgentWrite ? (prior.tmdbId ?? null) : existing.tmdbId,
-        imdbId: restoreAgentWrite ? (prior.imdbId ?? null) : existing.imdbId,
-        traktId: restoreAgentWrite ? (prior.traktId ?? null) : existing.traktId,
-        matchSource: restoreAgentWrite ? null : existing.matchSource,
-        agentState: "no_match",
-        agentToken: null,
-        agentLeaseUntil: null,
-        nextAgentAt: computeNextAgentAt((existing.agentAttempts ?? 0) + 1),
-        agentAttempts: sql`${doubanMapping.agentAttempts} + 1`,
-        mappingRevision: sql`${doubanMapping.mappingRevision} + 1`,
-        agentResult: JSON.stringify({
-          ...(parsedAgentResult ?? {}),
-          rejectedCandidateIds: [...rejected],
+        tmdbId: existing.tmdbId != null && blob ? null : existing.tmdbId,
+        imdbId: existing.tmdbId != null && blob ? null : existing.imdbId,
+        traktId: existing.tmdbId != null && blob ? null : existing.traktId,
+        agent: serializeAgent({
+          status: "no_match",
+          confidence: blob?.confidence,
+          reason: blob?.reason,
+          candidateId: blob?.candidateId,
+          tmdbId: blob?.tmdbId ?? null,
+          imdbId: blob?.imdbId ?? null,
+          traktId: blob?.traktId ?? null,
         }),
       })
       .where(eq(doubanMapping.doubanId, numericId));
@@ -108,7 +82,10 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
   };
   const optionalPositiveInt = z.union([
     z.null(),
-    z.string().regex(/^[1-9]\d*$/).transform((value) => Number(value)),
+    z
+      .string()
+      .regex(/^[1-9]\d*$/)
+      .transform((value) => Number(value)),
   ]);
   const tmdbParsed = optionalPositiveInt.safeParse(emptyToNull(form.get("tmdbId")));
   const traktParsed = optionalPositiveInt.safeParse(emptyToNull(form.get("traktId")));
@@ -135,11 +112,7 @@ tidyUpDetailRoute.post("/:doubanId", async (c) => {
       imdbId: imdbId ?? null,
       traktId: traktId ?? null,
       calibrated,
-      mappingRevision: sql`${doubanMapping.mappingRevision} + 1`,
-      agentState: null,
-      agentToken: null,
-      agentLeaseUntil: null,
-      matchSource: calibrated ? "human" : existing.matchSource,
+      agent: null,
     })
     .where(eq(doubanMapping.doubanId, numericId));
 
@@ -549,10 +522,10 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                     </label>
                   </div>
                 </CardContent>
-                {idMapping?.agentResult ? (
+                {idMapping?.agent ? (
                   <div className="rounded-md border bg-muted/40 p-3 text-sm">
-                    <p>Agent 置信度：{(() => { try { return JSON.parse(idMapping.agentResult).confidence; } catch { return "-"; } })()}</p>
-                    <p>原因：{(() => { try { return JSON.parse(idMapping.agentResult).reason; } catch { return "-"; } })()}</p>
+                    <p>Agent 置信度：{parseAgent(idMapping.agent)?.confidence ?? "-"}</p>
+                    <p>原因：{parseAgent(idMapping.agent)?.reason ?? "-"}</p>
                   </div>
                 ) : null}
                 <CardFooter className="justify-end gap-3">

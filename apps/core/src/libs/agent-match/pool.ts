@@ -1,91 +1,76 @@
-import { and, eq, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
+import { isEvaluated, parseAgent, serializeAgent } from "./blob";
 import { AGENT_LEASE_MS } from "./constants";
-import { hashAgentInput } from "./verifier";
+import type { AgentMatchJob } from "./types";
 
-export type AgentMatchJob = {
-  doubanId: number;
-  mappingRevision: number;
-  agentToken: string;
-  agentInputHash: string;
-};
+export type { AgentMatchJob };
 
-function eligibleWhere(now: number) {
+function eligibleWhere() {
   return and(
     isNull(doubanMapping.tmdbId),
     or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
-    or(
-      isNull(doubanMapping.agentState),
-      and(eq(doubanMapping.agentState, "no_match"), lte(doubanMapping.nextAgentAt, now), isNull(doubanMapping.agentInputHash)),
-    ),
+    or(isNull(doubanMapping.agent), eq(doubanMapping.agent, "")),
   );
 }
 
 export async function recoverExpiredClaims(now = Date.now()): Promise<number> {
-  const recovered = await api.db
-    .update(doubanMapping)
-    .set({
-      agentState: null,
-      agentToken: null,
-      agentLeaseUntil: null,
-    })
+  const rows = await api.db
+    .select()
+    .from(doubanMapping)
     .where(
       and(
-        inArray(doubanMapping.agentState, ["pending", "running"]),
-        lte(doubanMapping.agentLeaseUntil, now),
+        sql`json_extract(${doubanMapping.agent}, '$.token') IS NOT NULL`,
+        sql`json_extract(${doubanMapping.agent}, '$.leaseUntil') <= ${now}`,
       ),
-    )
-    .returning({ doubanId: doubanMapping.doubanId });
-  return recovered.length;
+    );
+  let recovered = 0;
+  for (const row of rows) {
+    const blob = parseAgent(row.agent);
+    if (!blob?.token || blob.leaseUntil == null || blob.leaseUntil > now) continue;
+    const next = serializeAgent(
+      blob.status === "suggested" || blob.status === "no_match"
+        ? {
+            status: blob.status,
+            confidence: blob.confidence,
+            reason: blob.reason,
+            candidateId: blob.candidateId,
+            tmdbId: blob.tmdbId,
+            imdbId: blob.imdbId,
+            traktId: blob.traktId,
+          }
+        : null,
+    );
+    await api.db.update(doubanMapping).set({ agent: next }).where(eq(doubanMapping.doubanId, row.doubanId));
+    recovered += 1;
+  }
+  return recovered;
 }
 
 export async function claimAgentJobs(limit: number, now = Date.now()): Promise<AgentMatchJob[]> {
   if (limit <= 0) return [];
-  const candidates = await api.db
-    .select()
-    .from(doubanMapping)
-    .where(eligibleWhere(now))
-    .orderBy(sql`RANDOM()`)
-    .limit(limit);
+  const rows = await api.db.select().from(doubanMapping).where(eligibleWhere()).orderBy(sql`RANDOM()`).limit(limit);
 
   const jobs: AgentMatchJob[] = [];
-  for (const row of candidates) {
+  for (const row of rows) {
+    if (jobs.length >= limit) break;
+    const blob = parseAgent(row.agent);
+    if (row.tmdbId != null || row.calibrated === true || isEvaluated(blob, now)) continue;
     const agentToken = crypto.randomUUID();
-    const agentInputHash =
-      row.agentInputHash ??
-      hashAgentInput({
-        doubanId: row.doubanId,
-        title: String(row.doubanId),
-        type: "unknown",
-        imdbId: row.imdbId,
-      });
     const claimed = await api.db
       .update(doubanMapping)
-      .set({
-        agentState: "pending",
-        agentToken,
-        agentLeaseUntil: now + AGENT_LEASE_MS,
-        agentInputHash,
-      })
+      .set({ agent: serializeAgent({ token: agentToken, leaseUntil: now + AGENT_LEASE_MS }) })
       .where(
         and(
           eq(doubanMapping.doubanId, row.doubanId),
           isNull(doubanMapping.tmdbId),
-          or(isNull(doubanMapping.agentState), and(eq(doubanMapping.agentState, "no_match"), isNull(doubanMapping.agentInputHash))),
+          or(isNull(doubanMapping.agent), eq(doubanMapping.agent, "")),
         ),
       )
-      .returning({
-        doubanId: doubanMapping.doubanId,
-        mappingRevision: doubanMapping.mappingRevision,
-      });
+      .returning({ doubanId: doubanMapping.doubanId });
     if (claimed[0]) {
-      jobs.push({
-        doubanId: claimed[0].doubanId,
-        mappingRevision: claimed[0].mappingRevision,
-        agentToken,
-        agentInputHash,
-      });
+      jobs.push({ doubanId: claimed[0].doubanId, agentToken });
     }
   }
   return jobs;

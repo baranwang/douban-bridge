@@ -43,51 +43,46 @@ test("confirming a suggestion locks it as human", async () => {
   await withTestContext(async () => {
     await api.db.insert(doubanMapping).values({
       doubanId: 43,
-      agentState: "suggested",
-      agentResult: JSON.stringify({
-        decision: "match",
+      agent: JSON.stringify({
+        status: "suggested",
         confidence: 0.7,
         reason: "像",
         candidateId: "tmdb:movie:10",
         tmdbId: 10,
         imdbId: "tt10",
         traktId: 7,
-        priorMapping: { tmdbId: null, imdbId: null, traktId: null },
       }),
     });
     const response = await postTidyUp(43, { intent: "confirm" });
     assert.equal(response.status, 302);
     const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 43) });
     assert.equal(row?.calibrated, true);
-    assert.equal(row?.matchSource, "human");
     assert.equal(row?.tmdbId, 10);
-    assert.equal(row?.agentState, null);
+    assert.equal(row?.agent ?? null, null);
   });
 });
 
-test("rejecting an agent write restores prior mapping", async () => {
+test("rejecting an agent write clears official ids", async () => {
   await withTestContext(async () => {
     await api.db.insert(doubanMapping).values({
       doubanId: 44,
       tmdbId: 999,
-      matchSource: "agent",
-      agentResult: JSON.stringify({
-        decision: "match",
+      imdbId: "tt999",
+      agent: JSON.stringify({
         confidence: 0.95,
         reason: "直写",
         candidateId: "tmdb:movie:999",
         tmdbId: 999,
         imdbId: "tt999",
         traktId: 9,
-        priorMapping: { tmdbId: null, imdbId: "tt-old", traktId: null },
       }),
     });
     const response = await postTidyUp(44, { intent: "reject" });
     assert.equal(response.status, 302);
     const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 44) });
     assert.equal(row?.tmdbId ?? null, null);
-    assert.equal(row?.imdbId, "tt-old");
-    assert.equal(row?.agentState, "no_match");
+    assert.equal(row?.imdbId ?? null, null);
+    assert.equal(JSON.parse(row?.agent ?? "{}").status, "no_match");
   });
 });
 
@@ -95,9 +90,7 @@ test("human edit invalidates a running agent claim", async () => {
   await withTestContext(async () => {
     await api.db.insert(doubanMapping).values({
       doubanId: 45,
-      mappingRevision: 3,
-      agentState: "running",
-      agentToken: "tok-45",
+      agent: JSON.stringify({ token: "tok-45", leaseUntil: Date.now() + 60_000 }),
     });
     const response = await postTidyUp(45, { imdbId: "tt-human", tmdbId: "" });
     assert.equal(response.status, 302);
@@ -113,7 +106,6 @@ test("human edit invalidates a running agent claim", async () => {
     });
     const status = await applyAgentVerdict({
       doubanId: 45,
-      expectedRevision: 3,
       agentToken: "tok-45",
       verdict,
       confidence: 0.95,
@@ -128,9 +120,9 @@ test("human edit invalidates a running agent claim", async () => {
 
 test("tidyUpListFilter splits suggested auto and no_match views", () => {
   const rows = [
-    { doubanId: 1, agentState: "suggested", matchSource: null, calibrated: false, tmdbId: null },
-    { doubanId: 2, agentState: null, matchSource: "agent", calibrated: false, tmdbId: 10 },
-    { doubanId: 3, agentState: "no_match", matchSource: null, calibrated: false, tmdbId: null },
+    { doubanId: 1, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }), calibrated: false, tmdbId: null },
+    { doubanId: 2, agent: JSON.stringify({ tmdbId: 10 }), calibrated: false, tmdbId: 10 },
+    { doubanId: 3, agent: JSON.stringify({ status: "no_match" }), calibrated: false, tmdbId: null },
   ];
   assert.deepEqual(
     tidyUpListFilter(rows, "suggested").map((row) => row.doubanId),

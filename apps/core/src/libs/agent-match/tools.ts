@@ -3,7 +3,7 @@ import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
 import { ImdbAPI } from "@/libs/api/imdb";
 import { TmdbAPI } from "@/libs/api/tmdb";
-import { CandidateRegistry, makeCandidateId } from "./candidates";
+import { type CandidateRegistry, makeCandidateId } from "./candidates";
 import type { CanonicalCandidate } from "./types";
 
 type AgentToolExecuteResult = Record<string, unknown>;
@@ -17,7 +17,11 @@ export type AgentTool = {
 
 const MAX_SEARCH_RESULTS = 8;
 
-function yearFromTmdbItem(item: { release_date?: string | null; first_air_date?: string | null; year?: string | number | null }): string | undefined {
+function yearFromTmdbItem(item: {
+  release_date?: string | null;
+  first_air_date?: string | null;
+  year?: string | number | null;
+}): string | undefined {
   const raw = item.year ?? item.release_date ?? item.first_air_date;
   if (raw == null) return undefined;
   const match = String(raw).match(/\d{4}/);
@@ -27,9 +31,16 @@ function yearFromTmdbItem(item: { release_date?: string | null; first_air_date?:
 function registerTmdbItems(
   registry: CandidateRegistry,
   type: "movie" | "tv",
-  items: Array<{ id: number; title?: string | null; original_title?: string | null; release_date?: string | null; first_air_date?: string | null }>,
+  items: Array<{
+    id: number;
+    title?: string | null;
+    original_title?: string | null;
+    release_date?: string | null;
+    first_air_date?: string | null;
+  }>,
 ) {
-  const results: Array<{ candidateId: string; title?: string; originalTitle?: string; year?: string; tmdbId: number }> = [];
+  const results: Array<{ candidateId: string; title?: string; originalTitle?: string; year?: string; tmdbId: number }> =
+    [];
   for (const item of items.slice(0, MAX_SEARCH_RESULTS)) {
     const candidate = registry.register({
       type,
@@ -170,12 +181,8 @@ export function createAgentMatchTools(
         required: ["imdbId"],
       },
       async execute(args) {
-        try {
-          const resp = await imdbAPI.search(String(args.imdbId));
-          return { seriesImdbId: resp.top?.series?.series?.id ?? null };
-        } catch {
-          return { error: "imdb_lookup_failed" };
-        }
+        const resp = await imdbAPI.search(String(args.imdbId));
+        return { seriesImdbId: resp.top?.series?.series?.id ?? null };
       },
     },
   ];
