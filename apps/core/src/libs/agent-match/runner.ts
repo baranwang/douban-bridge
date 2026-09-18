@@ -111,22 +111,27 @@ export const agentMatchRuntime = {
     sessionId: string;
     doubanId?: number;
   }): Promise<void> {
-    const [{ Agent }, { Type, createModels, createProvider }, { openAICompletionsApi }] = await Promise.all([
-      import("@earendil-works/pi-agent-core"),
-      import("@earendil-works/pi-ai"),
-      import("@earendil-works/pi-ai/api/openai-completions.lazy"),
-    ]);
+    const [{ Agent }, { Type, createModels, createProvider }, { openAICompletionsApi }, { CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL, createAiBindingFetch }] =
+      await Promise.all([
+        import("@earendil-works/pi-agent-core"),
+        import("@earendil-works/pi-ai"),
+        import("@earendil-works/pi-ai/api/openai-completions.lazy"),
+        import("@earendil-works/pi-ai/api/cloudflare-ai-binding"),
+      ]);
     const env = getContext().env;
-    const secrets = env as CloudflareBindings & {
-      AGENT_MATCH_API_KEY?: string;
-      AGENT_MATCH_BASE_URL?: string;
-    };
-    const baseUrl = secrets.AGENT_MATCH_BASE_URL?.replace(/\/+$/, "");
-    const apiKey = secrets.AGENT_MATCH_API_KEY;
     const modelId = env.AGENT_MATCH_MODEL;
-    if (!baseUrl || !apiKey || !modelId) {
-      throw new Error("AGENT_MATCH_BASE_URL, AGENT_MATCH_API_KEY, and AGENT_MATCH_MODEL are required");
+    const gatewayId = env.AGENT_MATCH_GATEWAY_ID;
+    const providerSlug = env.AGENT_MATCH_GATEWAY_PROVIDER;
+    if (!modelId || !gatewayId || !providerSlug) {
+      throw new Error("AGENT_MATCH_MODEL, AGENT_MATCH_GATEWAY_ID, and AGENT_MATCH_GATEWAY_PROVIDER are required");
     }
+    const baseUrl = `https://workers-binding.ai/ai-gateway/gateways/${gatewayId}/custom-${providerSlug}/v1`;
+    const aiFetch = createAiBindingFetch(env.AI);
+    const streamHeaders = {
+      "cf-aig-authorization": `Bearer ${CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL}`,
+      Authorization: null,
+      "x-api-key": null,
+    };
     const models = createModels();
     models.setProvider(
       createProvider({
@@ -135,8 +140,14 @@ export const agentMatchRuntime = {
         baseUrl,
         auth: {
           apiKey: {
-            name: "Agent match API key",
-            resolve: async () => ({ auth: { apiKey } }),
+            name: "Agent match gateway binding",
+            resolve: async () => ({
+              headers: {
+                "cf-aig-authorization": `Bearer ${CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL}`,
+                Authorization: null,
+                "x-api-key": null,
+              },
+            }),
           },
         },
         models: [
@@ -164,7 +175,12 @@ export const agentMatchRuntime = {
     const doubanId = input.doubanId ?? Number(input.sessionId.split(":").at(-1));
     logAgentMatch(doubanId, "prompt", { sessionId: input.sessionId, user: compact(input.user) });
     const agent = new Agent({
-      streamFn: models.streamSimple.bind(models),
+      streamFn: (model, context, options) =>
+        models.streamSimple(model, context, {
+          ...options,
+          fetch: aiFetch,
+          headers: streamHeaders,
+        }),
       sessionId: input.sessionId,
       initialState: {
         systemPrompt: input.system,
