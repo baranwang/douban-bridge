@@ -45,7 +45,7 @@
     "STREMIO_ORIGIN": "https://stremio-addon-douban.baran.wang",
     "DASH_ORIGIN": "https://douban-bridge.baran.wang",
     "AGENT_MATCH_MODEL": "grok-4.6",
-    "AGENT_MATCH_GATEWAY_ID": "default",
+    "AGENT_MATCH_GATEWAY_ID": "gateway",
     "AGENT_MATCH_GATEWAY_PROVIDER": "carpool"
   },
   "ratelimits": [
