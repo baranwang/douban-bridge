@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Context-bound network clients for Douban, TMDB, Trakt, Fanart, IMDb, GitHub, and DB-backed ID mapping.
+Context-bound network clients for Douban, TMDB, Trakt, Fanart, GitHub, and DB-backed ID mapping.
 
 ## STRUCTURE
 
@@ -14,7 +14,6 @@ api/
 +-- tmdb/            # TMDB client, constants, normalized schemas
 +-- fanart/          # Fanart image client + schemas
 +-- trakt.ts         # Trakt search and ID helpers
-+-- imdb.ts          # IMDb search helper
 `-- github.ts        # GitHub OAuth/star checks; not BaseAPI-based
 ```
 

@@ -4,7 +4,6 @@ import { eq } from "drizzle-orm";
 import { scheduled } from "../src/cron";
 import { doubanMapping } from "../src/db";
 import { api } from "../src/libs/api";
-import { ImdbAPI } from "../src/libs/api/imdb";
 import { withTestContext } from "./context";
 
 test("cron continues after one mapping lookup fails", async () => {
@@ -20,9 +19,6 @@ test("cron continues after one mapping lookup fails", async () => {
           : [{ type: "movie" as const, movie: { ids: { trakt: 2, tmdb: 22, imdb: "tt-good" } } }],
       );
       mock.method(api.doubanAPI, "getSubjectDetail", async () => ({ type: "tv" }) as never);
-      mock.method(ImdbAPI.prototype, "search", async () => {
-        throw new Error("IMDb rejected one id");
-      });
 
       env.AGENT_MATCH_QUEUE = { send: async () => ({ metadata: { metrics: { retries: 0 } } }) } as Queue;
       const pending: Promise<unknown>[] = [];
@@ -75,7 +71,7 @@ test("cron does not treat missing years as a unique year match", async () => {
   });
 });
 
-test("cron continues to title search after IMDb parent lookup throws", async () => {
+test("cron continues to title search after IMDb lookup returns nothing", async () => {
   await withTestContext(async (env) => {
     try {
       await api.db.insert(doubanMapping).values({ doubanId: 11, imdbId: "tt-season" });
@@ -86,9 +82,6 @@ test("cron continues to title search after IMDb parent lookup throws", async () 
         original_title: "Only Show",
         year: "2020",
       }));
-      mock.method(ImdbAPI.prototype, "search", async () => {
-        throw new Error("IMDb down");
-      });
       mock.method(api.traktAPI, "search", async () => [
         { type: "show" as const, show: { ids: { trakt: 9, tmdb: 99, imdb: "tt-show" } } },
       ]);

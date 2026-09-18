@@ -3,7 +3,6 @@ import test, { mock } from "node:test";
 import { CandidateRegistry } from "../src/libs/agent-match/candidates";
 import { createAgentMatchTools } from "../src/libs/agent-match/tools";
 import { api } from "../src/libs/api";
-import { ImdbAPI } from "../src/libs/api/imdb";
 import { TmdbAPI } from "../src/libs/api/tmdb";
 import { withTestContext } from "./context";
 
@@ -46,15 +45,21 @@ test("find_tmdb_by_imdb ignores tv episode results", async () => {
   });
 });
 
-test("lift_imdb_series throws infrastructure failures", async () => {
+test("search_trakt registers parent show from episode hits", async () => {
   await withTestContext(async () => {
     try {
-      mock.method(ImdbAPI.prototype, "search", async () => {
-        throw new Error("IMDb down");
-      });
-      const tools = createAgentMatchTools(new CandidateRegistry());
-      const lift = tools.find((t) => t.name === "lift_imdb_series")!;
-      await assert.rejects(() => lift.execute({ imdbId: "tt1" }), /IMDb down/);
+      mock.method(api.traktAPI, "search", async () => [
+        {
+          type: "episode" as const,
+          show: { title: "Only Show", year: 2020, ids: { trakt: 9, tmdb: 99, imdb: "tt-show" } },
+        },
+      ]);
+      const registry = new CandidateRegistry();
+      const tools = createAgentMatchTools(registry, { doubanType: "tv" });
+      const search = tools.find((t) => t.name === "search_trakt")!;
+      const out = await search.execute({ type: "episode", query: "Only Show" });
+      assert.equal(out.results[0].candidateId, "tmdb:tv:99");
+      assert.equal(registry.has("tmdb:tv:99"), true);
     } finally {
       mock.restoreAll();
     }
