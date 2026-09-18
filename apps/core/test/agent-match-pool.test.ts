@@ -3,20 +3,22 @@ import test from "node:test";
 import { eq } from "drizzle-orm";
 import { doubanMapping } from "../src/db";
 import { parseAgent } from "../src/libs/agent-match/blob";
-import { claimAgentJobs, recoverExpiredClaims } from "../src/libs/agent-match/pool";
+import { claimAgentJobs, parseEnqueueIds, recoverExpiredClaims } from "../src/libs/agent-match/pool";
 import { api } from "../src/libs/api";
 import { withTestContext } from "./context";
 
 test("claimAgentJobs only returns unevaluated missing-tmdb rows", async () => {
   await withTestContext(async () => {
     const now = 1_000_000;
-    await api.db.insert(doubanMapping).values([
-      { doubanId: 1 },
-      { doubanId: 2, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }) },
-      { doubanId: 3, agent: JSON.stringify({ status: "no_match", reason: "none" }) },
-      { doubanId: 4, tmdbId: 99 },
-      { doubanId: 5, calibrated: true },
-    ]);
+    await api.db
+      .insert(doubanMapping)
+      .values([
+        { doubanId: 1 },
+        { doubanId: 2, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }) },
+        { doubanId: 3, agent: JSON.stringify({ status: "no_match", reason: "none" }) },
+        { doubanId: 4, tmdbId: 99 },
+        { doubanId: 5, calibrated: true },
+      ]);
     const jobs = await claimAgentJobs(10, now);
     assert.deepEqual(
       jobs.map((job) => job.doubanId),
@@ -53,5 +55,20 @@ test("claimAgentJobs does not claim the same pending row twice", async () => {
     assert.equal(first.length, 1);
     assert.equal(second.length, 0);
     assert.equal(first[0].doubanId, 7);
+  });
+});
+
+test("parseEnqueueIds drops junk and duplicates", () => {
+  assert.deepEqual(parseEnqueueIds(["8", "8", "nope", "0", "-1", "9"]), [8, 9]);
+});
+
+test("claimAgentJobs can claim selected unmatched ids only", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values([{ doubanId: 8 }, { doubanId: 9 }, { doubanId: 10, tmdbId: 1 }]);
+    const jobs = await claimAgentJobs(10, Date.now(), [9, 10, 9, 11]);
+    assert.deepEqual(
+      jobs.map((job) => job.doubanId),
+      [9],
+    );
   });
 });

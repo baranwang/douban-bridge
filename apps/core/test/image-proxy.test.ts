@@ -215,4 +215,36 @@ describe("image proxy", { concurrency: false }, () => {
       }
     });
   });
+
+  test("dash image proxy reuses Douban fetch without a starred user", async () => {
+    await withTestContext(async (env, ctx) => {
+      try {
+        mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+          const request = new Request(input, init);
+          assert.equal(request.url, POSTER);
+          assert.equal(request.headers.get("User-Agent"), DoubanAPI.BASE_HEADERS["User-Agent"]);
+          assert.equal(request.headers.get("Referer"), DoubanAPI.BASE_HEADERS.Referer);
+          return new Response("img", { status: 200, headers: { "Content-Type": "image/jpeg" } });
+        });
+        const auth = { Authorization: `Basic ${btoa("dash:dash")}` };
+        const response = await app.fetch(
+          new Request(`${PUBLIC}/dash/image-proxy?url=${encodeURIComponent(POSTER)}`, { headers: auth }),
+          withRateLimits(env),
+          ctx,
+        );
+        assert.equal(response.status, 200);
+        assert.equal(await response.text(), "img");
+        const rejected = await app.fetch(
+          new Request(`${PUBLIC}/dash/image-proxy?url=${encodeURIComponent("https://example.com/x.jpg")}`, {
+            headers: auth,
+          }),
+          withRateLimits(env),
+          ctx,
+        );
+        assert.equal(rejected.status, 400);
+      } finally {
+        mock.restoreAll();
+      }
+    });
+  });
 });

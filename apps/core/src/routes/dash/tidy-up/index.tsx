@@ -7,16 +7,23 @@ import { type Env, Hono } from "hono";
 import { AlertTriangle, CheckCircle, Hash, Pencil } from "lucide-react";
 import { doubanMapping } from "@/db";
 import { parseAgent } from "@/libs/agent-match/blob";
+import { claimAgentJobs, parseEnqueueIds } from "@/libs/agent-match/pool";
 import { api } from "@/libs/api";
+import { getContext } from "@/libs/middleware";
 import { tidyUpDetailRoute } from "./detail";
 
 export const tidyUpRoute = new Hono<Env>();
 
-export type TidyUpView = "suggested" | "auto" | "no_match";
+export type TidyUpView = "unmatched" | "suggested" | "auto" | "no_match";
 
 export function tidyUpListFilter<
   T extends { agent?: string | null; calibrated?: boolean | null; tmdbId?: number | null },
 >(rows: T[], view: TidyUpView): T[] {
+  if (view === "unmatched")
+    return rows.filter((row) => {
+      const status = parseAgent(row.agent)?.status;
+      return row.tmdbId == null && status !== "suggested" && status !== "no_match";
+    });
   if (view === "suggested")
     return rows.filter((row) => parseAgent(row.agent)?.status === "suggested" && row.tmdbId == null);
   if (view === "auto")
@@ -34,27 +41,60 @@ export function tidyUpListFilter<
 }
 
 const VIEW_COPY: Record<TidyUpView, { title: string; description: string }> = {
+  unmatched: { title: "未匹配", description: "还没有 TMDB ID，等 Agent 抽到或人工补上" },
   suggested: { title: "待确认建议", description: "Agent 给出了建议，尚未写入正式 TMDB ID" },
   auto: { title: "Agent 已写未校准", description: "Agent 已直写正式 ID，仍可人工确认或驳回" },
   no_match: { title: "无匹配", description: "Agent 未能给出可用匹配" },
 };
 
+export async function enqueueSelectedAgentJobs(
+  doubanIds: readonly number[],
+  queue: { send: (job: { doubanId: number; agentToken: string }) => Promise<unknown> } | undefined,
+  ctx: { waitUntil: (promise: Promise<unknown>) => void },
+): Promise<number> {
+  const jobs = await claimAgentJobs(parseEnqueueIds(doubanIds.map(String)).length, Date.now(), doubanIds);
+  await Promise.all(
+    jobs.map((job) => {
+      const sent = queue?.send(job) ?? Promise.resolve();
+      ctx.waitUntil(sent);
+      return sent;
+    }),
+  );
+  return jobs.length;
+}
+
+tidyUpRoute.post("/enqueue", async (c) => {
+  const form = await c.req.formData();
+  const ids = parseEnqueueIds(form.getAll("doubanId"));
+  const { env, ctx } = getContext();
+  await enqueueSelectedAgentJobs(ids, env.AGENT_MATCH_QUEUE, ctx);
+  return c.redirect("/dash/tidy-up?view=unmatched");
+});
+
 tidyUpRoute.route("/", tidyUpDetailRoute);
 
 tidyUpRoute.get("/", async (c) => {
   const viewParam = c.req.query("view");
-  const view: TidyUpView = viewParam === "auto" || viewParam === "no_match" ? viewParam : "suggested";
+  const view: TidyUpView =
+    viewParam === "unmatched" || viewParam === "auto" || viewParam === "no_match" || viewParam === "suggested"
+      ? viewParam
+      : "suggested";
   const viewWhere =
-    view === "suggested"
-      ? and(isNull(doubanMapping.tmdbId), sql`json_extract(${doubanMapping.agent}, '$.status') = 'suggested'`)
-      : view === "auto"
-        ? and(
-            isNotNull(doubanMapping.tmdbId),
-            or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
-            sql`json_extract(${doubanMapping.agent}, '$.status') IS NULL`,
-            sql`json_extract(${doubanMapping.agent}, '$.tmdbId') = ${doubanMapping.tmdbId}`,
-          )
-        : sql`json_extract(${doubanMapping.agent}, '$.status') = 'no_match'`;
+    view === "unmatched"
+      ? and(
+          isNull(doubanMapping.tmdbId),
+          sql`coalesce(json_extract(${doubanMapping.agent}, '$.status'), '') NOT IN ('suggested', 'no_match')`,
+        )
+      : view === "suggested"
+        ? and(isNull(doubanMapping.tmdbId), sql`json_extract(${doubanMapping.agent}, '$.status') = 'suggested'`)
+        : view === "auto"
+          ? and(
+              isNotNull(doubanMapping.tmdbId),
+              or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
+              sql`json_extract(${doubanMapping.agent}, '$.status') IS NULL`,
+              sql`json_extract(${doubanMapping.agent}, '$.tmdbId') = ${doubanMapping.tmdbId}`,
+            )
+          : sql`json_extract(${doubanMapping.agent}, '$.status') = 'no_match'`;
   const data = await api.db.select().from(doubanMapping).where(viewWhere);
 
   const withImdbCount = data.filter((item) => item.imdbId).length;
@@ -73,6 +113,11 @@ tidyUpRoute.get("/", async (c) => {
               <p className="mt-2 text-muted-foreground">{VIEW_COPY[view].description}</p>
             </div>
             <div className="flex items-center gap-3">
+              <a href="/dash/tidy-up?view=unmatched">
+                <Button variant={view === "unmatched" ? "default" : "outline"} size="sm">
+                  未匹配
+                </Button>
+              </a>
               <a href="/dash/tidy-up?view=suggested">
                 <Button variant={view === "suggested" ? "default" : "outline"} size="sm">
                   待确认建议
@@ -144,82 +189,110 @@ tidyUpRoute.get("/", async (c) => {
               <CardTitle>待处理列表</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">#</TableHead>
-                    <TableHead>豆瓣 ID</TableHead>
-                    <TableHead>IMDb ID</TableHead>
-                    <TableHead>TMDB ID</TableHead>
-                    <TableHead>Trakt ID</TableHead>
-                    <TableHead>创建时间</TableHead>
-                    <TableHead>更新时间</TableHead>
-                    <TableHead className="w-32 text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.map((item, index) => (
-                    <TableRow key={item.doubanId}>
-                      <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-                      <TableCell>
-                        <a
-                          href={`https://movie.douban.com/subject/${item.doubanId}/`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-mono text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
-                        >
-                          {item.doubanId}
-                        </a>
-                      </TableCell>
-                      <TableCell>
-                        {item.imdbId ? (
-                          <Badge
-                            variant="outline"
-                            className="border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                          >
-                            {item.imdbId}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {item.tmdbId ? (
-                          <Badge
-                            variant="outline"
-                            className="border-blue-500/50 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                          >
-                            {item.tmdbId}
-                          </Badge>
-                        ) : (
-                          <Badge variant="destructive">缺失</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {item.traktId ? (
-                          <Badge variant="secondary">{item.traktId}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {item.createdAt?.toLocaleDateString("zh-CN")}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {item.updatedAt?.toLocaleDateString("zh-CN")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <a href={`/dash/tidy-up/${item.doubanId}`}>
-                          <Button variant="outline" size="sm">
-                            <Pencil className="mr-1.5 h-4 w-4" />
-                            编辑
-                          </Button>
-                        </a>
-                      </TableCell>
+              <form method="post" action="/dash/tidy-up/enqueue" id="enqueue-form">
+                {view === "unmatched" ? (
+                  <div className="mb-4 flex items-center justify-end">
+                    <Button type="submit" size="sm">
+                      加入队列
+                    </Button>
+                  </div>
+                ) : null}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {view === "unmatched" ? (
+                        <TableHead className="w-10">
+                          <input type="checkbox" data-select-all form="enqueue-form" aria-label="全选" />
+                        </TableHead>
+                      ) : (
+                        <TableHead className="w-16">#</TableHead>
+                      )}
+                      <TableHead>豆瓣 ID</TableHead>
+                      <TableHead>IMDb ID</TableHead>
+                      <TableHead>TMDB ID</TableHead>
+                      <TableHead>Trakt ID</TableHead>
+                      <TableHead>创建时间</TableHead>
+                      <TableHead>更新时间</TableHead>
+                      <TableHead className="w-32 text-right">操作</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {data.map((item, index) => (
+                      <TableRow key={item.doubanId}>
+                        {view === "unmatched" ? (
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              name="doubanId"
+                              value={String(item.doubanId)}
+                              form="enqueue-form"
+                              data-row-select
+                              disabled={Boolean(parseAgent(item.agent)?.token)}
+                            />
+                          </TableCell>
+                        ) : (
+                          <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
+                        )}
+                        <TableCell>
+                          <a
+                            href={`https://movie.douban.com/subject/${item.doubanId}/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
+                          >
+                            {item.doubanId}
+                          </a>
+                        </TableCell>
+                        <TableCell>
+                          {item.imdbId ? (
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            >
+                              {item.imdbId}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {item.tmdbId ? (
+                            <Badge
+                              variant="outline"
+                              className="border-blue-500/50 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                            >
+                              {item.tmdbId}
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive">缺失</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {item.traktId ? (
+                            <Badge variant="secondary">{item.traktId}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {item.createdAt?.toLocaleDateString("zh-CN")}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {item.updatedAt?.toLocaleDateString("zh-CN")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <a href={`/dash/tidy-up/${item.doubanId}`}>
+                            <Button variant="outline" size="sm">
+                              <Pencil className="mr-1.5 h-4 w-4" />
+                              编辑
+                            </Button>
+                          </a>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </form>
             </CardContent>
           </Card>
         ) : (
@@ -232,6 +305,21 @@ tidyUpRoute.get("/", async (c) => {
           </Card>
         )}
       </div>
+      {view === "unmatched" ? (
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: checkbox select-all for unmatched enqueue
+          dangerouslySetInnerHTML={{
+            __html: `
+              const form = document.getElementById('enqueue-form');
+              const selectAll = form?.querySelector('[data-select-all]');
+              const boxes = () => Array.from(form?.querySelectorAll('[data-row-select]:not(:disabled)') ?? []);
+              selectAll?.addEventListener('change', function() {
+                boxes().forEach((box) => { box.checked = selectAll.checked; });
+              });
+            `,
+          }}
+        />
+      ) : null}
     </div>,
   );
 });

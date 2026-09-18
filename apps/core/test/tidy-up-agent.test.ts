@@ -6,7 +6,7 @@ import { CandidateRegistry } from "../src/libs/agent-match/candidates";
 import { verifyConcludeMatch } from "../src/libs/agent-match/verifier";
 import { applyAgentVerdict } from "../src/libs/agent-match/writer";
 import { api } from "../src/libs/api";
-import { tidyUpListFilter } from "../src/routes/dash/tidy-up";
+import { enqueueSelectedAgentJobs, tidyUpListFilter } from "../src/routes/dash/tidy-up";
 import { tidyUpDetailRoute } from "../src/routes/dash/tidy-up/detail";
 import { withTestContext } from "./context";
 
@@ -118,13 +118,24 @@ test("human edit invalidates a running agent claim", async () => {
   });
 });
 
-test("tidyUpListFilter splits suggested auto and no_match views", () => {
+test("tidyUpListFilter splits unmatched suggested auto and no_match views", () => {
   const rows = [
     { doubanId: 1, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }), calibrated: false, tmdbId: null },
     { doubanId: 2, agent: JSON.stringify({ tmdbId: 10 }), calibrated: false, tmdbId: 10 },
     { doubanId: 3, agent: JSON.stringify({ status: "no_match" }), calibrated: false, tmdbId: null },
     { doubanId: 4, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }), calibrated: false, tmdbId: 101 },
+    { doubanId: 5, agent: null, calibrated: false, tmdbId: null },
+    {
+      doubanId: 6,
+      agent: JSON.stringify({ token: "tok", leaseUntil: Date.now() + 60_000 }),
+      calibrated: false,
+      tmdbId: null,
+    },
   ];
+  assert.deepEqual(
+    tidyUpListFilter(rows, "unmatched").map((row) => row.doubanId),
+    [5, 6],
+  );
   assert.deepEqual(
     tidyUpListFilter(rows, "suggested").map((row) => row.doubanId),
     [1],
@@ -187,6 +198,33 @@ test("confirming no_match without a candidate is rejected", async () => {
     assert.equal(response.status, 400);
     const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 48) });
     assert.equal(row?.calibrated, false);
+  });
+});
+
+test("enqueueSelectedAgentJobs claims and sends only unmatched ids", async () => {
+  await withTestContext(async () => {
+    await api.db
+      .insert(doubanMapping)
+      .values([
+        { doubanId: 51 },
+        { doubanId: 52, agent: JSON.stringify({ status: "no_match" }) },
+        { doubanId: 53, tmdbId: 1 },
+      ]);
+    const sent: Array<{ doubanId: number; agentToken: string }> = [];
+    const queued = await enqueueSelectedAgentJobs(
+      [51, 52, 53, 51],
+      { send: async (job) => sent.push(job) },
+      {
+        waitUntil(promise) {
+          void promise;
+        },
+      },
+    );
+    assert.equal(queued, 1);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0]?.doubanId, 51);
+    const claimed = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 51) });
+    assert.ok(JSON.parse(claimed?.agent ?? "{}").token);
   });
 });
 

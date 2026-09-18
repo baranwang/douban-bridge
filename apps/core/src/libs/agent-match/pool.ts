@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
 import { isEvaluated, parseAgent, serializeAgent } from "./blob";
@@ -13,6 +13,18 @@ function eligibleWhere() {
     or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
     or(isNull(doubanMapping.agent), eq(doubanMapping.agent, "")),
   );
+}
+
+export function parseEnqueueIds(values: FormDataEntryValue[]): number[] {
+  const seen = new Set<number>();
+  const ids: number[] = [];
+  for (const value of values) {
+    const id = Number.parseInt(String(value), 10);
+    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
 }
 
 export async function recoverExpiredClaims(now = Date.now()): Promise<number> {
@@ -52,9 +64,19 @@ export async function recoverExpiredClaims(now = Date.now()): Promise<number> {
   return recovered;
 }
 
-export async function claimAgentJobs(limit: number, now = Date.now()): Promise<AgentMatchJob[]> {
+export async function claimAgentJobs(
+  limit: number,
+  now = Date.now(),
+  doubanIds?: readonly number[],
+): Promise<AgentMatchJob[]> {
   if (limit <= 0) return [];
-  const rows = await api.db.select().from(doubanMapping).where(eligibleWhere()).orderBy(sql`RANDOM()`).limit(limit);
+  const selected = doubanIds ? parseEnqueueIds(doubanIds.map(String)).slice(0, limit) : undefined;
+  if (selected && selected.length === 0) return [];
+
+  const where = selected ? and(eligibleWhere(), inArray(doubanMapping.doubanId, selected)) : eligibleWhere();
+  const rows = selected
+    ? await api.db.select().from(doubanMapping).where(where).limit(limit)
+    : await api.db.select().from(doubanMapping).where(where).orderBy(sql`RANDOM()`).limit(limit);
 
   const jobs: AgentMatchJob[] = [];
   for (const row of rows) {
