@@ -1,0 +1,1 @@
+ALTER TABLE `douban_mapping` ADD `deleted_at` integer;

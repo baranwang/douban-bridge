@@ -15,7 +15,7 @@ export async function applyAgentVerdict(input: {
   now?: number;
 }): Promise<"written" | "suggested" | "no_match" | "stale"> {
   const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, input.doubanId) });
-  if (!row) return "stale";
+  if (!row || row.deletedAt) return "stale";
   const blob = parseAgent(row.agent);
   const now = input.now ?? Date.now();
   if (

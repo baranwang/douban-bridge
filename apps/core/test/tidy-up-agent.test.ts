@@ -396,3 +396,65 @@ test("tidy-up detail through /dash stays up when Douban subject fetch fails", as
     }
   });
 });
+
+test("tidy-up detail soft-deletes a mapping when Douban returns 404", async () => {
+  await withTestContext(async (env, ctx) => {
+    try {
+      await api.db.insert(doubanMapping).values({ doubanId: 38606313, imdbId: "tt38606313" });
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => {
+        throw new axios.AxiosError("deleted", "ERR_BAD_REQUEST", undefined, undefined, {
+          status: 404,
+          data: "not found",
+        } as never);
+      });
+      const response = await app.fetch(
+        new Request("https://douban-bridge.baran.wang/dash/tidy-up/38606313", {
+          headers: { Authorization: `Basic ${btoa("dash:dash")}` },
+        }),
+        env,
+        ctx,
+      );
+      assert.equal(response.status, 404);
+      const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 38606313) });
+      assert.ok(row);
+      assert.equal(row?.deletedAt instanceof Date, true);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("tidy-up detail does not soft-delete on Douban 403", async () => {
+  await withTestContext(async (env, ctx) => {
+    try {
+      await api.db.insert(doubanMapping).values({ doubanId: 38606314, imdbId: "tt38606314" });
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => {
+        throw new axios.AxiosError("forbidden", "ERR_BAD_REQUEST", undefined, undefined, {
+          status: 403,
+          data: "forbidden",
+        } as never);
+      });
+      mock.method(api.traktAPI, "search", async () => []);
+      mock.method(api.traktAPI, "searchByImdbId", async () => []);
+      const { TmdbAPI } = await import("../src/libs/api/tmdb");
+      mock.method(TmdbAPI.prototype, "search", async () => ({ results: [], total_results: 0 }));
+      mock.method(TmdbAPI.prototype, "findById", async () => ({
+        movie_results: [],
+        tv_results: [],
+        tv_episode_results: [],
+      }));
+      const response = await app.fetch(
+        new Request("https://douban-bridge.baran.wang/dash/tidy-up/38606314", {
+          headers: { Authorization: `Basic ${btoa("dash:dash")}` },
+        }),
+        env,
+        ctx,
+      );
+      assert.equal(response.status, 200);
+      const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 38606314) });
+      assert.equal(row?.deletedAt ?? null, null);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});

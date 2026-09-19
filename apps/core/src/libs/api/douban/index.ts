@@ -1,6 +1,6 @@
 import axios from "axios";
 import { load as cheerioLoad } from "cheerio";
-import { isNull, ne, or } from "drizzle-orm";
+import { and, isNull, ne, or } from "drizzle-orm";
 import { z } from "zod/v4";
 import { doubanMapping } from "@/db";
 import { SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_WEEK } from "../../constants";
@@ -166,7 +166,10 @@ export class DoubanAPI extends BaseAPI {
           .onConflictDoUpdate({
             target: doubanMapping.doubanId,
             set: { imdbId },
-            setWhere: or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
+            setWhere: and(
+              isNull(doubanMapping.deletedAt),
+              or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
+            ),
           }),
       );
     } catch {}

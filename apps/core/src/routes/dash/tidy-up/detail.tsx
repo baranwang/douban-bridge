@@ -10,6 +10,7 @@ import {
 } from "@douban-bridge/ui/components/card";
 import { Input } from "@douban-bridge/ui/components/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@douban-bridge/ui/components/table";
+import axios from "axios";
 import { eq } from "drizzle-orm";
 import { uniqBy } from "es-toolkit";
 import { type Env, Hono } from "hono";
@@ -129,15 +130,23 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
   }
 
   const numericId = Number.parseInt(doubanId, 10);
+  let doubanMissing = false;
   const [subject, idMapping] = await Promise.all([
-    api.doubanAPI.getSubjectDetail(doubanId).catch(() => null),
+    api.doubanAPI.getSubjectDetail(doubanId).catch((error) => {
+      doubanMissing = axios.isAxiosError(error) && error.response?.status === 404;
+      return null;
+    }),
     api.db
       .select()
       .from(doubanMapping)
       .where(eq(doubanMapping.doubanId, numericId))
       .then((r) => r[0]),
   ]);
-  if (!idMapping) return c.notFound();
+  if (!idMapping || idMapping.deletedAt) return c.notFound();
+  if (doubanMissing) {
+    await api.db.update(doubanMapping).set({ deletedAt: new Date() }).where(eq(doubanMapping.doubanId, numericId));
+    return c.notFound();
+  }
   const type = subject?.type ?? "movie";
   const title = subject?.title ?? String(doubanId);
   const originalTitle = subject?.original_title ?? null;

@@ -96,7 +96,10 @@ tidyUpRoute.get("/", async (c) => {
               sql`json_extract(${doubanMapping.agent}, '$.tmdbId') = ${doubanMapping.tmdbId}`,
             )
           : sql`json_extract(${doubanMapping.agent}, '$.status') = 'no_match'`;
-  const data = await api.db.select().from(doubanMapping).where(viewWhere);
+  const data = await api.db
+    .select()
+    .from(doubanMapping)
+    .where(and(isNull(doubanMapping.deletedAt), viewWhere));
 
   const withImdbCount = data.filter((item) => item.imdbId).length;
   const withTraktCount = data.filter((item) => item.traktId).length;
