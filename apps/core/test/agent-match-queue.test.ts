@@ -561,3 +561,83 @@ test("queue retries when a provider tool fails before conclusion", async () => {
     }
   });
 });
+
+test("seedGetDoubanSubjectMessages starts the transcript with the subject tool result", () => {
+  const messages = runner.seedGetDoubanSubjectMessages({
+    doubanId: 1292052,
+    model: "grok-4.6",
+    subject: { doubanId: 1292052, title: "肖申克的救赎", episodes_count: 1 },
+  });
+  assert.equal(messages[0]?.role, "user");
+  assert.deepEqual(messages[0]?.content, [{ type: "text", text: "请匹配豆瓣条目 1292052。" }]);
+  assert.equal(messages[1]?.role, "assistant");
+  assert.deepEqual(messages[1]?.content, [
+    {
+      type: "toolCall",
+      id: "get-douban-subject",
+      name: "get_douban_subject",
+      arguments: { doubanId: 1292052 },
+    },
+  ]);
+  assert.equal(messages[1]?.stopReason, "toolUse");
+  assert.equal(messages[2]?.role, "toolResult");
+  assert.equal(messages[2]?.toolCallId, "get-douban-subject");
+  assert.equal(messages[2]?.toolName, "get_douban_subject");
+  assert.equal(messages[2]?.isError, false);
+  assert.deepEqual(messages[2]?.details, { doubanId: 1292052, title: "肖申克的救赎", episodes_count: 1 });
+  assert.equal(messages[2]?.content?.[0]?.text, JSON.stringify({ doubanId: 1292052, title: "肖申克的救赎", episodes_count: 1 }));
+});
+
+test("queue consumer seeds get_douban_subject before prompting", async () => {
+  await withTestContext(async (env) => {
+    try {
+      await api.db.insert(doubanMapping).values({
+        doubanId: 43,
+        imdbId: "tt0111161",
+        agent: JSON.stringify({ token: "tok-43", leaseUntil: Date.now() + 60_000 }),
+      });
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        id: 43,
+        type: "tv",
+        title: "Pinned",
+        original_title: "Pinned",
+        aka: ["别名"],
+        year: "2010",
+        episodes_count: 24,
+      }));
+      let seeded: unknown;
+      mock.method(
+        runner.agentMatchRuntime,
+        "runPiSession",
+        async (input: { user: unknown }) => {
+          seeded = input.user;
+        },
+      );
+      let acked = false;
+      await handleAgentMatchBatch(
+        {
+          messages: [
+            {
+              body: { doubanId: 43, agentToken: "tok-43" },
+              ack() {
+                acked = true;
+              },
+              retry() {},
+            },
+          ],
+        } as unknown as MessageBatch<AgentJob>,
+        env,
+        executionContext([]),
+      );
+      const messages = seeded as ReturnType<typeof runner.seedGetDoubanSubjectMessages>;
+      assert.equal(Array.isArray(messages), true);
+      assert.equal(messages[2]?.toolName, "get_douban_subject");
+      assert.equal(messages[2]?.details?.episodes_count, 24);
+      assert.equal(messages[2]?.details?.imdbId, "tt0111161");
+      assert.equal("tmdbId" in (messages[2]?.details ?? {}), false);
+      assert.equal(acked, true);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});

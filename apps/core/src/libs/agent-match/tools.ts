@@ -147,6 +147,7 @@ export function createAgentMatchTools(
           languages: detail.languages ?? [],
           genres: detail.genres ?? [],
           intro: detail.intro?.slice(0, 200) ?? null,
+          episodes_count: detail.episodes_count ?? null,
           imdbId: mapping?.imdbId ?? null,
         };
       },

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DEFAULT_COLLECTION_IDS, getLatestYearlyRanking, MOVIE_YEARLY_RANKING_ID } from "../src/collections";
-import { doubanRecommendSchema, doubanSearchSchema, doubanSubjectCollectionSchema } from "../src/douban";
+import { doubanRecommendSchema, doubanSearchSchema, doubanSubjectCollectionSchema, doubanSubjectDetailSchema } from "../src/douban";
 import {
   imageProviderSchema,
   imageProvidersSchema,
@@ -158,4 +158,14 @@ test("recommend envelope keeps movie/tv subjects and object comments", () => {
   assert.equal(parsed.items[0]?.id, 26752088);
   assert.equal(parsed.items[0]?.cover, "https://img.example/a.jpg");
   assert.equal(parsed.items[0]?.description, undefined);
+});
+
+test("douban subject detail keeps episodes_count", () => {
+  const parsed = doubanSubjectDetailSchema.parse({
+    id: "1292052",
+    type: "movie",
+    title: "肖申克的救赎",
+    episodes_count: "1",
+  });
+  assert.equal(parsed.episodes_count, 1);
 });
