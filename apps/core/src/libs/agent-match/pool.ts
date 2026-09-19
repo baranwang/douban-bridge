@@ -1,17 +1,23 @@
 import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
-import { isEvaluated, parseAgent, serializeAgent } from "./blob";
+import { isBusy, isEvaluated, parseAgent, serializeAgent } from "./blob";
 import { AGENT_LEASE_MS } from "./constants";
 import type { AgentMatchJob } from "./types";
 
 export type { AgentMatchJob };
 
-function eligibleWhere() {
+function eligibleWhere(includeSuggested = false) {
   return and(
     isNull(doubanMapping.tmdbId),
     or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
-    or(isNull(doubanMapping.agent), eq(doubanMapping.agent, "")),
+    includeSuggested
+      ? or(
+          isNull(doubanMapping.agent),
+          eq(doubanMapping.agent, ""),
+          sql`json_extract(${doubanMapping.agent}, '$.status') = 'suggested'`,
+        )
+      : or(isNull(doubanMapping.agent), eq(doubanMapping.agent, "")),
   );
 }
 
@@ -73,7 +79,9 @@ export async function claimAgentJobs(
   const selected = doubanIds ? parseEnqueueIds(doubanIds.map(String)).slice(0, limit) : undefined;
   if (selected && selected.length === 0) return [];
 
-  const where = selected ? and(eligibleWhere(), inArray(doubanMapping.doubanId, selected)) : eligibleWhere();
+  const where = selected
+    ? and(eligibleWhere(true), inArray(doubanMapping.doubanId, selected))
+    : eligibleWhere();
   const rows = selected
     ? await api.db.select().from(doubanMapping).where(where).limit(limit)
     : await api.db.select().from(doubanMapping).where(where).orderBy(sql`RANDOM()`).limit(limit);
@@ -82,7 +90,9 @@ export async function claimAgentJobs(
   for (const row of rows) {
     if (jobs.length >= limit) break;
     const blob = parseAgent(row.agent);
-    if (row.tmdbId != null || row.calibrated === true || isEvaluated(blob, now)) continue;
+    if (row.tmdbId != null || row.calibrated === true || isBusy(blob, now)) continue;
+    if (!selected && isEvaluated(blob, now)) continue;
+    if (selected && blob?.status === "no_match") continue;
     const agentToken = crypto.randomUUID();
     const claimed = await api.db
       .update(doubanMapping)
@@ -91,7 +101,7 @@ export async function claimAgentJobs(
         and(
           eq(doubanMapping.doubanId, row.doubanId),
           isNull(doubanMapping.tmdbId),
-          or(isNull(doubanMapping.agent), eq(doubanMapping.agent, "")),
+          row.agent ? eq(doubanMapping.agent, row.agent) : or(isNull(doubanMapping.agent), eq(doubanMapping.agent, "")),
         ),
       )
       .returning({ doubanId: doubanMapping.doubanId });

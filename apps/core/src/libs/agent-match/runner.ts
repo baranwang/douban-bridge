@@ -323,12 +323,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
   }
   const blob = parseAgent(row.agent);
   const now = Date.now();
-  if (
-    blob?.token !== job.agentToken ||
-    row.calibrated === true ||
-    blob.status === "suggested" ||
-    blob.status === "no_match"
-  ) {
+  if (blob?.token !== job.agentToken || row.calibrated === true || blob.status === "no_match") {
     logAgentMatch(job.doubanId, "stale", {
       reason: "claim_mismatch",
       calibrated: row.calibrated === true,
