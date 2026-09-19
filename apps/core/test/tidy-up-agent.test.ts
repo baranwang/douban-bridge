@@ -201,7 +201,7 @@ test("confirming no_match without a candidate is rejected", async () => {
   });
 });
 
-test("enqueueSelectedAgentJobs claims and sends only unmatched ids", async () => {
+test("enqueueSelectedAgentJobs claims unmatched and suggested ids", async () => {
   await withTestContext(async () => {
     await api.db
       .insert(doubanMapping)
@@ -209,10 +209,11 @@ test("enqueueSelectedAgentJobs claims and sends only unmatched ids", async () =>
         { doubanId: 51 },
         { doubanId: 52, agent: JSON.stringify({ status: "no_match" }) },
         { doubanId: 53, tmdbId: 1 },
+        { doubanId: 54, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }) },
       ]);
     const sent: Array<{ doubanId: number; agentToken: string }> = [];
     const queued = await enqueueSelectedAgentJobs(
-      [51, 52, 53, 51],
+      [51, 52, 53, 51, 54],
       { send: async (job) => sent.push(job) },
       {
         waitUntil(promise) {
@@ -220,10 +221,12 @@ test("enqueueSelectedAgentJobs claims and sends only unmatched ids", async () =>
         },
       },
     );
-    assert.equal(queued, 1);
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0]?.doubanId, 51);
-    const claimed = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 51) });
+    assert.equal(queued, 2);
+    assert.deepEqual(
+      sent.map((job) => job.doubanId).sort((a, b) => a - b),
+      [51, 54],
+    );
+    const claimed = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 54) });
     assert.ok(JSON.parse(claimed?.agent ?? "{}").token);
   });
 });

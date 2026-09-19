@@ -66,9 +66,10 @@ export async function enqueueSelectedAgentJobs(
 tidyUpRoute.post("/enqueue", async (c) => {
   const form = await c.req.formData();
   const ids = parseEnqueueIds(form.getAll("doubanId"));
+  const view = form.get("view") === "suggested" ? "suggested" : "unmatched";
   const { env, ctx } = getContext();
   await enqueueSelectedAgentJobs(ids, env.AGENT_MATCH_QUEUE, ctx);
-  return c.redirect("/dash/tidy-up?view=unmatched");
+  return c.redirect(`/dash/tidy-up?view=${view}`);
 });
 
 tidyUpRoute.route("/", tidyUpDetailRoute);
@@ -190,8 +191,9 @@ tidyUpRoute.get("/", async (c) => {
             </CardHeader>
             <CardContent>
               <form method="post" action="/dash/tidy-up/enqueue" id="enqueue-form">
-                {view === "unmatched" ? (
+                {view === "unmatched" || view === "suggested" ? (
                   <div className="mb-4 flex items-center justify-end">
+                    <input type="hidden" name="view" value={view} />
                     <Button type="submit" size="sm">
                       加入队列
                     </Button>
@@ -200,7 +202,7 @@ tidyUpRoute.get("/", async (c) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {view === "unmatched" ? (
+                      {view === "unmatched" || view === "suggested" ? (
                         <TableHead className="w-10">
                           <input type="checkbox" data-select-all form="enqueue-form" aria-label="全选" />
                         </TableHead>
@@ -219,7 +221,7 @@ tidyUpRoute.get("/", async (c) => {
                   <TableBody>
                     {data.map((item, index) => (
                       <TableRow key={item.doubanId}>
-                        {view === "unmatched" ? (
+                        {view === "unmatched" || view === "suggested" ? (
                           <TableCell>
                             <input
                               type="checkbox"
@@ -305,7 +307,7 @@ tidyUpRoute.get("/", async (c) => {
           </Card>
         )}
       </div>
-      {view === "unmatched" ? (
+      {view === "unmatched" || view === "suggested" ? (
         <script
           // biome-ignore lint/security/noDangerouslySetInnerHtml: checkbox select-all for unmatched enqueue
           dangerouslySetInnerHTML={{
