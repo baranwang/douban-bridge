@@ -109,12 +109,22 @@ test("get_douban_subject ignores a hallucinated doubanId when a job id is pinned
     try {
       mock.method(api.doubanAPI, "getSubjectDetail", async (id: number) => {
         if (id !== 41) throw new Error(`unexpected douban id ${id}`);
-        return { id: 41, type: "tv", title: "Pinned", original_title: "Pinned", year: "2010" };
+        return {
+          id: 41,
+          type: "tv",
+          title: "Pinned",
+          original_title: "Pinned",
+          aka: ["别名"],
+          year: "2010",
+        };
       });
       const tools = createAgentMatchTools(new CandidateRegistry(), { doubanType: "tv", doubanId: 41 });
       const getSubject = tools.find((t) => t.name === "get_douban_subject")!;
       const out = await getSubject.execute({ doubanId: 999 });
       assert.equal(out.doubanId, 41);
+      assert.deepEqual(out.aka, ["别名"]);
+      assert.equal("tmdbId" in out, false);
+      assert.equal("traktId" in out, false);
     } finally {
       mock.restoreAll();
     }
