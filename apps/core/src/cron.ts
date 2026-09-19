@@ -16,7 +16,11 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
         .select()
         .from(doubanMapping)
         .where(
-          and(isNull(doubanMapping.tmdbId), or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated))),
+          and(
+            isNull(doubanMapping.deletedAt),
+            isNull(doubanMapping.tmdbId),
+            or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
+          ),
         );
 
       console.info("🔍 Found", data.length, "items to process");

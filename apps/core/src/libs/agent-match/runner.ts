@@ -375,7 +375,7 @@ export async function runPiSession(input: {
 
 export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | "suggested" | "no_match" | "stale"> {
   const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, job.doubanId) });
-  if (!row) {
+  if (!row || row.deletedAt) {
     logAgentMatch(job.doubanId, "stale", { reason: "missing_row" });
     return "stale";
   }

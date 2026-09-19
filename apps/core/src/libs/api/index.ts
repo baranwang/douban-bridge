@@ -1,4 +1,4 @@
-import { inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { type DoubanIdMapping, doubanMapping, doubanMappingSchema } from "@/db";
 import { BaseAPI } from "./base";
@@ -20,7 +20,10 @@ class API extends BaseAPI {
   traktAPI = new TraktAPI();
 
   async fetchIdMapping(doubanIds: number[]) {
-    const rows = await this.db.select().from(doubanMapping).where(inArray(doubanMapping.doubanId, doubanIds));
+    const rows = await this.db
+      .select()
+      .from(doubanMapping)
+      .where(and(inArray(doubanMapping.doubanId, doubanIds), isNull(doubanMapping.deletedAt)));
     const mappingCache = new Map<number, Partial<DoubanIdMapping>>();
     const mappedIds = new Set<number>();
     for (const { doubanId, imdbId, tmdbId, traktId, calibrated } of rows) {
@@ -75,7 +78,10 @@ class API extends BaseAPI {
             ELSE ${doubanMapping.traktId}
           END`,
         },
-        setWhere: or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
+        setWhere: and(
+          isNull(doubanMapping.deletedAt),
+          or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
+        ),
       });
   }
 

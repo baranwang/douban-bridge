@@ -9,6 +9,7 @@ export type { AgentMatchJob };
 
 function eligibleWhere(includeSuggested = false) {
   return and(
+    isNull(doubanMapping.deletedAt),
     isNull(doubanMapping.tmdbId),
     or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
     includeSuggested
