@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
+import axios from "axios";
 import { eq } from "drizzle-orm";
 import { doubanMapping } from "../src/db";
 import { CandidateRegistry } from "../src/libs/agent-match/candidates";
@@ -355,6 +356,41 @@ test("tidy-up detail through /dash stays up when IMDb lookup fails", async () =>
         ctx,
       );
       assert.equal(response.status, 200);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("tidy-up detail through /dash stays up when Douban subject fetch fails", async () => {
+  await withTestContext(async (env, ctx) => {
+    try {
+      await api.db.insert(doubanMapping).values({ doubanId: 38606313, imdbId: "tt38606313" });
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => {
+        throw new axios.AxiosError("frodo down", "ERR_BAD_RESPONSE", undefined, undefined, {
+          status: 403,
+          data: "forbidden",
+        } as never);
+      });
+      mock.method(api.traktAPI, "search", async () => []);
+      mock.method(api.traktAPI, "searchByImdbId", async () => []);
+      const { TmdbAPI } = await import("../src/libs/api/tmdb");
+      mock.method(TmdbAPI.prototype, "search", async () => ({ results: [], total_results: 0 }));
+      mock.method(TmdbAPI.prototype, "findById", async () => ({
+        movie_results: [],
+        tv_results: [],
+        tv_episode_results: [],
+      }));
+      const response = await app.fetch(
+        new Request("https://douban-bridge.baran.wang/dash/tidy-up/38606313", {
+          headers: { Authorization: `Basic ${btoa("dash:dash")}` },
+        }),
+        env,
+        ctx,
+      );
+      assert.equal(response.status, 200);
+      const html = await response.text();
+      assert.match(html, /38606313/);
     } finally {
       mock.restoreAll();
     }

@@ -128,28 +128,32 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
     return c.notFound();
   }
 
+  const numericId = Number.parseInt(doubanId, 10);
   const [subject, idMapping] = await Promise.all([
-    api.doubanAPI.getSubjectDetail(doubanId),
+    api.doubanAPI.getSubjectDetail(doubanId).catch(() => null),
     api.db
       .select()
       .from(doubanMapping)
-      .where(eq(doubanMapping.doubanId, Number.parseInt(doubanId, 10)))
+      .where(eq(doubanMapping.doubanId, numericId))
       .then((r) => r[0]),
   ]);
   if (!idMapping) return c.notFound();
+  const type = subject?.type ?? "movie";
+  const title = subject?.title ?? String(doubanId);
+  const originalTitle = subject?.original_title ?? null;
 
   const tmdbAPI = new TmdbAPI(c.env.TMDB_API_KEY);
   const tmdbResults = await tmdbAPI
-    .search(subject.type, {
-      query: subject.original_title || subject.title,
-      // year: subject.year ?? undefined,
+    .search(type, {
+      query: originalTitle || title,
+      // year: subject?.year ?? undefined,
     })
     .catch(() => null);
 
-  const doubanCoverUrl = subject.cover_url || subject.pic?.large || subject.pic?.normal || "";
+  const doubanCoverUrl = subject?.cover_url || subject?.pic?.large || subject?.pic?.normal || "";
   const doubanCoverSrc = doubanCoverUrl ? dashDoubanImageSrc(doubanCoverUrl) : "";
 
-  let traktResults = await api.traktAPI.search(subject.type === "tv" ? "show" : "movie", subject.title).catch(() => []);
+  let traktResults = await api.traktAPI.search(type === "tv" ? "show" : "movie", title).catch(() => []);
 
   if (tmdbResults?.results?.length === 1) {
     const resp = await api.traktAPI.searchByTmdbId(tmdbResults.results[0].id.toString()).catch(() => []);
@@ -163,13 +167,13 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
 
   if (idMapping.imdbId) {
     const resp = await tmdbAPI.findById(idMapping.imdbId, "imdb_id").catch(() => null);
-    if (subject.type === "movie" && resp?.movie_results.length) {
+    if (type === "movie" && resp?.movie_results.length) {
       tmdbResults?.results.push(...resp.movie_results);
     }
-    if (subject.type === "tv" && resp?.tv_results.length) {
+    if (type === "tv" && resp?.tv_results.length) {
       tmdbResults?.results.push(...resp.tv_results);
     }
-    if (subject.type === "tv" && resp?.tv_episode_results.length) {
+    if (type === "tv" && resp?.tv_episode_results.length) {
       tmdbResults?.results.push(...resp.tv_episode_results);
     }
     const traktSearchResp = await api.traktAPI.searchByImdbId(idMapping.imdbId).catch(() => []);
@@ -183,7 +187,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
     try {
       tmdbResults.results = await Promise.all(
         tmdbResults.results.map(async (item) => {
-          const resp = await tmdbAPI.getExternalId(subject.type, item.id);
+          const resp = await tmdbAPI.getExternalId(type, item.id);
           return {
             ...item,
             imdb_id: resp.imdb_id,
@@ -230,57 +234,57 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                     <div className="mb-4 overflow-hidden rounded-lg shadow-lg">
                       <img
                         src={doubanCoverSrc}
-                        alt={subject.title}
+                        alt={title}
                         referrerPolicy="no-referrer"
                         loading="lazy"
                         className="h-72 w-48 object-cover transition-transform duration-300 hover:scale-105"
                       />
                     </div>
                   )}
-                  <h3 className="text-center font-bold text-xl">{subject.title}</h3>
-                  {subject.original_title && subject.original_title !== subject.title && (
-                    <p className="mt-1 text-center text-muted-foreground text-sm">{subject.original_title}</p>
+                  <h3 className="text-center font-bold text-xl">{title}</h3>
+                  {originalTitle && originalTitle !== title && (
+                    <p className="mt-1 text-center text-muted-foreground text-sm">{originalTitle}</p>
                   )}
                 </a>
 
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
                     <span className="text-muted-foreground text-sm">类型</span>
-                    <Badge variant={subject.type === "tv" ? "default" : "secondary"}>
-                      {subject.type === "tv" ? "剧集" : "电影"}
+                    <Badge variant={type === "tv" ? "default" : "secondary"}>
+                      {type === "tv" ? "剧集" : "电影"}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
                     <span className="text-muted-foreground text-sm">年份</span>
-                    <span className="font-medium">{subject.year || "-"}</span>
+                    <span className="font-medium">{subject?.year || "-"}</span>
                   </div>
-                  {subject.countries && subject.countries.length > 0 && (
+                  {subject?.countries && subject?.countries.length > 0 && (
                     <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
                       <span className="text-muted-foreground text-sm">国家/地区</span>
-                      <span className="font-medium">{subject.countries.join(" / ")}</span>
+                      <span className="font-medium">{subject?.countries.join(" / ")}</span>
                     </div>
                   )}
-                  {subject.languages && subject.languages.length > 0 && (
+                  {subject?.languages && subject?.languages.length > 0 && (
                     <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
                       <span className="text-muted-foreground text-sm">语言</span>
-                      <span className="font-medium">{subject.languages.join(" / ")}</span>
+                      <span className="font-medium">{subject?.languages.join(" / ")}</span>
                     </div>
                   )}
-                  {subject.directors && subject.directors.length > 0 && (
+                  {subject?.directors && subject?.directors.length > 0 && (
                     <div className="rounded-lg bg-muted/50 px-3 py-2">
                       <span className="text-muted-foreground text-sm">导演</span>
-                      <p className="mt-1 font-medium text-sm">{subject.directors.map((d) => d.name).join(" / ")}</p>
+                      <p className="mt-1 font-medium text-sm">{subject?.directors.map((d) => d.name).join(" / ")}</p>
                     </div>
                   )}
-                  {subject.actors && subject.actors.length > 0 && (
+                  {subject?.actors && subject?.actors.length > 0 && (
                     <div className="rounded-lg bg-muted/50 px-3 py-2">
                       <span className="text-muted-foreground text-sm">演员</span>
                       <p className="mt-1 font-medium text-sm">
-                        {subject.actors
+                        {subject?.actors
                           .slice(0, 5)
                           .map((a) => a.name)
                           .join(" / ")}
-                        {subject.actors.length > 5 && " ..."}
+                        {subject?.actors.length > 5 && " ..."}
                       </p>
                     </div>
                   )}
@@ -358,7 +362,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                             <TableCell>
                               {ids?.tmdb ? (
                                 <a
-                                  href={`https://www.themoviedb.org/${subject.type}/${ids.tmdb}`}
+                                  href={`https://www.themoviedb.org/${type}/${ids.tmdb}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   data-no-fill
@@ -447,7 +451,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                           </TableCell>
                           <TableCell>
                             <a
-                              href={`https://www.themoviedb.org/${subject.type}/${result.id}`}
+                              href={`https://www.themoviedb.org/${type}/${result.id}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               data-no-fill
