@@ -138,6 +138,7 @@ export function createAgentMatchTools(
           type: detail.type,
           title: detail.title,
           original_title: detail.original_title ?? null,
+          aka: detail.aka ?? [],
           year: detail.year ?? null,
           pubdate: detail.pubdate ?? [],
           directors: (detail.directors ?? []).slice(0, 3).map((person) => person.name),
@@ -147,8 +148,6 @@ export function createAgentMatchTools(
           genres: detail.genres ?? [],
           intro: detail.intro?.slice(0, 200) ?? null,
           imdbId: mapping?.imdbId ?? null,
-          tmdbId: mapping?.tmdbId ?? null,
-          traktId: mapping?.traktId ?? null,
         };
       },
     },
