@@ -5,7 +5,7 @@
 ## 决策
 
 - 包：`@earendil-works/pi-agent-core` + `@earendil-works/pi-ai`。禁止 `pi-coding-agent`。
-- 只由小时 cron 在自己的确定性尝试之后入队。每小时随机抽 `N=20`。
+- catalog / cloud meta 第一次本地 miss 入队；已有 ID、校准或 agent 记录的热路径不再匹配。小时 cron 本地吃不掉的合格行全部入队。
 - 工具：`get_douban_subject`、`search_tmdb`、`find_tmdb_by_imdb`、`get_tmdb_external_ids`、`lift_imdb_series`、`conclude_match`。无封面、无 Trakt 搜索、无任意 URL。
 - 模型只能引用本轮工具登记的 `candidateId`。直写走代码 verifier，不要求豆瓣 IMDb 锚。
 - `calibrated` 仍是人锁。Agent 永不写 `true`。

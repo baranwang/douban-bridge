@@ -173,6 +173,90 @@ describe("catalog service", { concurrency: false }, () => {
     });
   });
 
+  test("existing empty mappings are not rematched or enqueued", async () => {
+    await withTestContext(async (env, ctx) => {
+      try {
+        const pending: Promise<unknown>[] = [];
+        const waitUntil = ctx.waitUntil.bind(ctx);
+        ctx.waitUntil = (promise: Promise<unknown>) => {
+          pending.push(promise);
+          waitUntil(promise);
+        };
+        const sent: Array<{ doubanId: number }> = [];
+        env.AGENT_MATCH_QUEUE = {
+          send: async (body: { doubanId: number }) => {
+            sent.push(body);
+            return { metadata: { metrics: { retries: 0 } } };
+          },
+        } as Queue<{ doubanId: number }>;
+        await api.db.insert(doubanMapping).values({
+          doubanId: 1,
+          agent: JSON.stringify({ token: "tried", leaseUntil: Date.now() + 60_000 }),
+        });
+        const requested: number[] = [];
+        mock.method(api.doubanAPI, "getSubjectCollectionItems", async () => ({
+          subject_collection_items: [
+            { id: 1, type: "movie", title: "第一项", cover: undefined, year: "2023", description: undefined },
+          ],
+          total: 1,
+        }));
+        mock.method(api, "findExternalId", async ({ doubanId }: { doubanId: number }) => {
+          requested.push(doubanId);
+          return { doubanId, tmdbId: 999, imdbId: "tt999", traktId: null };
+        });
+        const result = await getCatalogPage({ collectionId: "movie_top250", skip: 0 }, { providers: [], origin });
+        await Promise.all(pending);
+        assert.deepEqual(requested, []);
+        assert.equal(result[0].tmdbId, null);
+        assert.equal(sent.length, 0);
+      } finally {
+        mock.restoreAll();
+      }
+    });
+  });
+
+  test("stremio placeholder rows still match on the first catalog query", async () => {
+    await withTestContext(async (env, ctx) => {
+      try {
+        const pending: Promise<unknown>[] = [];
+        const waitUntil = ctx.waitUntil.bind(ctx);
+        ctx.waitUntil = (promise: Promise<unknown>) => {
+          pending.push(promise);
+          waitUntil(promise);
+        };
+        const sent: Array<{ doubanId: number }> = [];
+        env.AGENT_MATCH_QUEUE = {
+          send: async (body: { doubanId: number }) => {
+            sent.push(body);
+            return { metadata: { metrics: { retries: 0 } } };
+          },
+        } as Queue<{ doubanId: number }>;
+        await api.db.insert(doubanMapping).values({ doubanId: 1 });
+        const requested: number[] = [];
+        mock.method(api.doubanAPI, "getSubjectCollectionItems", async () => ({
+          subject_collection_items: [
+            { id: 1, type: "movie", title: "第一项", cover: undefined, year: "2023", description: undefined },
+          ],
+          total: 1,
+        }));
+        mock.method(api, "findExternalId", async ({ doubanId }: { doubanId: number }) => {
+          requested.push(doubanId);
+          return { doubanId, tmdbId: null, imdbId: null, traktId: null };
+        });
+        const result = await getCatalogPage({ collectionId: "movie_top250", skip: 0 }, { providers: [], origin });
+        await Promise.all(pending);
+        assert.deepEqual(requested, [1]);
+        assert.equal(result[0].tmdbId, null);
+        assert.deepEqual(
+          sent.map((job) => job.doubanId),
+          [1],
+        );
+      } finally {
+        mock.restoreAll();
+      }
+    });
+  });
+
   test("calibrated empty mappings are not rematched on this request", async () => {
     await withTestContext(async () => {
       try {

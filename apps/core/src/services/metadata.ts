@@ -3,6 +3,7 @@ import axios from "axios";
 import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { doubanMapping } from "@/db";
+import { persistAndEnqueueUnmatched } from "@/libs/agent-match/pool";
 import { api } from "@/libs/api";
 import { ImageUrlGenerator } from "@/libs/images";
 import { getContext } from "@/libs/middleware";
@@ -43,7 +44,7 @@ async function loadMeta(doubanId: number, images: ImageContext, enrich: boolean)
     );
     for (const mapping of newMappings) mappingCache.set(mapping.doubanId, mapping);
     if (newMappings.length > 0) {
-      getContext().ctx.waitUntil(api.persistIdMapping(newMappings, false));
+      getContext().ctx.waitUntil(persistAndEnqueueUnmatched(newMappings));
     }
     const mapping = mappingCache.get(doubanId);
     tmdbId = mapping?.tmdbId ?? null;

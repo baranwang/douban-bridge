@@ -3,6 +3,7 @@ import type { DoubanSubjectCollectionItem } from "@douban-bridge/contracts/douba
 import type { StremioCatalogItem } from "@douban-bridge/contracts/stremio";
 import axios from "axios";
 import { HTTPException } from "hono/http-exception";
+import { persistAndEnqueueUnmatched } from "@/libs/agent-match/pool";
 import { api } from "@/libs/api";
 import { getLatestYearlyRanking, isYearlyRankingId } from "@/libs/collections";
 import type { Config } from "@/libs/config";
@@ -74,7 +75,7 @@ export async function enrichCatalogItems(
     }),
   );
   for (const mapping of newMappings) mappingCache.set(mapping.doubanId, mapping);
-  getContext().ctx.waitUntil(api.persistIdMapping(newMappings, false));
+  getContext().ctx.waitUntil(persistAndEnqueueUnmatched(newMappings));
 
   const generator = new ImageUrlGenerator(images.providers, {
     origin: images.origin,

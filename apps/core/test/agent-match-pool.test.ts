@@ -3,7 +3,13 @@ import test from "node:test";
 import { eq } from "drizzle-orm";
 import { doubanMapping } from "../src/db";
 import { parseAgent } from "../src/libs/agent-match/blob";
-import { claimAgentJobs, parseEnqueueIds, recoverExpiredClaims } from "../src/libs/agent-match/pool";
+import {
+  claimAgentJobs,
+  enqueueUnmatchedAgentJobs,
+  parseEnqueueIds,
+  persistAndEnqueueUnmatched,
+  recoverExpiredClaims,
+} from "../src/libs/agent-match/pool";
 import { api } from "../src/libs/api";
 import { withTestContext } from "./context";
 
@@ -88,5 +94,66 @@ test("claimAgentJobs can requeue selected suggested ids", async () => {
     const blob = parseAgent(claimed?.agent);
     assert.ok(blob?.token);
     assert.equal(blob?.status, undefined);
+  });
+});
+
+test("claimAgentJobs without limit claims every eligible row", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values([{ doubanId: 14 }, { doubanId: 15 }, { doubanId: 16 }]);
+    const jobs = await claimAgentJobs();
+    assert.deepEqual(
+      jobs.map((job) => job.doubanId).sort((a, b) => a - b),
+      [14, 15, 16],
+    );
+  });
+});
+
+function mockQueue(env: CloudflareBindings, sent: Array<{ doubanId: number; agentToken: string }>) {
+  env.AGENT_MATCH_QUEUE = {
+    send: async (body: { doubanId: number; agentToken: string }) => {
+      sent.push(body);
+      return { metadata: { metrics: { retries: 0 } } };
+    },
+  } as Queue<{ doubanId: number; agentToken: string }>;
+}
+
+test("persistAndEnqueueUnmatched queues first misses without tmdb", async () => {
+  await withTestContext(async (env) => {
+    const sent: Array<{ doubanId: number; agentToken: string }> = [];
+    mockQueue(env, sent);
+    await persistAndEnqueueUnmatched([
+      { doubanId: 17, tmdbId: 1, imdbId: null, traktId: null },
+      { doubanId: 18, tmdbId: null, imdbId: null, traktId: null },
+    ]);
+    assert.deepEqual(
+      sent.map((job) => job.doubanId),
+      [18],
+    );
+    const matched = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 17) });
+    const missed = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 18) });
+    assert.equal(matched?.tmdbId, 1);
+    assert.ok(parseAgent(missed?.agent)?.token);
+  });
+});
+
+test("persistAndEnqueueUnmatched skips when the queue binding is missing", async () => {
+  await withTestContext(async () => {
+    await persistAndEnqueueUnmatched([{ doubanId: 19, tmdbId: null, imdbId: null, traktId: null }]);
+    const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 19) });
+    assert.equal(row?.tmdbId, null);
+    assert.equal(parseAgent(row?.agent)?.token, undefined);
+  });
+});
+
+test("enqueueUnmatchedAgentJobs does not requeue suggested rows", async () => {
+  await withTestContext(async (env) => {
+    const sent: Array<{ doubanId: number; agentToken: string }> = [];
+    mockQueue(env, sent);
+    await api.db
+      .insert(doubanMapping)
+      .values({ doubanId: 20, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }) });
+    const queued = await enqueueUnmatchedAgentJobs([20]);
+    assert.equal(queued, 0);
+    assert.deepEqual(sent, []);
   });
 });

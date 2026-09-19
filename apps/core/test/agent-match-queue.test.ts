@@ -3,7 +3,6 @@ import test, { mock } from "node:test";
 import { eq } from "drizzle-orm";
 import { scheduled } from "../src/cron";
 import { doubanMapping } from "../src/db";
-import { AGENT_MATCH_HOURLY_LIMIT } from "../src/libs/agent-match/constants";
 import { handleAgentMatchBatch } from "../src/libs/agent-match/queue";
 import * as runner from "../src/libs/agent-match/runner";
 import { api } from "../src/libs/api";
@@ -25,7 +24,6 @@ test("customCostHeaderFromOpenRouterPricing maps OpenRouter prices", () => {
   assert.equal(runner.openRouterModelBySlug([{ id: "x-ai/grok-4.6" }], "grok-4.6")?.id, "x-ai/grok-4.6");
   assert.equal(runner.customCostHeaderFromOpenRouterPricing({ prompt: "nope", completion: "0" }), undefined);
 });
-
 
 test("agentMatchModelId reads AGENT_MATCH_MODEL from KV", async () => {
   await withTestContext(async (env) => {
@@ -108,7 +106,9 @@ test("logPiAgentEvent records validation failures that never reach wrapTool", ()
     });
     const events = logs
       .filter((args) => args[0] === "agent-match" && typeof args[1] === "object" && args[1] !== null)
-      .map((args) => args[1] as { event: string; tool?: string; isError?: boolean; toolCalls?: Array<{ name?: string }> });
+      .map(
+        (args) => args[1] as { event: string; tool?: string; isError?: boolean; toolCalls?: Array<{ name?: string }> },
+      );
     assert.equal(events[0]?.event, "pi_tool_start");
     assert.equal(events[0]?.tool, "conclude_match");
     assert.equal(events[1]?.event, "pi_tool_end");
@@ -143,7 +143,7 @@ function executionContext(pending: Promise<unknown>[]) {
   } as ExecutionContext;
 }
 
-test("cron claims unmatched leftovers and sends at most the hourly limit", async () => {
+test("cron claims all unmatched leftovers after deterministic matching", async () => {
   await withTestContext(async (env) => {
     try {
       const sent: AgentJob[] = [];
@@ -162,9 +162,10 @@ test("cron claims unmatched leftovers and sends at most the hourly limit", async
       const pending: Promise<unknown>[] = [];
       await scheduled({ scheduledTime: 0, cron: "0 * * * *", noRetry() {} }, env, executionContext(pending));
       await Promise.all(pending);
-      assert.ok(sent.length > 0);
-      assert.ok(sent.length <= AGENT_MATCH_HOURLY_LIMIT);
-      assert.ok(sent.length <= 3);
+      assert.deepEqual(
+        sent.map((job) => job.doubanId).sort((a, b) => a - b),
+        [31, 32, 33],
+      );
     } finally {
       mock.restoreAll();
     }
@@ -202,6 +203,7 @@ test("queue consumer writes high-confidence matches and acks", async () => {
       logs.push(args);
     };
     try {
+      await env.KV.put("AGENT_MATCH_MODEL", "gpt-5.6-luna");
       await api.db.insert(doubanMapping).values({
         doubanId: 35,
         agent: JSON.stringify({ token: "tok-35", leaseUntil: Date.now() + 60_000 }),
@@ -391,6 +393,7 @@ test("queue retries when persist throws after conclude_match starts", async () =
 test("queue consumer renews an expired lease before running", async () => {
   await withTestContext(async (env) => {
     try {
+      await env.KV.put("AGENT_MATCH_MODEL", "gpt-5.6-luna");
       await api.db.insert(doubanMapping).values({
         doubanId: 38,
         agent: JSON.stringify({ token: "tok-38", leaseUntil: Date.now() - 1 }),
@@ -453,6 +456,7 @@ test("queue consumer renews an expired lease before running", async () => {
 test("queue consumer writes when a concurrent imdb appears mid-session", async () => {
   await withTestContext(async (env) => {
     try {
+      await env.KV.put("AGENT_MATCH_MODEL", "gpt-5.6-luna");
       await api.db.insert(doubanMapping).values({
         doubanId: 39,
         agent: JSON.stringify({ token: "tok-39", leaseUntil: Date.now() + 60_000 }),
@@ -600,12 +604,16 @@ test("seedGetDoubanSubjectMessages starts the transcript with the subject tool r
   assert.equal(messages[2]?.toolName, "get_douban_subject");
   assert.equal(messages[2]?.isError, false);
   assert.deepEqual(messages[2]?.details, { doubanId: 1292052, title: "肖申克的救赎", episodes_count: 1 });
-  assert.equal(messages[2]?.content?.[0]?.text, JSON.stringify({ doubanId: 1292052, title: "肖申克的救赎", episodes_count: 1 }));
+  assert.equal(
+    messages[2]?.content?.[0]?.text,
+    JSON.stringify({ doubanId: 1292052, title: "肖申克的救赎", episodes_count: 1 }),
+  );
 });
 
 test("queue consumer seeds get_douban_subject before prompting", async () => {
   await withTestContext(async (env) => {
     try {
+      await env.KV.put("AGENT_MATCH_MODEL", "gpt-5.6-luna");
       await api.db.insert(doubanMapping).values({
         doubanId: 43,
         imdbId: "tt0111161",
@@ -621,13 +629,9 @@ test("queue consumer seeds get_douban_subject before prompting", async () => {
         episodes_count: 24,
       }));
       let seeded: unknown;
-      mock.method(
-        runner.agentMatchRuntime,
-        "runPiSession",
-        async (input: { user: unknown }) => {
-          seeded = input.user;
-        },
-      );
+      mock.method(runner.agentMatchRuntime, "runPiSession", async (input: { user: unknown }) => {
+        seeded = input.user;
+      });
       let acked = false;
       await handleAgentMatchBatch(
         {

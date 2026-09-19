@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { doubanMapping } from "@/db";
+import { type DoubanIdMapping, doubanMapping } from "@/db";
 import { api } from "@/libs/api";
+import { getContext } from "@/libs/middleware";
 import { isBusy, isEvaluated, parseAgent, serializeAgent } from "./blob";
 import { AGENT_LEASE_MS } from "./constants";
 import type { AgentMatchJob } from "./types";
@@ -72,24 +73,30 @@ export async function recoverExpiredClaims(now = Date.now()): Promise<number> {
 }
 
 export async function claimAgentJobs(
-  limit: number,
+  limit?: number,
   now = Date.now(),
   doubanIds?: readonly number[],
+  includeSuggested = doubanIds != null,
 ): Promise<AgentMatchJob[]> {
-  if (limit <= 0) return [];
-  const selected = doubanIds ? parseEnqueueIds(doubanIds.map(String)).slice(0, limit) : undefined;
+  if (limit != null && limit <= 0) return [];
+  const selected = doubanIds
+    ? parseEnqueueIds(doubanIds.map(String)).slice(0, limit ?? Number.POSITIVE_INFINITY)
+    : undefined;
   if (selected && selected.length === 0) return [];
 
   const where = selected
-    ? and(eligibleWhere(true), inArray(doubanMapping.doubanId, selected))
+    ? and(eligibleWhere(includeSuggested), inArray(doubanMapping.doubanId, selected))
     : eligibleWhere();
+  const query = api.db.select().from(doubanMapping).where(where);
   const rows = selected
-    ? await api.db.select().from(doubanMapping).where(where).limit(limit)
-    : await api.db.select().from(doubanMapping).where(where).orderBy(sql`RANDOM()`).limit(limit);
+    ? await (limit == null ? query : query.limit(limit))
+    : limit == null
+      ? await query
+      : await query.orderBy(sql`RANDOM()`).limit(limit);
 
   const jobs: AgentMatchJob[] = [];
   for (const row of rows) {
-    if (jobs.length >= limit) break;
+    if (limit != null && jobs.length >= limit) break;
     const blob = parseAgent(row.agent);
     if (row.tmdbId != null || row.calibrated === true || isBusy(blob, now)) continue;
     if (!selected && isEvaluated(blob, now)) continue;
@@ -111,4 +118,27 @@ export async function claimAgentJobs(
     }
   }
   return jobs;
+}
+
+export async function enqueueUnmatchedAgentJobs(doubanIds: readonly number[]): Promise<number> {
+  const ids = parseEnqueueIds(doubanIds.map(String));
+  if (ids.length === 0) return 0;
+  const { env, ctx } = getContext();
+  if (!env.AGENT_MATCH_QUEUE) return 0;
+  const jobs = await claimAgentJobs(ids.length, Date.now(), ids, false);
+  await Promise.all(
+    jobs.map((job) => {
+      const sent = env.AGENT_MATCH_QUEUE.send(job);
+      ctx.waitUntil(sent);
+      return sent;
+    }),
+  );
+  return jobs.length;
+}
+
+export async function persistAndEnqueueUnmatched(mappings: DoubanIdMapping[]): Promise<void> {
+  await api.persistIdMapping(mappings, false);
+  const missed = mappings.filter((mapping) => mapping.tmdbId == null).map((mapping) => mapping.doubanId);
+  if (missed.length === 0) return;
+  await enqueueUnmatchedAgentJobs(missed);
 }
