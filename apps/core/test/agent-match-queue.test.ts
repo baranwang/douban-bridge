@@ -26,6 +26,14 @@ test("customCostHeaderFromOpenRouterPricing maps OpenRouter prices", () => {
   assert.equal(runner.customCostHeaderFromOpenRouterPricing({ prompt: "nope", completion: "0" }), undefined);
 });
 
+
+test("agentMatchModelId reads AGENT_MATCH_MODEL from KV", async () => {
+  await withTestContext(async (env) => {
+    await env.KV.put("AGENT_MATCH_MODEL", "gpt-5.6-luna");
+    assert.equal(await runner.agentMatchModelId(), "gpt-5.6-luna");
+  });
+});
+
 test("withAgentMatchStreamOptions forwards sessionId for aio-proxy and AI Gateway", () => {
   const options = runner.withAgentMatchStreamOptions(
     { temperature: 0, headers: { Authorization: null } },
