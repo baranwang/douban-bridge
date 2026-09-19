@@ -34,7 +34,13 @@ test("withAgentMatchStreamOptions forwards sessionId for aio-proxy and AI Gatewa
   );
   assert.equal(options.sessionId, "douban-match:37134256");
   assert.equal(options.headers.session_id, "douban-match:37134256");
-  assert.equal(options.headers["cf-aig-metadata"], JSON.stringify({ session_id: "douban-match:37134256" }));
+  assert.equal(
+    options.headers["cf-aig-metadata"],
+    JSON.stringify({
+      "session.id": "douban-match:37134256",
+      "langfuse.session.id": "douban-match:37134256",
+    }),
+  );
   assert.equal(options.headers["cf-aig-authorization"], "Bearer cloudflare-gateway-binding");
 });
 

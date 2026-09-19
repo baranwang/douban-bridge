@@ -33,7 +33,10 @@ export function withAgentMatchStreamOptions<T extends { sessionId?: string; head
     headers: {
       ...baseHeaders,
       session_id: sessionId,
-      "cf-aig-metadata": JSON.stringify({ session_id: sessionId }),
+      "cf-aig-metadata": JSON.stringify({
+        "session.id": sessionId,
+        "langfuse.session.id": sessionId,
+      }),
     },
   };
 }
