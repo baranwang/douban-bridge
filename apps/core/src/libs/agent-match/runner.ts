@@ -167,10 +167,61 @@ function logAgentMatch(doubanId: number, event: string, extra: Record<string, un
   console.info("agent-match", { doubanId, event, ...extra });
 }
 
+const EMPTY_USAGE = {
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+  totalTokens: 0,
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+};
+
+export function seedGetDoubanSubjectMessages(input: {
+  doubanId: number;
+  model: string;
+  subject: Record<string, unknown>;
+}) {
+  const toolCallId = "get-douban-subject";
+  const timestamp = Date.now();
+  return [
+    {
+      role: "user" as const,
+      content: [{ type: "text" as const, text: `请匹配豆瓣条目 ${input.doubanId}。` }],
+      timestamp,
+    },
+    {
+      role: "assistant" as const,
+      content: [
+        {
+          type: "toolCall" as const,
+          id: toolCallId,
+          name: "get_douban_subject",
+          arguments: { doubanId: input.doubanId },
+        },
+      ],
+      api: "openai-responses" as const,
+      provider: "agent-match",
+      model: input.model,
+      usage: EMPTY_USAGE,
+      stopReason: "toolUse" as const,
+      timestamp,
+    },
+    {
+      role: "toolResult" as const,
+      toolCallId,
+      toolName: "get_douban_subject",
+      content: [{ type: "text" as const, text: JSON.stringify(input.subject) }],
+      details: input.subject,
+      isError: false,
+      timestamp,
+    },
+  ];
+}
+
 export const agentMatchRuntime = {
   async runPiSession(input: {
     system: string;
-    user: string;
+    user: string | ReturnType<typeof seedGetDoubanSubjectMessages>;
     tools: AgentTool[];
     sessionId: string;
     doubanId?: number;
@@ -307,7 +358,7 @@ export const agentMatchRuntime = {
 
 export async function runPiSession(input: {
   system: string;
-  user: string;
+  user: string | ReturnType<typeof seedGetDoubanSubjectMessages>;
   tools: AgentTool[];
   sessionId: string;
   doubanId?: number;
@@ -425,10 +476,18 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
     },
   };
 
+  const wrappedTools = [...tools, concludeTool].map(wrapTool);
+  const getSubject = wrappedTools.find((tool) => tool.name === "get_douban_subject");
+  if (!getSubject) throw new Error("get_douban_subject tool is required");
+  const subject = await getSubject.execute({ doubanId: job.doubanId });
   await agentMatchRuntime.runPiSession({
     system: AGENT_MATCH_SYSTEM_PROMPT,
-    user: `请匹配豆瓣条目 ${job.doubanId}。标题：${detail.title}。年份：${detail.year ?? "未知"}。类型：${detail.type}。`,
-    tools: [...tools, concludeTool].map(wrapTool),
+    user: seedGetDoubanSubjectMessages({
+      doubanId: job.doubanId,
+      model: getContext().env.AGENT_MATCH_MODEL ?? "grok-4.6",
+      subject,
+    }),
+    tools: wrappedTools,
     sessionId: `douban-match:${job.doubanId}`,
     doubanId: job.doubanId,
   });

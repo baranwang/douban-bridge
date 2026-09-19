@@ -116,6 +116,7 @@ test("get_douban_subject ignores a hallucinated doubanId when a job id is pinned
           original_title: "Pinned",
           aka: ["别名"],
           year: "2010",
+          episodes_count: 24,
         };
       });
       const tools = createAgentMatchTools(new CandidateRegistry(), { doubanType: "tv", doubanId: 41 });
@@ -123,6 +124,7 @@ test("get_douban_subject ignores a hallucinated doubanId when a job id is pinned
       const out = await getSubject.execute({ doubanId: 999 });
       assert.equal(out.doubanId, 41);
       assert.deepEqual(out.aka, ["别名"]);
+      assert.equal(out.episodes_count, 24);
       assert.equal("tmdbId" in out, false);
       assert.equal("traktId" in out, false);
     } finally {

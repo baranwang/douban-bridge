@@ -121,6 +121,7 @@ export const doubanSubjectDetailSchema = z.object({
     )
     .nullish(),
   languages: z.array(z.string()).nullish(),
+  episodes_count: z.coerce.number().nullish(),
   pubdate: z.array(z.string()).nullish(),
   rating: z
     .object({
