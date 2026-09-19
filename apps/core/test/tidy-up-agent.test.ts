@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
 import { eq } from "drizzle-orm";
 import { doubanMapping } from "../src/db";
 import { CandidateRegistry } from "../src/libs/agent-match/candidates";
 import { verifyConcludeMatch } from "../src/libs/agent-match/verifier";
 import { applyAgentVerdict } from "../src/libs/agent-match/writer";
+import { app } from "../src/app";
 import { api } from "../src/libs/api";
 import { enqueueSelectedAgentJobs, tidyUpListFilter } from "../src/routes/dash/tidy-up";
 import { tidyUpDetailRoute } from "../src/routes/dash/tidy-up/detail";
@@ -263,5 +264,99 @@ test("confirming an auto-written mapping keeps the official tuple", async () => 
     assert.equal(row?.traktId, 9);
     assert.equal(row?.calibrated, true);
     assert.equal(row?.agent ?? null, null);
+  });
+});
+
+test("tidy-up detail through /dash does not 500 when the mapping row exists", async () => {
+  await withTestContext(async (env, ctx) => {
+    try {
+      await api.db.insert(doubanMapping).values({ doubanId: 38372172, imdbId: "tt38372172" });
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        id: 38372172,
+        type: "movie",
+        title: "Mapped Row",
+        original_title: "Mapped Row",
+        year: "2024",
+      }));
+      mock.method(api.traktAPI, "search", async () => []);
+      mock.method(api.traktAPI, "searchByImdbId", async () => []);
+      mock.method(api.traktAPI, "searchByTmdbId", async () => []);
+      const { TmdbAPI } = await import("../src/libs/api/tmdb");
+      mock.method(TmdbAPI.prototype, "search", async () => ({ results: [], total_results: 0 }));
+      mock.method(TmdbAPI.prototype, "findById", async () => ({
+        movie_results: [],
+        tv_results: [],
+        tv_episode_results: [],
+      }));
+      const response = await app.fetch(
+        new Request("https://douban-bridge.baran.wang/dash/tidy-up/38372172", {
+          headers: { Authorization: `Basic ${btoa("dash:dash")}` },
+        }),
+        env,
+        ctx,
+      );
+      assert.notEqual(response.status, 500);
+      assert.equal(response.status, 200);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("tidy-up detail returns 404 when the mapping row is missing", async () => {
+  await withTestContext(async (env, ctx) => {
+    try {
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        id: 38372173,
+        type: "movie",
+        title: "Missing Row",
+        original_title: "Missing Row",
+        year: "2024",
+      }));
+      const response = await app.fetch(
+        new Request("https://douban-bridge.baran.wang/dash/tidy-up/38372173", {
+          headers: { Authorization: `Basic ${btoa("dash:dash")}` },
+        }),
+        env,
+        ctx,
+      );
+      assert.equal(response.status, 404);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("tidy-up detail through /dash stays up when IMDb lookup fails", async () => {
+  await withTestContext(async (env, ctx) => {
+    try {
+      await api.db.insert(doubanMapping).values({ doubanId: 38372172, imdbId: "tt38372172" });
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        id: 38372172,
+        type: "movie",
+        title: "Mapped Row",
+        original_title: "Mapped Row",
+        year: "2024",
+      }));
+      mock.method(api.traktAPI, "search", async () => []);
+      mock.method(api.traktAPI, "searchByImdbId", async () => {
+        throw new Error("trakt imdb down");
+      });
+      const { TmdbAPI } = await import("../src/libs/api/tmdb");
+      mock.method(TmdbAPI.prototype, "search", async () => ({ results: [], total_results: 0 }));
+      mock.method(TmdbAPI.prototype, "findById", async () => {
+        throw new Error("tmdb imdb down");
+      });
+      const response = await app.fetch(
+        new Request("https://douban-bridge.baran.wang/dash/tidy-up/38372172", {
+          headers: { Authorization: `Basic ${btoa("dash:dash")}` },
+        }),
+        env,
+        ctx,
+      );
+      assert.equal(response.status, 200);
+    } finally {
+      mock.restoreAll();
+    }
   });
 });

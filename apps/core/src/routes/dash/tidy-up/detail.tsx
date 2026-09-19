@@ -136,6 +136,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
       .where(eq(doubanMapping.doubanId, Number.parseInt(doubanId, 10)))
       .then((r) => r[0]),
   ]);
+  if (!idMapping) return c.notFound();
 
   const tmdbAPI = new TmdbAPI(c.env.TMDB_API_KEY);
   const tmdbResults = await tmdbAPI
@@ -148,30 +149,30 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
   const doubanCoverUrl = subject.cover_url || subject.pic?.large || subject.pic?.normal || "";
   const doubanCoverSrc = doubanCoverUrl ? dashDoubanImageSrc(doubanCoverUrl) : "";
 
-  let traktResults = await api.traktAPI.search(subject.type === "tv" ? "show" : "movie", subject.title);
+  let traktResults = await api.traktAPI.search(subject.type === "tv" ? "show" : "movie", subject.title).catch(() => []);
 
   if (tmdbResults?.results?.length === 1) {
-    const resp = await api.traktAPI.searchByTmdbId(tmdbResults.results[0].id.toString());
+    const resp = await api.traktAPI.searchByTmdbId(tmdbResults.results[0].id.toString()).catch(() => []);
     traktResults.push(...resp);
   }
 
   if (idMapping.tmdbId) {
-    const resp = await api.traktAPI.searchByTmdbId(idMapping.tmdbId.toString());
+    const resp = await api.traktAPI.searchByTmdbId(idMapping.tmdbId.toString()).catch(() => []);
     traktResults.push(...resp);
   }
 
   if (idMapping.imdbId) {
-    const resp = await tmdbAPI.findById(idMapping.imdbId, "imdb_id");
-    if (subject.type === "movie" && resp.movie_results.length > 0) {
+    const resp = await tmdbAPI.findById(idMapping.imdbId, "imdb_id").catch(() => null);
+    if (subject.type === "movie" && resp?.movie_results.length) {
       tmdbResults?.results.push(...resp.movie_results);
     }
-    if (subject.type === "tv" && resp.tv_results.length > 0) {
+    if (subject.type === "tv" && resp?.tv_results.length) {
       tmdbResults?.results.push(...resp.tv_results);
     }
-    if (subject.type === "tv" && resp.tv_episode_results.length > 0) {
+    if (subject.type === "tv" && resp?.tv_episode_results.length) {
       tmdbResults?.results.push(...resp.tv_episode_results);
     }
-    const traktSearchResp = await api.traktAPI.searchByImdbId(idMapping.imdbId);
+    const traktSearchResp = await api.traktAPI.searchByImdbId(idMapping.imdbId).catch(() => []);
     traktResults.push(...traktSearchResp);
   }
 
