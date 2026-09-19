@@ -1,5 +1,5 @@
 export const AGENT_AUTO_WRITE_MIN_CONFIDENCE = 0.9;
 export const AGENT_SUGGEST_MIN_CONFIDENCE = 0.6;
 export const AGENT_REASON_MAX_CHARS = 400;
-export const AGENT_MATCH_HOURLY_LIMIT = 20;
+export const AGENT_MATCH_CRON_BATCH = 50;
 export const AGENT_LEASE_MS = 10 * 60 * 1000;

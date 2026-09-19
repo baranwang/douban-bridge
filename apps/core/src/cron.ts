@@ -1,7 +1,7 @@
 import { and, isNull, ne, or } from "drizzle-orm";
 import { type DoubanIdMapping, doubanMapping } from "@/db";
 import { api } from "@/libs/api";
-import { AGENT_MATCH_HOURLY_LIMIT } from "./libs/agent-match/constants";
+import { AGENT_MATCH_CRON_BATCH } from "./libs/agent-match/constants";
 import { claimAgentJobs, recoverExpiredClaims } from "./libs/agent-match/pool";
 import { asyncLocalStorage } from "./libs/middleware";
 
@@ -111,9 +111,10 @@ export const scheduled = async (_controller: ScheduledController, env: Cloudflar
       }
       console.info("🎉 Successfully processed", successCount, "items");
       await recoverExpiredClaims();
-      const jobs = await claimAgentJobs(AGENT_MATCH_HOURLY_LIMIT);
-      for (const job of jobs) {
-        ctx.waitUntil(env.AGENT_MATCH_QUEUE?.send(job));
+      while (true) {
+        const jobs = await claimAgentJobs(AGENT_MATCH_CRON_BATCH);
+        if (jobs.length === 0) break;
+        await Promise.all(jobs.map((job) => env.AGENT_MATCH_QUEUE?.send(job)));
       }
     },
   );

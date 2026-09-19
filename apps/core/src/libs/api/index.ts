@@ -26,9 +26,9 @@ class API extends BaseAPI {
       .where(and(inArray(doubanMapping.doubanId, doubanIds), isNull(doubanMapping.deletedAt)));
     const mappingCache = new Map<number, Partial<DoubanIdMapping>>();
     const mappedIds = new Set<number>();
-    for (const { doubanId, imdbId, tmdbId, traktId, calibrated } of rows) {
-      if (imdbId || tmdbId || traktId || calibrated) {
-        mappingCache.set(doubanId, { imdbId, tmdbId, traktId, calibrated });
+    for (const { doubanId, imdbId, tmdbId, traktId, calibrated, agent } of rows) {
+      mappingCache.set(doubanId, { imdbId, tmdbId, traktId, calibrated });
+      if (imdbId || tmdbId || traktId || calibrated || (agent != null && agent !== "")) {
         mappedIds.add(doubanId);
       }
     }
