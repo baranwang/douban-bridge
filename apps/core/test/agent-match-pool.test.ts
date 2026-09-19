@@ -108,6 +108,22 @@ test("claimAgentJobs without limit claims every eligible row", async () => {
   });
 });
 
+test("claimAgentJobs can drain eligible rows in batches", async () => {
+  await withTestContext(async () => {
+    await api.db.insert(doubanMapping).values([{ doubanId: 21 }, { doubanId: 22 }, { doubanId: 23 }]);
+    const first = await claimAgentJobs(2);
+    const second = await claimAgentJobs(2);
+    const third = await claimAgentJobs(2);
+    assert.equal(first.length, 2);
+    assert.equal(second.length, 1);
+    assert.equal(third.length, 0);
+    assert.deepEqual(
+      [...first, ...second].map((job) => job.doubanId).sort((a, b) => a - b),
+      [21, 22, 23],
+    );
+  });
+});
+
 function mockQueue(env: CloudflareBindings, sent: Array<{ doubanId: number; agentToken: string }>) {
   env.AGENT_MATCH_QUEUE = {
     send: async (body: { doubanId: number; agentToken: string }) => {
