@@ -225,6 +225,13 @@ export function seedGetDoubanSubjectMessages(input: {
   ];
 }
 
+
+export async function agentMatchModelId(): Promise<string> {
+  const modelId = (await getContext().env.KV.get("AGENT_MATCH_MODEL", "text"))?.trim();
+  if (!modelId) throw new Error("KV AGENT_MATCH_MODEL is required");
+  return modelId;
+}
+
 export const agentMatchRuntime = {
   async runPiSession(input: {
     system: string;
@@ -241,11 +248,11 @@ export const agentMatchRuntime = {
         import("@earendil-works/pi-ai/api/cloudflare-ai-binding"),
       ]);
     const env = getContext().env;
-    const modelId = env.AGENT_MATCH_MODEL;
+    const modelId = await agentMatchModelId();
     const gatewayId = env.AGENT_MATCH_GATEWAY_ID;
     const providerSlug = env.AGENT_MATCH_GATEWAY_PROVIDER;
-    if (!modelId || !gatewayId || !providerSlug) {
-      throw new Error("AGENT_MATCH_MODEL, AGENT_MATCH_GATEWAY_ID, and AGENT_MATCH_GATEWAY_PROVIDER are required");
+    if (!gatewayId || !providerSlug) {
+      throw new Error("AGENT_MATCH_GATEWAY_ID and AGENT_MATCH_GATEWAY_PROVIDER are required");
     }
     const baseUrl = `https://workers-binding.ai/ai-gateway/gateways/${gatewayId}/custom-${providerSlug}`;
     const aiFetch = createAiBindingFetch(env.AI);
@@ -491,7 +498,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
     system: AGENT_MATCH_SYSTEM_PROMPT,
     user: seedGetDoubanSubjectMessages({
       doubanId: job.doubanId,
-      model: getContext().env.AGENT_MATCH_MODEL ?? "grok-4.6",
+      model: await agentMatchModelId(),
       subject,
     }),
     tools: wrappedTools,

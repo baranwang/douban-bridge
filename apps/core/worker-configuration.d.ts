@@ -15,7 +15,6 @@ interface __BaseEnv_CloudflareBindings {
 	GITHUB_CLIENT_ID: "Ov23liAcIeCqxTwANWoZ";
 	STREMIO_ORIGIN: "https://stremio-addon-douban.baran.wang";
 	DASH_ORIGIN: "https://douban-bridge.baran.wang";
-	AGENT_MATCH_MODEL: "grok-4.6";
 	AGENT_MATCH_GATEWAY_ID: "gateway";
 	AGENT_MATCH_GATEWAY_PROVIDER: "carpool";
 }
@@ -30,7 +29,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "DOUBAN_API_KEY" | "TRAKT_CLIENT_ID" | "GITHUB_CLIENT_ID" | "STREMIO_ORIGIN" | "DASH_ORIGIN" | "AGENT_MATCH_MODEL" | "AGENT_MATCH_GATEWAY_ID" | "AGENT_MATCH_GATEWAY_PROVIDER">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "DOUBAN_API_KEY" | "TRAKT_CLIENT_ID" | "GITHUB_CLIENT_ID" | "STREMIO_ORIGIN" | "DASH_ORIGIN" | "AGENT_MATCH_GATEWAY_ID" | "AGENT_MATCH_GATEWAY_PROVIDER">> {}
 }
 
 // Begin runtime types
