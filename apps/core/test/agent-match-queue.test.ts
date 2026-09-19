@@ -26,7 +26,7 @@ test("customCostHeaderFromOpenRouterPricing maps OpenRouter prices", () => {
   assert.equal(runner.customCostHeaderFromOpenRouterPricing({ prompt: "nope", completion: "0" }), undefined);
 });
 
-test("withAgentMatchStreamOptions forwards sessionId for aio-proxy Responses", () => {
+test("withAgentMatchStreamOptions forwards sessionId for aio-proxy and AI Gateway", () => {
   const options = runner.withAgentMatchStreamOptions(
     { temperature: 0, headers: { Authorization: null } },
     "douban-match:37134256",
@@ -34,6 +34,7 @@ test("withAgentMatchStreamOptions forwards sessionId for aio-proxy Responses", (
   );
   assert.equal(options.sessionId, "douban-match:37134256");
   assert.equal(options.headers.session_id, "douban-match:37134256");
+  assert.equal(options.headers["cf-aig-metadata"], JSON.stringify({ session_id: "douban-match:37134256" }));
   assert.equal(options.headers["cf-aig-authorization"], "Bearer cloudflare-gateway-binding");
 });
 
