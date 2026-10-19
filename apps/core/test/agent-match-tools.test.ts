@@ -132,3 +132,113 @@ test("get_douban_subject ignores a hallucinated doubanId when a job id is pinned
     }
   });
 });
+
+for (const name of ["exa_search", "exa_get_contents"]) {
+  test(`${name} reuses concurrent and repeated calls, including across tool instances`, async () => {
+    await withTestContext(async (env, ctx) => {
+      try {
+        env.EXA_API_KEY = "test-exa";
+        const { default: Exa } = await import("exa-js");
+        const method = name === "exa_search" ? "search" : "getContents";
+        let calls = 0;
+        mock.method(Exa.prototype, method, async () => {
+          calls++;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          return { results: [{ title: "Cached", url: "https://example.com/cached", text: "Evidence" }] };
+        });
+        const pending: Promise<unknown>[] = [];
+        mock.method(ctx, "waitUntil", (promise: Promise<unknown>) => pending.push(promise));
+        const args = name === "exa_search" ? { query: "重复查询 2012" } : { urls: "https://example.com/cached" };
+        const tool = createAgentMatchTools(new CandidateRegistry()).find((tool) => tool.name === name);
+        assert.ok(tool);
+        const [first, concurrent] = await Promise.all([tool.execute(args), tool.execute(args)]);
+        assert.deepEqual(concurrent, first);
+        assert.deepEqual(await tool.execute(args), first);
+        assert.equal(calls, 1);
+        await Promise.all(pending);
+        const another = createAgentMatchTools(new CandidateRegistry()).find((tool) => tool.name === name);
+        assert.ok(another);
+        assert.deepEqual(await another.execute(args), first);
+        assert.equal(calls, 1);
+        await tool.execute(name === "exa_search" ? { query: "另一查询" } : { urls: "https://example.com/other" });
+        assert.equal(calls, 2);
+        await Promise.all(pending);
+        const future = Date.now() + 10 * 60 * 1000 + 1;
+        mock.method(Date, "now", () => future);
+        const refreshed = createAgentMatchTools(new CandidateRegistry()).find((tool) => tool.name === name);
+        assert.ok(refreshed);
+        assert.deepEqual(await refreshed.execute(args), first);
+        assert.equal(calls, 3);
+        await Promise.all(pending);
+        env.EXA_API_KEY = "";
+        await assert.rejects(tool.execute(args), /EXA_API_KEY is required/);
+      } finally {
+        mock.restoreAll();
+      }
+    });
+  });
+
+  test(`${name} retries failures and refreshes expired results`, async () => {
+    await withTestContext(async (env) => {
+      try {
+        env.EXA_API_KEY = "test-exa";
+        const { default: Exa } = await import("exa-js");
+        const method = name === "exa_search" ? "search" : "getContents";
+        let calls = 0;
+        mock.method(Exa.prototype, method, async () => {
+          if (++calls === 1) throw new Error("upstream failed");
+          return { results: [] };
+        });
+        // Keep expiry deterministic without depending on KV's wall clock.
+        env.KV = { get: async () => null, put: async () => {} } as KVNamespace;
+        let now = Date.now();
+        mock.method(Date, "now", () => now);
+        const args = name === "exa_search" ? { query: "重试" } : { urls: "https://example.com/retry" };
+        const tool = createAgentMatchTools(new CandidateRegistry()).find((tool) => tool.name === name);
+        assert.ok(tool);
+        await assert.rejects(tool.execute(args), /upstream failed/);
+        assert.deepEqual(await tool.execute(args), { results: [] });
+        assert.deepEqual(await tool.execute(args), { results: [] });
+        assert.equal(calls, 2);
+        now += 10 * 60 * 1000 + 1;
+        assert.deepEqual(await tool.execute(args), { results: [] });
+        assert.equal(calls, 3);
+      } finally {
+        mock.restoreAll();
+      }
+    });
+  });
+}
+
+test("Exa cache failures preserve successful results and per-job reuse", async () => {
+  await withTestContext(async (env) => {
+    try {
+      env.EXA_API_KEY = "test-exa";
+      env.KV = {
+        get: async () => {
+          throw new Error("KV unavailable");
+        },
+        put: async () => {
+          throw new Error("KV unavailable");
+        },
+      } as KVNamespace;
+      const { default: Exa } = await import("exa-js");
+      let calls = 0;
+      mock.method(Exa.prototype, "search", async () => {
+        calls++;
+        return { results: [{ title: "Available", url: "https://example.com/available" }] };
+      });
+      const warnings: unknown[][] = [];
+      mock.method(console, "warn", (...args) => warnings.push(args));
+      const tool = createAgentMatchTools(new CandidateRegistry()).find((tool) => tool.name === "exa_search");
+      assert.ok(tool);
+      const first = await tool.execute({ query: "查询" });
+      assert.equal(first.results[0].title, "Available");
+      assert.deepEqual(await tool.execute({ query: " 查询 " }), first);
+      assert.equal(calls, 1);
+      assert.equal(warnings.length, 1);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});

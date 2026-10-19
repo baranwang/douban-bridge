@@ -16,6 +16,7 @@ export type AgentTool = {
 };
 
 const MAX_SEARCH_RESULTS = 8;
+const EXA_CACHE_TTL_SECONDS = 10 * 60;
 
 function yearFromTmdbItem(item: {
   release_date?: string | null;
@@ -116,6 +117,48 @@ export function createAgentMatchTools(
 ): AgentTool[] {
   const tmdbAPI = new TmdbAPI();
   let doubanType = options.doubanType;
+  // shortcut: concurrent dedupe is per job; use a Durable Object if atomic cross-job dedupe is needed.
+  const exaCache = new Map<string, { expiresAt: number; result: Promise<AgentToolExecuteResult> }>();
+
+  async function cachedExa(
+    name: string,
+    args: unknown,
+    load: () => Promise<AgentToolExecuteResult>,
+  ): Promise<AgentToolExecuteResult> {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify([name, args])));
+    const key = `agent-match:exa:v1:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+    const existing = exaCache.get(key);
+    if (existing && existing.expiresAt > Date.now()) return existing.result;
+
+    const { env, ctx } = getContext();
+    const entry: { expiresAt: number; result: Promise<AgentToolExecuteResult> } = {
+      expiresAt: Date.now() + EXA_CACHE_TTL_SECONDS * 1000,
+      result: (async () => {
+        const cached = await env.KV.get<{ expiresAt: number; value: AgentToolExecuteResult }>(key, "json").catch(
+          () => null,
+        );
+        if (cached && cached.expiresAt > Date.now()) {
+          entry.expiresAt = cached.expiresAt;
+          return cached.value;
+        }
+        const value = await load();
+        entry.expiresAt = Date.now() + EXA_CACHE_TTL_SECONDS * 1000;
+        ctx.waitUntil(
+          env.KV.put(key, JSON.stringify({ expiresAt: entry.expiresAt, value }), {
+            expirationTtl: EXA_CACHE_TTL_SECONDS,
+          }).catch(() => console.warn("Failed to persist Exa tool cache")),
+        );
+        return value;
+      })(),
+    };
+    exaCache.set(key, entry);
+    try {
+      return await entry.result;
+    } catch (error) {
+      if (exaCache.get(key) === entry) exaCache.delete(key);
+      throw error;
+    }
+  }
 
   return [
     {
@@ -148,7 +191,7 @@ export function createAgentMatchTools(
           genres: detail.genres ?? [],
           intro: detail.intro?.slice(0, 200) ?? null,
           episodes_count: detail.episodes_count ?? null,
-          imdbId: mapping?.deletedAt ? null : mapping?.imdbId ?? null,
+          imdbId: mapping?.deletedAt ? null : (mapping?.imdbId ?? null),
         };
       },
     },
@@ -250,15 +293,17 @@ export function createAgentMatchTools(
         const { default: Exa } = await import("exa-js");
         const apiKey = (getContext().env as CloudflareBindings & { EXA_API_KEY?: string }).EXA_API_KEY;
         if (!apiKey) throw new Error("EXA_API_KEY is required");
-        const exa = new Exa(apiKey);
-        const resp = await exa.search(String(args.query ?? ""), { numResults: 5 });
-        return {
-          results: (resp.results ?? []).slice(0, 5).map((item) => ({
-            title: item.title ?? null,
-            url: item.url,
-            publishedDate: item.publishedDate ?? null,
-          })),
-        };
+        const query = String(args.query ?? "").trim();
+        return cachedExa("search", query, async () => {
+          const resp = await new Exa(apiKey).search(query, { numResults: 5 });
+          return {
+            results: (resp.results ?? []).slice(0, 5).map((item) => ({
+              title: item.title ?? null,
+              url: item.url,
+              publishedDate: item.publishedDate ?? null,
+            })),
+          };
+        });
       },
     },
     {
@@ -281,15 +326,16 @@ export function createAgentMatchTools(
           .filter(Boolean)
           .slice(0, 3);
         if (urls.length === 0) return { results: [] };
-        const exa = new Exa(apiKey);
-        const resp = await exa.getContents(urls, { text: { maxCharacters: 1500 } });
-        return {
-          results: (resp.results ?? []).map((item) => ({
-            title: item.title ?? null,
-            url: item.url,
-            text: item.text?.slice(0, 1500) ?? null,
-          })),
-        };
+        return cachedExa("contents", urls, async () => {
+          const resp = await new Exa(apiKey).getContents(urls, { text: { maxCharacters: 1500 } });
+          return {
+            results: (resp.results ?? []).map((item) => ({
+              title: item.title ?? null,
+              url: item.url,
+              text: item.text?.slice(0, 1500) ?? null,
+            })),
+          };
+        });
       },
     },
   ];
