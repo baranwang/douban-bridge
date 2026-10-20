@@ -31,8 +31,6 @@ https://unpkg.com/@rexnow/douban
 - **电影推荐 / 剧集推荐**：按类型、地区、年代、排序筛选，支持自定义标签
 - **搜索**
 
-榜单定义见 [`packages/contracts/src/collections.ts`](packages/contracts/src/collections.ts)，Widget 入口见 [`apps/rex-widget/src/index.ts`](apps/rex-widget/src/index.ts)，版本历史见 [CHANGELOG](apps/rex-widget/CHANGELOG.md)。
-
 ## Stremio（兼容保留）
 
 原 Stremio 插件仍在运行，已安装的用户无需更换地址，但不再是主推方向：
@@ -42,41 +40,6 @@ https://stremio-addon-douban.baran.wang/manifest.json
 ```
 
 配置页：<https://stremio-addon-douban.baran.wang/configure>
-
-## 开发
-
-需要 Node.js 24+、pnpm、Cloudflare 账户。
-
-```bash
-git clone https://github.com/baranwang/douban-bridge.git
-cd douban-bridge
-pnpm install
-pnpm test
-pnpm build
-```
-
-| 包 | 说明 |
-|---|---|
-| `apps/rex-widget` | Rex Widget，npm 包 `@rexnow/douban`（Rslib + `@rexnow/libs`） |
-| `apps/core` | Worker `douban-bridge-core`：网页（`/rex` 等）、`/v1` API、后台、D1 映射库、定时任务与 Agent 匹配队列 |
-| `apps/stremio` | Worker `stremio-addon-douban`：Stremio 协议，经 service binding 调用 core |
-| `packages/contracts` | 共享榜单定义与 HTTP schema |
-| `packages/ui` | 共享 UI 组件 |
-
-技术栈：Cloudflare Workers、Hono、React SSR + Tailwind v4 / shadcn、D1 + Drizzle、KV、Queues、Workers AI Gateway。
-
-本地预览（需先 `pnpm build`）：
-
-```bash
-pnpm --filter @douban-bridge/core preview    # http://localhost:8787
-pnpm --filter @douban-bridge/stremio preview # http://localhost:8788
-node scripts/smoke.mjs
-```
-
-### 发布
-
-- **Widget**：根目录 `pnpm changeset` 写变更，合并进 `main` 后由 [Release workflow](.github/workflows/release.yml) 开版本 PR 或发布到 npm。
-- **Worker**：根目录 `pnpm deploy` 只部署 core，不发 Widget、不部署 stremio。完整的上线顺序、D1 迁移与回滚见 [docs/deployment/douban-bridge.md](docs/deployment/douban-bridge.md)。
 
 ## 支持
 
