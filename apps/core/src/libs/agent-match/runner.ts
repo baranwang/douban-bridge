@@ -429,8 +429,10 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
   const registry = new CandidateRegistry();
   const tools = createAgentMatchTools(registry, { doubanType: detail.type, doubanId: job.doubanId });
   let persisted = false;
-  // Only a failed verdict write aborts the job; provider tool errors go back to the model as tool results.
+  // Provider tool errors go back to the model as tool results; a failed verdict write aborts the session.
   let persistError: Error | undefined;
+  // Last provider error: rethrown if the session ends without a conclusion, so the queue retries instead of no_match.
+  let providerError: Error | undefined;
   let lastStatus: "written" | "suggested" | "no_match" | "stale" = "stale";
   const wrapTool = (tool: AgentTool): AgentTool => ({
     ...tool,
@@ -441,6 +443,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
         logAgentMatch(job.doubanId, "tool_end", { tool: tool.name, result: compact(result) });
         return result;
       } catch (error) {
+        if (tool.name !== "conclude_match") providerError = error instanceof Error ? error : new Error(String(error));
         logAgentMatch(job.doubanId, "tool_error", {
           tool: tool.name,
           error: error instanceof Error ? error.message : String(error),
@@ -520,6 +523,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
   if (persistError) throw persistError;
 
   if (!persisted) {
+    if (providerError) throw providerError;
     const reason = turnLimitReached ? "agent_turn_limit" : "agent_no_conclusion";
     logAgentMatch(job.doubanId, "no_conclusion", { reason });
     lastStatus = await agentMatchWriter.applyAgentVerdict({

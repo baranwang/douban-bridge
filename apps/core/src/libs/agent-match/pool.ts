@@ -17,7 +17,7 @@ function eligibleWhere(includeSuggested = false) {
       ? or(
           isNull(doubanMapping.agent),
           eq(doubanMapping.agent, ""),
-          sql`json_extract(${doubanMapping.agent}, '$.status') = 'suggested'`,
+          sql`json_extract(${doubanMapping.agent}, '$.status') IN ('suggested', 'failed')`,
         )
       : or(isNull(doubanMapping.agent), eq(doubanMapping.agent, "")),
   );

@@ -69,7 +69,8 @@ export async function applyAgentVerdict(input: {
 }
 
 /**
- * Terminal state after the final queue attempt fails, so cron lease recovery stops re-claiming the row.
+ * Terminal `failed` state after the final queue attempt errors, so cron lease recovery stops re-claiming the row.
+ * Distinct from `no_match`: it is not a matching conclusion and stays manually requeueable from tidy-up.
  * Ignores lease expiry: the token alone proves this job still owns the row.
  */
 export async function markAgentFailed(input: {
@@ -83,14 +84,7 @@ export async function markAgentFailed(input: {
   const updated = await api.db
     .update(doubanMapping)
     .set({
-      agent: serializeAgent({
-        status: "no_match",
-        confidence: 0,
-        reason: truncateReason(`agent_failed: ${input.error}`),
-        tmdbId: null,
-        imdbId: null,
-        traktId: null,
-      }),
+      agent: serializeAgent({ status: "failed", reason: truncateReason(input.error) }),
     })
     .where(
       and(eq(doubanMapping.doubanId, input.doubanId), eq(doubanMapping.agent, row.agent), isNull(doubanMapping.tmdbId)),

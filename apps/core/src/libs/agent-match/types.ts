@@ -11,7 +11,8 @@ export type CanonicalCandidate = {
   traktId?: number;
 };
 
-export type AgentStatus = "suggested" | "no_match";
+/** `failed`: infrastructure errors exhausted queue retries; cron skips it, manual requeue allowed. */
+export type AgentStatus = "suggested" | "no_match" | "failed";
 
 export type AgentBlob = {
   token?: string;

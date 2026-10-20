@@ -21,7 +21,7 @@
 
 直写 verifier：闭集、类型一致、电影明显翻拍年份冲突否决、两边都有 IMDb 则必须相同否则降建议、标题兼容（规范化后的 title/original_title 有交集）否则降建议。缺年份不单独否决。
 
-基础设施错误（认证/网络/解析）必须抛出并 Queue retry，不得写成 `no_match`。
+基础设施错误（认证/网络/解析）必须抛出并 Queue retry，不得写成 `no_match`。工具报错作为工具结果交给模型；会话没给结论且出现过工具错误时，抛出该错误重试。会话上限 20 个模型 turn。最后一次 attempt 仍失败时写 `status=failed`（cron 不再领取，tidy-up「执行失败」可手动重新入队）。
 
 ## 数据
 
@@ -31,7 +31,7 @@
 {
   token?: string;       // 进行中 claim
   leaseUntil?: number;  // 租约到期后可回收
-  status?: "suggested" | "no_match";
+  status?: "suggested" | "no_match" | "failed";
   confidence?: number;
   reason?: string;
   candidateId?: string;
@@ -52,6 +52,7 @@
 - 建议：`status=suggested` 且正式 TMDB 空
 - Agent 已写未校准：正式 TMDB 有值、未校准、`agent` 非空
 - 无匹配：`status=no_match`
+- 执行失败：`status=failed`，`reason` 为最后一次错误；可选中重新入队
 
 确认：采用建议 ID、`calibrated=true`、清空 `agent`。驳回 agent 直写：清空正式三 ID，`status=no_match`。普通保存清空 `agent`。空表单不得写成 `tmdb_id=0`。
 

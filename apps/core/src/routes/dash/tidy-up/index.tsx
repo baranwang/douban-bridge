@@ -14,7 +14,10 @@ import { tidyUpDetailRoute } from "./detail";
 
 export const tidyUpRoute = new Hono<Env>();
 
-export type TidyUpView = "unmatched" | "suggested" | "auto" | "no_match";
+export type TidyUpView = "unmatched" | "suggested" | "auto" | "no_match" | "failed";
+
+/** Views whose rows can be (re)queued for the agent. */
+const REQUEUEABLE_VIEWS: readonly TidyUpView[] = ["unmatched", "suggested", "failed"];
 
 export function tidyUpListFilter<
   T extends { agent?: string | null; calibrated?: boolean | null; tmdbId?: number | null },
@@ -22,7 +25,7 @@ export function tidyUpListFilter<
   if (view === "unmatched")
     return rows.filter((row) => {
       const status = parseAgent(row.agent)?.status;
-      return row.tmdbId == null && status !== "suggested" && status !== "no_match";
+      return row.tmdbId == null && status !== "suggested" && status !== "no_match" && status !== "failed";
     });
   if (view === "suggested")
     return rows.filter((row) => parseAgent(row.agent)?.status === "suggested" && row.tmdbId == null);
@@ -37,6 +40,7 @@ export function tidyUpListFilter<
         blob.tmdbId === row.tmdbId
       );
     });
+  if (view === "failed") return rows.filter((row) => parseAgent(row.agent)?.status === "failed" && row.tmdbId == null);
   return rows.filter((row) => parseAgent(row.agent)?.status === "no_match");
 }
 
@@ -45,6 +49,7 @@ const VIEW_COPY: Record<TidyUpView, { title: string; description: string }> = {
   suggested: { title: "待确认建议", description: "Agent 给出了建议，尚未写入正式 TMDB ID" },
   auto: { title: "Agent 已写未校准", description: "Agent 已直写正式 ID，仍可人工确认或驳回" },
   no_match: { title: "无匹配", description: "Agent 未能给出可用匹配" },
+  failed: { title: "执行失败", description: "基础设施错误耗尽队列重试，可修复后重新入队" },
 };
 
 export async function enqueueSelectedAgentJobs(
@@ -66,7 +71,8 @@ export async function enqueueSelectedAgentJobs(
 tidyUpRoute.post("/enqueue", async (c) => {
   const form = await c.req.formData();
   const ids = parseEnqueueIds(form.getAll("doubanId"));
-  const view = form.get("view") === "suggested" ? "suggested" : "unmatched";
+  const viewParam = form.get("view");
+  const view = viewParam === "suggested" || viewParam === "failed" ? viewParam : "unmatched";
   const { env, ctx } = getContext();
   await enqueueSelectedAgentJobs(ids, env.AGENT_MATCH_QUEUE, ctx);
   return c.redirect(`/dash/tidy-up?view=${view}`);
@@ -77,14 +83,19 @@ tidyUpRoute.route("/", tidyUpDetailRoute);
 tidyUpRoute.get("/", async (c) => {
   const viewParam = c.req.query("view");
   const view: TidyUpView =
-    viewParam === "unmatched" || viewParam === "auto" || viewParam === "no_match" || viewParam === "suggested"
+    viewParam === "unmatched" ||
+    viewParam === "auto" ||
+    viewParam === "no_match" ||
+    viewParam === "suggested" ||
+    viewParam === "failed"
       ? viewParam
       : "suggested";
+  const requeueable = REQUEUEABLE_VIEWS.includes(view);
   const viewWhere =
     view === "unmatched"
       ? and(
           isNull(doubanMapping.tmdbId),
-          sql`coalesce(json_extract(${doubanMapping.agent}, '$.status'), '') NOT IN ('suggested', 'no_match')`,
+          sql`coalesce(json_extract(${doubanMapping.agent}, '$.status'), '') NOT IN ('suggested', 'no_match', 'failed')`,
         )
       : view === "suggested"
         ? and(isNull(doubanMapping.tmdbId), sql`json_extract(${doubanMapping.agent}, '$.status') = 'suggested'`)
@@ -95,7 +106,9 @@ tidyUpRoute.get("/", async (c) => {
               sql`json_extract(${doubanMapping.agent}, '$.status') IS NULL`,
               sql`json_extract(${doubanMapping.agent}, '$.tmdbId') = ${doubanMapping.tmdbId}`,
             )
-          : sql`json_extract(${doubanMapping.agent}, '$.status') = 'no_match'`;
+          : view === "failed"
+            ? and(isNull(doubanMapping.tmdbId), sql`json_extract(${doubanMapping.agent}, '$.status') = 'failed'`)
+            : sql`json_extract(${doubanMapping.agent}, '$.status') = 'no_match'`;
   const data = await api.db
     .select()
     .from(doubanMapping)
@@ -135,6 +148,11 @@ tidyUpRoute.get("/", async (c) => {
               <a href="/dash/tidy-up?view=no_match">
                 <Button variant={view === "no_match" ? "default" : "outline"} size="sm">
                   无匹配
+                </Button>
+              </a>
+              <a href="/dash/tidy-up?view=failed">
+                <Button variant={view === "failed" ? "default" : "outline"} size="sm">
+                  执行失败
                 </Button>
               </a>
               <Badge
@@ -194,7 +212,7 @@ tidyUpRoute.get("/", async (c) => {
             </CardHeader>
             <CardContent>
               <form method="post" action="/dash/tidy-up/enqueue" id="enqueue-form">
-                {view === "unmatched" || view === "suggested" ? (
+                {requeueable ? (
                   <div className="mb-4 flex items-center justify-end">
                     <input type="hidden" name="view" value={view} />
                     <Button type="submit" size="sm">
@@ -205,7 +223,7 @@ tidyUpRoute.get("/", async (c) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {view === "unmatched" || view === "suggested" ? (
+                      {requeueable ? (
                         <TableHead className="w-10">
                           <input type="checkbox" data-select-all form="enqueue-form" aria-label="全选" />
                         </TableHead>
@@ -216,6 +234,7 @@ tidyUpRoute.get("/", async (c) => {
                       <TableHead>IMDb ID</TableHead>
                       <TableHead>TMDB ID</TableHead>
                       <TableHead>Trakt ID</TableHead>
+                      {view === "failed" ? <TableHead>失败原因</TableHead> : null}
                       <TableHead>创建时间</TableHead>
                       <TableHead>更新时间</TableHead>
                       <TableHead className="w-32 text-right">操作</TableHead>
@@ -224,7 +243,7 @@ tidyUpRoute.get("/", async (c) => {
                   <TableBody>
                     {data.map((item, index) => (
                       <TableRow key={item.doubanId}>
-                        {view === "unmatched" || view === "suggested" ? (
+                        {requeueable ? (
                           <TableCell>
                             <input
                               type="checkbox"
@@ -279,6 +298,11 @@ tidyUpRoute.get("/", async (c) => {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
+                        {view === "failed" ? (
+                          <TableCell className="max-w-xs truncate text-muted-foreground text-xs">
+                            {parseAgent(item.agent)?.reason}
+                          </TableCell>
+                        ) : null}
                         <TableCell className="text-muted-foreground text-xs">
                           {item.createdAt?.toLocaleDateString("zh-CN")}
                         </TableCell>
@@ -310,7 +334,7 @@ tidyUpRoute.get("/", async (c) => {
           </Card>
         )}
       </div>
-      {view === "unmatched" || view === "suggested" ? (
+      {requeueable ? (
         <script
           // biome-ignore lint/security/noDangerouslySetInnerHtml: checkbox select-all for unmatched enqueue
           dangerouslySetInnerHTML={{
