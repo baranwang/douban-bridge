@@ -6,6 +6,7 @@ import { doubanMapping } from "../src/db";
 import { handleAgentMatchBatch } from "../src/libs/agent-match/queue";
 import * as runner from "../src/libs/agent-match/runner";
 import { api } from "../src/libs/api";
+import { TmdbAPI } from "../src/libs/api/tmdb";
 import { withTestContext } from "./context";
 
 test("customCostHeaderFromOpenRouterPricing maps OpenRouter prices", () => {
@@ -229,6 +230,7 @@ test("queue consumer writes high-confidence matches and acks", async () => {
             confidence: 0.95,
             reason: "原名一致",
           });
+          return { turnLimitReached: false };
         },
       );
       mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
@@ -352,6 +354,7 @@ test("queue retries when persist throws after conclude_match starts", async () =
             confidence: 0.95,
             reason: "原名一致",
           });
+          return { turnLimitReached: false };
         },
       );
       mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
@@ -419,6 +422,7 @@ test("queue consumer renews an expired lease before running", async () => {
             confidence: 0.95,
             reason: "原名一致",
           });
+          return { turnLimitReached: false };
         },
       );
       mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
@@ -483,6 +487,7 @@ test("queue consumer writes when a concurrent imdb appears mid-session", async (
             confidence: 0.95,
             reason: "原名一致",
           });
+          return { turnLimitReached: false };
         },
       );
       mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
@@ -515,15 +520,21 @@ test("queue consumer writes when a concurrent imdb appears mid-session", async (
   });
 });
 
-test("queue retries when a provider tool fails before conclusion", async () => {
+test("conclude_match still persists after an earlier provider tool error", async () => {
   await withTestContext(async (env) => {
     try {
+      await env.KV.put("AGENT_MATCH_MODEL", "gpt-5.6-luna");
       await api.db.insert(doubanMapping).values({
         doubanId: 40,
         agent: JSON.stringify({ token: "tok-40", leaseUntil: Date.now() + 60_000 }),
       });
-      mock.method((await import("../src/libs/api/tmdb")).TmdbAPI.prototype, "search", async () => {
-        throw new Error("tmdb down");
+      const tmdb = TmdbAPI.prototype;
+      mock.method(tmdb, "search", async () => ({
+        results: [{ id: 27205, title: "Inception", original_title: "Inception", release_date: "2010-07-16" }],
+        total_results: 1,
+      }));
+      mock.method(tmdb, "getExternalId", async () => {
+        throw new Error("Request failed with status code 404");
       });
       mock.method(
         runner.agentMatchRuntime,
@@ -531,17 +542,22 @@ test("queue retries when a provider tool fails before conclusion", async () => {
         async (input: {
           tools: Array<{ name: string; execute: (args: Record<string, unknown>) => Promise<unknown> }>;
         }) => {
-          const search = input.tools.find((tool) => tool.name === "search_tmdb");
-          const conclude = input.tools.find((tool) => tool.name === "conclude_match");
-          await assert.rejects(
-            () => search?.execute({ type: "movie", query: "Inception" }) ?? Promise.resolve(),
-            /tmdb down/,
+          const tool = (name: string) => input.tools.find((item) => item.name === name);
+          const searched = (await tool("search_tmdb")?.execute({ type: "movie", query: "Inception" })) as {
+            results: Array<{ candidateId: string }>;
+          };
+          const candidateId = searched.results[0].candidateId;
+          await assert.rejects(async () => tool("get_tmdb_external_ids")?.execute({ candidateId }), /404/);
+          assert.deepEqual(
+            await tool("conclude_match")?.execute({
+              decision: "match",
+              candidateId,
+              confidence: 0.95,
+              reason: "原名一致",
+            }),
+            { status: "written", code: "auto" },
           );
-          await conclude?.execute({
-            decision: "none",
-            confidence: 0,
-            reason: "搜不到",
-          });
+          return { turnLimitReached: false };
         },
       );
       mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
@@ -558,6 +574,7 @@ test("queue retries when a provider tool fails before conclusion", async () => {
           messages: [
             {
               body: { doubanId: 40, agentToken: "tok-40" },
+              attempts: 1,
               ack() {
                 acked = true;
               },
@@ -571,10 +588,67 @@ test("queue retries when a provider tool fails before conclusion", async () => {
         executionContext([]),
       );
       const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 40) });
-      assert.equal(row?.tmdbId ?? null, null);
-      assert.equal(JSON.parse(row?.agent ?? "{}").status, undefined);
-      assert.equal(acked, false);
-      assert.equal(retried, true);
+      assert.equal(row?.tmdbId, 27205);
+      assert.equal(acked, true);
+      assert.equal(retried, false);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("final failed attempt writes terminal no_match and cron does not reclaim it", async () => {
+  await withTestContext(async (env) => {
+    try {
+      const sent: AgentJob[] = [];
+      mockQueue(env, sent);
+      await api.db.insert(doubanMapping).values({
+        doubanId: 41,
+        agent: JSON.stringify({ token: "tok-41", leaseUntil: Date.now() + 60_000 }),
+      });
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => {
+        throw new Error("douban down");
+      });
+      const outcomes: string[] = [];
+      const deliver = (attempts: number) =>
+        handleAgentMatchBatch(
+          {
+            messages: [
+              {
+                body: { doubanId: 41, agentToken: "tok-41" },
+                attempts,
+                ack() {
+                  outcomes.push(`ack@${attempts}`);
+                },
+                retry() {
+                  outcomes.push(`retry@${attempts}`);
+                },
+              },
+            ],
+          } as unknown as MessageBatch<AgentJob>,
+          env,
+          executionContext([]),
+        );
+      await deliver(3);
+      assert.equal(
+        JSON.parse(
+          (await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 41) }))?.agent ?? "{}",
+        ).token,
+        "tok-41",
+      );
+      await deliver(4);
+      assert.deepEqual(outcomes, ["retry@3", "ack@4"]);
+      const blob = JSON.parse(
+        (await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 41) }))?.agent ?? "{}",
+      );
+      assert.equal(blob.status, "no_match");
+      assert.equal(blob.token, undefined);
+      assert.match(blob.reason, /agent_failed: douban down/);
+
+      const pending: Promise<unknown>[] = [];
+      await scheduled({ scheduledTime: 0, cron: "0 * * * *", noRetry() {} }, env, executionContext(pending));
+      await Promise.all(pending);
+      assert.equal(sent.length, 0);
     } finally {
       mock.restoreAll();
     }
@@ -631,6 +705,7 @@ test("queue consumer seeds get_douban_subject before prompting", async () => {
       let seeded: unknown;
       mock.method(runner.agentMatchRuntime, "runPiSession", async (input: { user: unknown }) => {
         seeded = input.user;
+        return { turnLimitReached: false };
       });
       let acked = false;
       await handleAgentMatchBatch(

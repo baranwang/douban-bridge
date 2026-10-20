@@ -1,10 +1,11 @@
+import type { AssistantMessage, ToolResultMessage, UserMessage } from "@earendil-works/pi-ai";
 import { and, eq } from "drizzle-orm";
 import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
 import { getContext } from "@/libs/middleware";
 import { parseAgent, serializeAgent } from "./blob";
 import { CandidateRegistry } from "./candidates";
-import { AGENT_LEASE_MS } from "./constants";
+import { AGENT_LEASE_MS, AGENT_MATCH_MAX_TURNS } from "./constants";
 import { AGENT_MATCH_SYSTEM_PROMPT } from "./prompt";
 import { type AgentTool, createAgentMatchTools } from "./tools";
 import type { AgentMatchJob } from "./types";
@@ -46,9 +47,7 @@ const OPENROUTER_MODELS_CACHE_TTL_SECONDS = 6 * 60 * 60;
 
 type OpenRouterModel = { id?: string; pricing?: Record<string, string> };
 
-export function customCostHeaderFromOpenRouterPricing(
-  pricing: Record<string, string> | undefined,
-): string | undefined {
+export function customCostHeaderFromOpenRouterPricing(pricing: Record<string, string> | undefined): string | undefined {
   if (!pricing) return undefined;
   const perTokenIn = Number(pricing.prompt);
   const perTokenOut = Number(pricing.completion);
@@ -183,11 +182,14 @@ const EMPTY_USAGE = {
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 };
 
+/** Seed transcript: user prompt, then a completed `get_douban_subject` call and its result. */
+export type SeedTranscript = [UserMessage, AssistantMessage, ToolResultMessage<Record<string, unknown>>];
+
 export function seedGetDoubanSubjectMessages(input: {
   doubanId: number;
   model: string;
   subject: Record<string, unknown>;
-}) {
+}): SeedTranscript {
   const toolCallId = "get-douban-subject";
   const timestamp = Date.now();
   return [
@@ -225,28 +227,37 @@ export function seedGetDoubanSubjectMessages(input: {
   ];
 }
 
-
 export async function agentMatchModelId(): Promise<string> {
   const modelId = (await getContext().env.KV.get("AGENT_MATCH_MODEL", "text"))?.trim();
   if (!modelId) throw new Error("KV AGENT_MATCH_MODEL is required");
   return modelId;
 }
 
+export type AgentMatchSessionInput = {
+  system: string;
+  user: string | SeedTranscript;
+  tools: AgentTool[];
+  sessionId: string;
+  doubanId?: number;
+  /** Checked after each turn; true ends the session early. */
+  shouldStop?: () => boolean;
+};
+
+export type AgentMatchSessionResult = { turnLimitReached: boolean };
+
 export const agentMatchRuntime = {
-  async runPiSession(input: {
-    system: string;
-    user: string | ReturnType<typeof seedGetDoubanSubjectMessages>;
-    tools: AgentTool[];
-    sessionId: string;
-    doubanId?: number;
-  }): Promise<void> {
-    const [{ Agent }, { Type, createModels, createProvider }, { openAIResponsesApi }, { CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL, createAiBindingFetch }] =
-      await Promise.all([
-        import("@earendil-works/pi-agent-core"),
-        import("@earendil-works/pi-ai"),
-        import("@earendil-works/pi-ai/api/openai-responses.lazy"),
-        import("@earendil-works/pi-ai/api/cloudflare-ai-binding"),
-      ]);
+  async runPiSession(input: AgentMatchSessionInput): Promise<AgentMatchSessionResult> {
+    const [
+      { Agent },
+      { Type, createModels, createProvider },
+      { openAIResponsesApi },
+      { CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL, createAiBindingFetch },
+    ] = await Promise.all([
+      import("@earendil-works/pi-agent-core"),
+      import("@earendil-works/pi-ai"),
+      import("@earendil-works/pi-ai/api/openai-responses.lazy"),
+      import("@earendil-works/pi-ai/api/cloudflare-ai-binding"),
+    ]);
     const env = getContext().env;
     const modelId = await agentMatchModelId();
     const gatewayId = env.AGENT_MATCH_GATEWAY_ID;
@@ -307,7 +318,17 @@ export const agentMatchRuntime = {
     }
     const doubanId = input.doubanId ?? Number(input.sessionId.split(":").at(-1));
     logAgentMatch(doubanId, "prompt", { sessionId: input.sessionId, user: compact(input.user) });
+    let turns = 0;
+    let turnLimitReached = false;
     const agent = new Agent({
+      shouldStopAfterTurn: () => {
+        turns += 1;
+        if (input.shouldStop?.()) return true;
+        if (turns < AGENT_MATCH_MAX_TURNS) return false;
+        turnLimitReached = true;
+        logAgentMatch(doubanId, "turn_limit", { turns });
+        return true;
+      },
       streamFn: (model, context, options) =>
         models.streamSimple(
           model,
@@ -367,18 +388,9 @@ export const agentMatchRuntime = {
     if (agent.state.errorMessage) {
       throw new Error(agent.state.errorMessage);
     }
+    return { turnLimitReached };
   },
 };
-
-export async function runPiSession(input: {
-  system: string;
-  user: string | ReturnType<typeof seedGetDoubanSubjectMessages>;
-  tools: AgentTool[];
-  sessionId: string;
-  doubanId?: number;
-}): Promise<void> {
-  return agentMatchRuntime.runPiSession(input);
-}
 
 export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | "suggested" | "no_match" | "stale"> {
   const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, job.doubanId) });
@@ -417,24 +429,23 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
   const registry = new CandidateRegistry();
   const tools = createAgentMatchTools(registry, { doubanType: detail.type, doubanId: job.doubanId });
   let persisted = false;
-  let operationalError: Error | undefined;
+  // Only a failed verdict write aborts the job; provider tool errors go back to the model as tool results.
+  let persistError: Error | undefined;
   let lastStatus: "written" | "suggested" | "no_match" | "stale" = "stale";
   const wrapTool = (tool: AgentTool): AgentTool => ({
     ...tool,
     async execute(args) {
-      if (operationalError) throw operationalError;
       logAgentMatch(job.doubanId, "tool_start", { tool: tool.name, args: compact(args) });
       try {
         const result = await tool.execute(args);
         logAgentMatch(job.doubanId, "tool_end", { tool: tool.name, result: compact(result) });
         return result;
       } catch (error) {
-        operationalError = error instanceof Error ? error : new Error(String(error));
         logAgentMatch(job.doubanId, "tool_error", {
           tool: tool.name,
-          error: operationalError.message,
+          error: error instanceof Error ? error.message : String(error),
         });
-        throw operationalError;
+        throw error;
       }
     },
   });
@@ -484,8 +495,8 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
         persisted = true;
         return { status: lastStatus, code: verdict.code };
       } catch (error) {
-        operationalError = error instanceof Error ? error : new Error(String(error));
-        throw operationalError;
+        persistError = error instanceof Error ? error : new Error(String(error));
+        throw persistError;
       }
     },
   };
@@ -494,7 +505,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
   const getSubject = wrappedTools.find((tool) => tool.name === "get_douban_subject");
   if (!getSubject) throw new Error("get_douban_subject tool is required");
   const subject = await getSubject.execute({ doubanId: job.doubanId });
-  await agentMatchRuntime.runPiSession({
+  const { turnLimitReached } = await agentMatchRuntime.runPiSession({
     system: AGENT_MATCH_SYSTEM_PROMPT,
     user: seedGetDoubanSubjectMessages({
       doubanId: job.doubanId,
@@ -504,18 +515,20 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
     tools: wrappedTools,
     sessionId: `douban-match:${job.doubanId}`,
     doubanId: job.doubanId,
+    shouldStop: () => persistError != null,
   });
-  if (operationalError) throw operationalError;
+  if (persistError) throw persistError;
 
   if (!persisted) {
-    logAgentMatch(job.doubanId, "no_conclusion");
+    const reason = turnLimitReached ? "agent_turn_limit" : "agent_no_conclusion";
+    logAgentMatch(job.doubanId, "no_conclusion", { reason });
     lastStatus = await agentMatchWriter.applyAgentVerdict({
       doubanId: job.doubanId,
       agentToken: job.agentToken,
       verdict: verifyConcludeMatch({
         decision: "none",
         confidence: 0,
-        reason: "agent_no_conclusion",
+        reason,
         registry,
         douban: {
           type: detail.type,
@@ -526,7 +539,7 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
         },
       }),
       confidence: 0,
-      reason: "agent_no_conclusion",
+      reason,
     });
   }
   logAgentMatch(job.doubanId, "done", { status: lastStatus });

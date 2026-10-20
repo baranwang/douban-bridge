@@ -84,7 +84,8 @@
     "consumers": [{
       "queue": "douban-agent-match",
       "max_batch_size": 1,
-      "max_concurrency": 1
+      "max_concurrency": 1,
+      "max_retries": 3
     }]
   },
   "observability": {
