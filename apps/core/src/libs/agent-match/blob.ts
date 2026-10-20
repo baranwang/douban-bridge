@@ -22,5 +22,5 @@ export function isBusy(blob: AgentBlob | null, now = Date.now()): boolean {
 export function isEvaluated(blob: AgentBlob | null, now = Date.now()): boolean {
   if (!blob) return false;
   if (isBusy(blob, now)) return true;
-  return blob.status === "suggested" || blob.status === "no_match";
+  return blob.status === "suggested" || blob.status === "no_match" || blob.status === "failed";
 }

@@ -68,6 +68,32 @@ export async function applyAgentVerdict(input: {
   return updated.length === 0 ? "stale" : status;
 }
 
+/**
+ * Terminal `failed` state after the final queue attempt errors, so cron lease recovery stops re-claiming the row.
+ * Distinct from `no_match`: it is not a matching conclusion and stays manually requeueable from tidy-up.
+ * Ignores lease expiry: the token alone proves this job still owns the row.
+ */
+export async function markAgentFailed(input: {
+  doubanId: number;
+  agentToken: string;
+  error: string;
+}): Promise<boolean> {
+  const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, input.doubanId) });
+  if (!row || row.deletedAt || row.calibrated === true || row.tmdbId != null) return false;
+  if (parseAgent(row.agent)?.token !== input.agentToken) return false;
+  const updated = await api.db
+    .update(doubanMapping)
+    .set({
+      agent: serializeAgent({ status: "failed", reason: truncateReason(input.error) }),
+    })
+    .where(
+      and(eq(doubanMapping.doubanId, input.doubanId), eq(doubanMapping.agent, row.agent), isNull(doubanMapping.tmdbId)),
+    )
+    .returning({ doubanId: doubanMapping.doubanId });
+  return updated.length > 0;
+}
+
 export const agentMatchWriter = {
   applyAgentVerdict,
+  markAgentFailed,
 };

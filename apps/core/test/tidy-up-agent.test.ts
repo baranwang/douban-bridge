@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 import axios from "axios";
 import { eq } from "drizzle-orm";
+import { app } from "../src/app";
 import { doubanMapping } from "../src/db";
 import { CandidateRegistry } from "../src/libs/agent-match/candidates";
 import { verifyConcludeMatch } from "../src/libs/agent-match/verifier";
 import { applyAgentVerdict } from "../src/libs/agent-match/writer";
-import { app } from "../src/app";
 import { api } from "../src/libs/api";
 import { enqueueSelectedAgentJobs, tidyUpListFilter } from "../src/routes/dash/tidy-up";
 import { tidyUpDetailRoute } from "../src/routes/dash/tidy-up/detail";
@@ -120,7 +120,7 @@ test("human edit invalidates a running agent claim", async () => {
   });
 });
 
-test("tidyUpListFilter splits unmatched suggested auto and no_match views", () => {
+test("tidyUpListFilter splits unmatched suggested auto no_match and failed views", () => {
   const rows = [
     { doubanId: 1, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }), calibrated: false, tmdbId: null },
     { doubanId: 2, agent: JSON.stringify({ tmdbId: 10 }), calibrated: false, tmdbId: 10 },
@@ -133,6 +133,7 @@ test("tidyUpListFilter splits unmatched suggested auto and no_match views", () =
       calibrated: false,
       tmdbId: null,
     },
+    { doubanId: 7, agent: JSON.stringify({ status: "failed", reason: "401" }), calibrated: false, tmdbId: null },
   ];
   assert.deepEqual(
     tidyUpListFilter(rows, "unmatched").map((row) => row.doubanId),
@@ -149,6 +150,10 @@ test("tidyUpListFilter splits unmatched suggested auto and no_match views", () =
   assert.deepEqual(
     tidyUpListFilter(rows, "no_match").map((row) => row.doubanId),
     [3],
+  );
+  assert.deepEqual(
+    tidyUpListFilter(rows, "failed").map((row) => row.doubanId),
+    [7],
   );
 });
 
