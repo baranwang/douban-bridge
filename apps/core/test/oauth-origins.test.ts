@@ -166,6 +166,8 @@ describe("install origin and internal stremio isolation", { concurrency: false }
       const body = await html.text();
       assert.match(body, new RegExp(`${STREMIO.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/`));
       assert.equal(body.includes(`${DASH}/`), false);
+      assert.match(body, /src="https:\/\/u\.baran\.wang\/script\.js"/);
+      assert.match(body, /data-website-id="c82dc2bf-07ef-42fc-aa80-d84d94a5305a"/);
 
       const posted = await app.fetch(
         new Request(`${STREMIO}/configure`, {

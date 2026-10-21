@@ -33,6 +33,7 @@ import {
 } from "@/libs/collections";
 import type { Config } from "@/libs/config";
 import type { PublicUser } from "@/libs/public-user";
+import { track } from "@/libs/track";
 import { useSchemeLaunch } from "@/libs/use-scheme-launch";
 import type { ConfigureRoute } from "@/routes/configure";
 import { GenreDrawer } from "../genre-drawer";
@@ -63,6 +64,7 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
           setManifestUrl(result.manifestUrl);
           setSavedConfig(value); // 更新已保存的配置
           toast.add({ title: isStarredUser ? "配置已保存" : "配置链接已生成", type: "success" });
+          track("保存配置");
         } else {
           toast.add({ title: "保存失败", type: "error" });
         }
@@ -90,6 +92,7 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
     try {
       await navigator.clipboard.writeText(text);
       toast.add({ title: "链接已复制到剪贴板", type: "success" });
+      track("复制 Manifest");
     } catch {
       toast.add({ title: "复制失败", type: "error" });
     }
@@ -289,11 +292,17 @@ export const Configure: FC<ConfigureProps> = ({ config: initialConfig, manifestU
                         <Copy />
                         复制链接
                       </DropdownMenuItem>
-                      <DropdownMenuItem render={<a href={manifestUrlConfigs.stremio} />} onClick={handleImport}>
+                      <DropdownMenuItem
+                        render={<a href={manifestUrlConfigs.stremio} />}
+                        onClick={() => handleImport("导入 Stremio")}
+                      >
                         <img className="size-4" src="/stremio-logo.png" />
                         导入 Stremio
                       </DropdownMenuItem>
-                      <DropdownMenuItem render={<a href={manifestUrlConfigs.forward} />} onClick={handleImport}>
+                      <DropdownMenuItem
+                        render={<a href={manifestUrlConfigs.forward} />}
+                        onClick={() => handleImport("导入 Forward")}
+                      >
                         <img className="size-4" src="https://forward.inch.red/favicon.ico" />
                         导入 Forward
                       </DropdownMenuItem>
