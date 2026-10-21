@@ -12,6 +12,7 @@ import { toast } from "@douban-bridge/ui/components/toast";
 import { Copy } from "lucide-react";
 import { useCallback } from "react";
 import { SettingSection } from "@/components/setting-section";
+import { track } from "@/libs/track";
 import { useSchemeLaunch } from "@/libs/use-scheme-launch";
 
 const WIDGET_URL = "https://unpkg.com/@rexnow/douban";
@@ -24,6 +25,7 @@ export const InstallWidget: React.FC = () => {
     try {
       await navigator.clipboard.writeText(WIDGET_URL);
       toast.add({ title: "链接已复制到剪贴板", type: "success" });
+      track("复制 Widget");
     } catch {
       toast.add({ title: "复制失败", type: "error" });
     }
@@ -44,7 +46,7 @@ export const InstallWidget: React.FC = () => {
             <Button variant="outline" size="icon" aria-label="复制链接" onClick={copy}>
               <Copy />
             </Button>
-            <Button render={<a href={WIDGET_SCHEME} />} onClick={launch}>
+            <Button render={<a href={WIDGET_SCHEME} />} onClick={() => launch("打开 Rex")}>
               {/* rex-mark 是纯黑图形，这里永远压在 primary 底色上，所以无条件反色 */}
               <img src="/rex-mark.png" alt="" className="size-4 invert" />在 Rex 中安装
             </Button>

@@ -10,6 +10,7 @@ import { Copy, Eye, EyeOff, KeyRound } from "lucide-react";
 import { type FC, useCallback, useEffect, useState } from "react";
 import { SettingSection } from "@/components/setting-section";
 import type { PublicUser } from "@/libs/public-user";
+import { track } from "@/libs/track";
 import { apiKeyActionUi } from "./api-key-action";
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString("zh-CN");
@@ -66,6 +67,7 @@ export const ApiKeySettings: FC<{ user?: PublicUser }> = ({ user }) => {
         setApiKey(key);
         setCreatedAt(new Date().toISOString());
         setRevealed(true);
+        track("生成密钥");
       } catch {
         toast.add({ title: "操作失败，请重试", type: "error" });
       } finally {
