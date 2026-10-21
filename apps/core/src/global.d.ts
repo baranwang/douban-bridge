@@ -9,6 +9,10 @@ declare module "hono" {
 }
 
 declare global {
+  interface CloudflareBindings {
+    TOKENS_API_TOKEN?: string;
+  }
+
   interface CacheStorage {
     default: Cache;
   }
