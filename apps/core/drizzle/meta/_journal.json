@@ -43,6 +43,13 @@
       "when": 1789798738813,
       "tag": "0005_classy_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792576436347,
+      "tag": "0006_pi_token_usage",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { int, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { int, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { z } from "zod/v4";
 
@@ -67,3 +67,19 @@ export const apiKeys = sqliteTable("api_keys", {
 
 export type User = typeof users.$inferSelect;
 export type UserConfig = typeof userConfigs.$inferSelect;
+
+// tokens.ci client "pi" 的累计用量。按天+模型加总后再提交，重试不会重复计。
+export const piTokenUsage = sqliteTable(
+  "pi_token_usage",
+  {
+    day: text("day").notNull(),
+    model: text("model").notNull(),
+    input: int("input").notNull(),
+    output: int("output").notNull(),
+    cacheRead: int("cache_read").notNull(),
+    cacheWrite: int("cache_write").notNull(),
+    messages: int("messages").notNull(),
+    costMicro: int("cost_micro").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.model] })],
+);

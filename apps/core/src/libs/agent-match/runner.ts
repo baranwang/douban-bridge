@@ -7,6 +7,7 @@ import { parseAgent, serializeAgent } from "./blob";
 import { CandidateRegistry } from "./candidates";
 import { AGENT_LEASE_MS, AGENT_MATCH_MAX_TURNS } from "./constants";
 import { AGENT_MATCH_SYSTEM_PROMPT } from "./prompt";
+import { addPiMessageUsage, type PiUsageBucket, reportPiUsage } from "./tokens-report";
 import { type AgentTool, createAgentMatchTools } from "./tools";
 import type { AgentMatchJob } from "./types";
 import { verifyConcludeMatch } from "./verifier";
@@ -66,7 +67,7 @@ export function openRouterModelBySlug(models: OpenRouterModel[], modelId: string
   return models.find((item) => item.id?.split("/")[1] === modelId);
 }
 
-async function openRouterCustomCostHeader(modelId: string): Promise<string | undefined> {
+async function openRouterModelPricing(modelId: string): Promise<Record<string, string> | undefined> {
   const cacheKey = new Request("https://cache.internal/openrouter/models");
   const cached = await caches.default.match(cacheKey);
   let models: OpenRouterModel[] | undefined = cached ? await cached.json() : undefined;
@@ -88,7 +89,7 @@ async function openRouterCustomCostHeader(modelId: string): Promise<string | und
       ),
     );
   }
-  return customCostHeaderFromOpenRouterPricing(openRouterModelBySlug(models, modelId)?.pricing);
+  return openRouterModelBySlug(models, modelId)?.pricing;
 }
 
 export function assistantMessageText(message: { role?: string; content?: unknown }): string | undefined {
@@ -267,7 +268,9 @@ export const agentMatchRuntime = {
     }
     const baseUrl = `https://workers-binding.ai/ai-gateway/gateways/${gatewayId}/custom-${providerSlug}`;
     const aiFetch = createAiBindingFetch(env.AI);
-    const customCost = await openRouterCustomCostHeader(modelId);
+    const pricing = await openRouterModelPricing(modelId);
+    const customCost = customCostHeaderFromOpenRouterPricing(pricing);
+    const usage = new Map<string, PiUsageBucket>();
     const streamHeaders = {
       "cf-aig-authorization": `Bearer ${CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL}`,
       Authorization: null,
@@ -372,6 +375,7 @@ export const agentMatchRuntime = {
     agent.subscribe((event) => {
       logPiAgentEvent(doubanId, event);
       if (event.type === "message_end") {
+        addPiMessageUsage(usage, event.message, modelId, pricing);
         const text = assistantMessageText(event.message);
         if (text) logAgentMatch(doubanId, "assistant", { text: compact(text) });
         return;
@@ -383,8 +387,12 @@ export const agentMatchRuntime = {
         });
       }
     });
-    await agent.prompt(input.user);
-    await agent.waitForIdle();
+    try {
+      await agent.prompt(input.user);
+      await agent.waitForIdle();
+    } finally {
+      await reportPiUsage([...usage.values()]);
+    }
     if (agent.state.errorMessage) {
       throw new Error(agent.state.errorMessage);
     }
