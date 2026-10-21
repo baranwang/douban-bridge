@@ -6,6 +6,14 @@ import { api } from "../src/libs/api";
 import { TmdbAPI } from "../src/libs/api/tmdb";
 import { withTestContext } from "./context";
 
+function exaMcpResponse(text: string, json = false) {
+  const body = { jsonrpc: "2.0", id: 1, result: { content: [{ type: "text", text }] } };
+  if (json) return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+  return new Response(`event: message\ndata: ${JSON.stringify(body)}\n\n`, {
+    headers: { "content-type": "text/event-stream" },
+  });
+}
+
 test("search_tmdb registers closed-set candidate ids", async () => {
   await withTestContext(async () => {
     try {
@@ -67,18 +75,27 @@ test("search_trakt registers parent show from episode hits", async () => {
 });
 
 test("exa_search returns trimmed titles and urls", async () => {
-  await withTestContext(async (env) => {
+  await withTestContext(async () => {
     try {
-      (env as CloudflareBindings & { EXA_API_KEY?: string }).EXA_API_KEY = "test-exa";
-      const { default: Exa } = await import("exa-js");
-      mock.method(Exa.prototype, "search", async () => ({
-        results: [{ title: "Inception", url: "https://example.com/inception", publishedDate: "2010-01-01" }],
-      }));
+      let url = "";
+      mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+        url = String(input);
+        const body = JSON.parse(String(init?.body));
+        assert.equal(body.method, "tools/call");
+        assert.equal(body.params.name, "web_search_exa");
+        return exaMcpResponse(
+          "Title: Inception\nURL: https://example.com/inception\nPublished: 2010-01-01\n---\nTitle: N/A\nURL: https://example.com/other\nPublished: N/A\n",
+        );
+      });
       const tools = createAgentMatchTools(new CandidateRegistry());
       const search = tools.find((t) => t.name === "exa_search");
       assert.ok(search);
       const out = await search.execute({ query: "盗梦空间 2010" });
+      assert.equal(url, "https://mcp.exa.ai/mcp");
       assert.equal(out.results[0].url, "https://example.com/inception");
+      assert.equal(out.results[0].publishedDate, "2010-01-01");
+      assert.equal(out.results[1].title, null);
+      assert.equal(out.results[1].publishedDate, null);
     } finally {
       mock.restoreAll();
     }
@@ -86,13 +103,11 @@ test("exa_search returns trimmed titles and urls", async () => {
 });
 
 test("exa_get_contents trims page text", async () => {
-  await withTestContext(async (env) => {
+  await withTestContext(async () => {
     try {
-      (env as CloudflareBindings & { EXA_API_KEY?: string }).EXA_API_KEY = "test-exa";
-      const { default: Exa } = await import("exa-js");
-      mock.method(Exa.prototype, "getContents", async () => ({
-        results: [{ title: "Inception", url: "https://example.com/inception", text: "x".repeat(2000) }],
-      }));
+      mock.method(globalThis, "fetch", async () =>
+        exaMcpResponse(`# Inception\nURL: https://example.com/inception\n\n${"x".repeat(2000)}`, true),
+      );
       const tools = createAgentMatchTools(new CandidateRegistry());
       const getContents = tools.find((t) => t.name === "exa_get_contents");
       assert.ok(getContents);
@@ -135,16 +150,17 @@ test("get_douban_subject ignores a hallucinated doubanId when a job id is pinned
 
 for (const name of ["exa_search", "exa_get_contents"]) {
   test(`${name} reuses concurrent and repeated calls, including across tool instances`, async () => {
-    await withTestContext(async (env, ctx) => {
+    await withTestContext(async (_env, ctx) => {
       try {
-        env.EXA_API_KEY = "test-exa";
-        const { default: Exa } = await import("exa-js");
-        const method = name === "exa_search" ? "search" : "getContents";
         let calls = 0;
-        mock.method(Exa.prototype, method, async () => {
+        mock.method(globalThis, "fetch", async () => {
           calls++;
           await new Promise((resolve) => setTimeout(resolve, 10));
-          return { results: [{ title: "Cached", url: "https://example.com/cached", text: "Evidence" }] };
+          const body =
+            name === "exa_search"
+              ? "Title: Cached\nURL: https://example.com/cached\nPublished: N/A\n"
+              : "# Cached\nURL: https://example.com/cached\n\nEvidence";
+          return exaMcpResponse(body);
         });
         const pending: Promise<unknown>[] = [];
         mock.method(ctx, "waitUntil", (promise: Promise<unknown>) => pending.push(promise));
@@ -170,8 +186,6 @@ for (const name of ["exa_search", "exa_get_contents"]) {
         assert.deepEqual(await refreshed.execute(args), first);
         assert.equal(calls, 3);
         await Promise.all(pending);
-        env.EXA_API_KEY = "";
-        await assert.rejects(tool.execute(args), /EXA_API_KEY is required/);
       } finally {
         mock.restoreAll();
       }
@@ -181,13 +195,10 @@ for (const name of ["exa_search", "exa_get_contents"]) {
   test(`${name} retries failures and refreshes expired results`, async () => {
     await withTestContext(async (env) => {
       try {
-        env.EXA_API_KEY = "test-exa";
-        const { default: Exa } = await import("exa-js");
-        const method = name === "exa_search" ? "search" : "getContents";
         let calls = 0;
-        mock.method(Exa.prototype, method, async () => {
+        mock.method(globalThis, "fetch", async () => {
           if (++calls === 1) throw new Error("upstream failed");
-          return { results: [] };
+          return exaMcpResponse("");
         });
         // Keep expiry deterministic without depending on KV's wall clock.
         env.KV = { get: async () => null, put: async () => {} } as KVNamespace;
@@ -213,7 +224,6 @@ for (const name of ["exa_search", "exa_get_contents"]) {
 test("Exa cache failures preserve successful results and per-job reuse", async () => {
   await withTestContext(async (env) => {
     try {
-      env.EXA_API_KEY = "test-exa";
       env.KV = {
         get: async () => {
           throw new Error("KV unavailable");
@@ -222,11 +232,10 @@ test("Exa cache failures preserve successful results and per-job reuse", async (
           throw new Error("KV unavailable");
         },
       } as KVNamespace;
-      const { default: Exa } = await import("exa-js");
       let calls = 0;
-      mock.method(Exa.prototype, "search", async () => {
+      mock.method(globalThis, "fetch", async () => {
         calls++;
-        return { results: [{ title: "Available", url: "https://example.com/available" }] };
+        return exaMcpResponse("Title: Available\nURL: https://example.com/available\nPublished: N/A\n");
       });
       const warnings: unknown[][] = [];
       mock.method(console, "warn", (...args) => warnings.push(args));
