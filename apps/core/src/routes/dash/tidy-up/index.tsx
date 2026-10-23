@@ -17,7 +17,7 @@ export const tidyUpRoute = new Hono<Env>();
 export type TidyUpView = "unmatched" | "suggested" | "auto" | "no_match" | "failed";
 
 /** Views whose rows can be (re)queued for the agent. */
-const REQUEUEABLE_VIEWS: readonly TidyUpView[] = ["unmatched", "suggested", "failed"];
+const REQUEUEABLE_VIEWS: readonly TidyUpView[] = ["unmatched", "suggested", "no_match", "failed"];
 
 export function tidyUpListFilter<
   T extends { agent?: string | null; calibrated?: boolean | null; tmdbId?: number | null },
@@ -48,7 +48,7 @@ const VIEW_COPY: Record<TidyUpView, { title: string; description: string }> = {
   unmatched: { title: "未匹配", description: "还没有 TMDB ID，等 Agent 抽到或人工补上" },
   suggested: { title: "待确认建议", description: "Agent 给出了建议，尚未写入正式 TMDB ID" },
   auto: { title: "Agent 已写未校准", description: "Agent 已直写正式 ID，仍可人工确认或驳回" },
-  no_match: { title: "无匹配", description: "Agent 未能给出可用匹配" },
+  no_match: { title: "无匹配", description: "Agent 未能给出可用匹配，可勾选后重新入队" },
   failed: { title: "执行失败", description: "基础设施错误耗尽队列重试，可修复后重新入队" },
 };
 
@@ -72,7 +72,8 @@ tidyUpRoute.post("/enqueue", async (c) => {
   const form = await c.req.formData();
   const ids = parseEnqueueIds(form.getAll("doubanId"));
   const viewParam = form.get("view");
-  const view = viewParam === "suggested" || viewParam === "failed" ? viewParam : "unmatched";
+  const view =
+    viewParam === "suggested" || viewParam === "no_match" || viewParam === "failed" ? viewParam : "unmatched";
   const { env, ctx } = getContext();
   await enqueueSelectedAgentJobs(ids, env.AGENT_MATCH_QUEUE, ctx);
   return c.redirect(`/dash/tidy-up?view=${view}`);

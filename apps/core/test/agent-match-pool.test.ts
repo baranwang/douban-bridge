@@ -79,7 +79,7 @@ test("claimAgentJobs can claim selected unmatched ids only", async () => {
   });
 });
 
-test("claimAgentJobs can requeue selected suggested ids", async () => {
+test("claimAgentJobs can requeue selected suggested and no_match ids", async () => {
   await withTestContext(async () => {
     await api.db.insert(doubanMapping).values([
       { doubanId: 12, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }) },
@@ -87,8 +87,8 @@ test("claimAgentJobs can requeue selected suggested ids", async () => {
     ]);
     const jobs = await claimAgentJobs(10, Date.now(), [12, 13]);
     assert.deepEqual(
-      jobs.map((job) => job.doubanId),
-      [12],
+      jobs.map((job) => job.doubanId).sort((a, b) => a - b),
+      [12, 13],
     );
     const claimed = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 12) });
     const blob = parseAgent(claimed?.agent);
