@@ -52,19 +52,27 @@ const VIEW_COPY: Record<TidyUpView, { title: string; description: string }> = {
   failed: { title: "执行失败", description: "基础设施错误耗尽队列重试，可修复后重新入队" },
 };
 
+const QUEUE_BATCH = 100;
+
+type AgentQueue = {
+  send: (job: { doubanId: number; agentToken: string }) => Promise<unknown>;
+  sendBatch?: (messages: Iterable<{ body: { doubanId: number; agentToken: string } }>) => Promise<unknown>;
+};
+
 export async function enqueueSelectedAgentJobs(
   doubanIds: readonly number[],
-  queue: { send: (job: { doubanId: number; agentToken: string }) => Promise<unknown> } | undefined,
+  queue: AgentQueue | undefined,
   ctx: { waitUntil: (promise: Promise<unknown>) => void },
 ): Promise<number> {
   const jobs = await claimAgentJobs(parseEnqueueIds(doubanIds.map(String)).length, Date.now(), doubanIds);
-  await Promise.all(
-    jobs.map((job) => {
-      const sent = queue?.send(job) ?? Promise.resolve();
-      ctx.waitUntil(sent);
-      return sent;
-    }),
-  );
+  for (let offset = 0; offset < jobs.length; offset += QUEUE_BATCH) {
+    const batch = jobs.slice(offset, offset + QUEUE_BATCH);
+    const sent = queue?.sendBatch
+      ? queue.sendBatch(batch.map((body) => ({ body })))
+      : Promise.all(batch.map((job) => queue?.send(job) ?? Promise.resolve()));
+    ctx.waitUntil(sent);
+    await sent;
+  }
   return jobs.length;
 }
 
