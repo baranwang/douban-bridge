@@ -84,22 +84,18 @@ export async function claimAgentJobs(
     : undefined;
   if (selected && selected.length === 0) return [];
 
-  const where = selected
-    ? and(eligibleWhere(includeSuggested), inArray(doubanMapping.doubanId, selected))
-    : eligibleWhere();
+  if (selected) return claimSelected(selected, now, includeSuggested);
+
+  const where = eligibleWhere();
   const query = api.db.select().from(doubanMapping).where(where);
-  const rows = selected
-    ? await (limit == null ? query : query.limit(limit))
-    : limit == null
-      ? await query
-      : await query.orderBy(sql`RANDOM()`).limit(limit);
+  const rows = limit == null ? await query : await query.orderBy(sql`RANDOM()`).limit(limit);
 
   const jobs: AgentMatchJob[] = [];
   for (const row of rows) {
     if (limit != null && jobs.length >= limit) break;
     const blob = parseAgent(row.agent);
     if (row.tmdbId != null || row.calibrated === true || isBusy(blob, now)) continue;
-    if (!selected && isEvaluated(blob, now)) continue;
+    if (isEvaluated(blob, now)) continue;
     const agentToken = crypto.randomUUID();
     const claimed = await api.db
       .update(doubanMapping)
@@ -114,6 +110,38 @@ export async function claimAgentJobs(
       .returning({ doubanId: doubanMapping.doubanId });
     if (claimed[0]) {
       jobs.push({ doubanId: claimed[0].doubanId, agentToken });
+    }
+  }
+  return jobs;
+}
+
+// shortcut: D1 allows 100 bound parameters per query, raise this only if the WHERE binds shrink.
+const D1_ID_CHUNK = 80;
+
+async function claimSelected(ids: readonly number[], now: number, includeSuggested: boolean): Promise<AgentMatchJob[]> {
+  const jobs: AgentMatchJob[] = [];
+  const leaseUntil = now + AGENT_LEASE_MS;
+  for (let offset = 0; offset < ids.length; offset += D1_ID_CHUNK) {
+    const chunk = ids.slice(offset, offset + D1_ID_CHUNK);
+    const claimed = await api.db
+      .update(doubanMapping)
+      .set({
+        agent: sql`json_object('token', lower(hex(randomblob(16))), 'leaseUntil', ${leaseUntil})`,
+      })
+      .where(
+        and(
+          eligibleWhere(includeSuggested),
+          sql`NOT (
+            json_extract(${doubanMapping.agent}, '$.token') IS NOT NULL
+            AND json_extract(${doubanMapping.agent}, '$.leaseUntil') > ${now}
+          )`,
+          inArray(doubanMapping.doubanId, chunk),
+        ),
+      )
+      .returning({ doubanId: doubanMapping.doubanId, agent: doubanMapping.agent });
+    for (const row of claimed) {
+      const token = parseAgent(row.agent)?.token;
+      if (token) jobs.push({ doubanId: row.doubanId, agentToken: token });
     }
   }
   return jobs;

@@ -238,6 +238,37 @@ test("enqueueSelectedAgentJobs claims unmatched, no_match, and suggested ids", a
   });
 });
 
+test("enqueueSelectedAgentJobs batches a selection larger than one D1 query", async () => {
+  await withTestContext(async () => {
+    const ids = Array.from({ length: 101 }, (_, index) => index + 500);
+    const busyUntil = Date.now() + 60_000;
+    const rows = [
+      ...ids.map((doubanId) => ({ doubanId, agent: JSON.stringify({ status: "no_match" }) })),
+      { doubanId: 700, agent: JSON.stringify({ status: "no_match", token: "busy", leaseUntil: busyUntil }) },
+    ];
+    for (let offset = 0; offset < rows.length; offset += 10) {
+      await api.db.insert(doubanMapping).values(rows.slice(offset, offset + 10));
+    }
+    const batches: number[] = [];
+    const queued = await enqueueSelectedAgentJobs(
+      [...ids, 700],
+      {
+        send: async () => {
+          throw new Error("use sendBatch");
+        },
+        sendBatch: async (messages) => {
+          batches.push([...messages].length);
+        },
+      },
+      { waitUntil() {} },
+    );
+    assert.equal(queued, 101);
+    assert.deepEqual(batches, [100, 1]);
+    const busy = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 700) });
+    assert.equal(JSON.parse(busy?.agent ?? "{}").token, "busy");
+  });
+});
+
 test("tidyUpListFilter excludes cron-resolved suggestions from auto", () => {
   const rows = [
     { doubanId: 4, agent: JSON.stringify({ status: "suggested", tmdbId: 10 }), calibrated: false, tmdbId: 101 },
