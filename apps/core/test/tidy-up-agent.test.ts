@@ -208,7 +208,7 @@ test("confirming no_match without a candidate is rejected", async () => {
   });
 });
 
-test("enqueueSelectedAgentJobs claims unmatched and suggested ids", async () => {
+test("enqueueSelectedAgentJobs claims unmatched, no_match, and suggested ids", async () => {
   await withTestContext(async () => {
     await api.db
       .insert(doubanMapping)
@@ -228,10 +228,10 @@ test("enqueueSelectedAgentJobs claims unmatched and suggested ids", async () => 
         },
       },
     );
-    assert.equal(queued, 2);
+    assert.equal(queued, 3);
     assert.deepEqual(
       sent.map((job) => job.doubanId).sort((a, b) => a - b),
-      [51, 54],
+      [51, 52, 54],
     );
     const claimed = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, 54) });
     assert.ok(JSON.parse(claimed?.agent ?? "{}").token);

@@ -17,7 +17,7 @@ function eligibleWhere(includeSuggested = false) {
       ? or(
           isNull(doubanMapping.agent),
           eq(doubanMapping.agent, ""),
-          sql`json_extract(${doubanMapping.agent}, '$.status') IN ('suggested', 'failed')`,
+          sql`json_extract(${doubanMapping.agent}, '$.status') IN ('suggested', 'failed', 'no_match')`,
         )
       : or(isNull(doubanMapping.agent), eq(doubanMapping.agent, "")),
   );
@@ -100,7 +100,6 @@ export async function claimAgentJobs(
     const blob = parseAgent(row.agent);
     if (row.tmdbId != null || row.calibrated === true || isBusy(blob, now)) continue;
     if (!selected && isEvaluated(blob, now)) continue;
-    if (selected && blob?.status === "no_match") continue;
     const agentToken = crypto.randomUUID();
     const claimed = await api.db
       .update(doubanMapping)

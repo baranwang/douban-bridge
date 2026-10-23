@@ -70,7 +70,8 @@ export async function applyAgentVerdict(input: {
 
 /**
  * Terminal `failed` state after the final queue attempt errors, so cron lease recovery stops re-claiming the row.
- * Distinct from `no_match`: it is not a matching conclusion and stays manually requeueable from tidy-up.
+ * Distinct from `no_match`: infrastructure failure, not a matching conclusion.
+ * Cron skips both; tidy-up can requeue either.
  * Ignores lease expiry: the token alone proves this job still owns the row.
  */
 export async function markAgentFailed(input: {
