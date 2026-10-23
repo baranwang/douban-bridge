@@ -4,6 +4,7 @@ import { api } from "@/libs/api";
 import { TmdbAPI } from "@/libs/api/tmdb";
 import { getContext } from "@/libs/middleware";
 import { type CandidateRegistry, makeCandidateId } from "./candidates";
+import { fetchMatchImage } from "./images";
 import type { CanonicalCandidate } from "./types";
 
 type AgentToolExecuteResult = Record<string, unknown>;
@@ -237,6 +238,8 @@ export function createAgentMatchTools(
         const detail = await api.doubanAPI.getSubjectDetail(doubanId);
         doubanType = detail.type;
         const mapping = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, doubanId) });
+        const cover = detail.pic?.normal || detail.cover_url || detail.pic?.large || null;
+        const image = cover ? await fetchMatchImage(cover).catch(() => null) : null;
         return {
           doubanId: detail.id,
           type: detail.type,
@@ -253,6 +256,8 @@ export function createAgentMatchTools(
           intro: detail.intro?.slice(0, 200) ?? null,
           episodes_count: detail.episodes_count ?? null,
           imdbId: mapping?.deletedAt ? null : (mapping?.imdbId ?? null),
+          cover,
+          ...(image ? { images: [image] } : {}),
         };
       },
     },
@@ -338,6 +343,47 @@ export function createAgentMatchTools(
           tmdbId: updated.tmdbId,
           imdbId: updated.imdbId ?? null,
         };
+      },
+    },
+    {
+      name: "get_tmdb_credits",
+      description: "Fetch up to 3 directors and 5 lead actors for an already registered candidate.",
+      parameters: {
+        type: "object",
+        properties: {
+          candidateId: { type: "string" },
+        },
+        required: ["candidateId"],
+      },
+      async execute(args) {
+        const candidateId = String(args.candidateId ?? "");
+        const candidate = registry.get(candidateId);
+        if (!candidate) return { error: "unknown_candidate" };
+        const credits = await tmdbAPI.getCredits(candidate.type, candidate.tmdbId);
+        return {
+          candidateId,
+          directors: credits.directors.slice(0, 3),
+          actors: credits.actors.slice(0, 5),
+        };
+      },
+    },
+    {
+      name: "get_tmdb_poster",
+      description: "Fetch the TMDB poster image for an already registered candidate.",
+      parameters: {
+        type: "object",
+        properties: {
+          candidateId: { type: "string" },
+        },
+        required: ["candidateId"],
+      },
+      async execute(args) {
+        const candidateId = String(args.candidateId ?? "");
+        const candidate = registry.get(candidateId);
+        if (!candidate) return { error: "unknown_candidate" };
+        const poster = await tmdbAPI.getPoster(candidate.type, candidate.tmdbId);
+        const image = poster ? await fetchMatchImage(poster).catch(() => null) : null;
+        return { candidateId, poster, ...(image ? { images: [image] } : {}) };
       },
     },
     {

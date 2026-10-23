@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 import { CandidateRegistry } from "../src/libs/agent-match/candidates";
+import { fetchMatchImage } from "../src/libs/agent-match/images";
 import { createAgentMatchTools } from "../src/libs/agent-match/tools";
 import { api } from "../src/libs/api";
 import { TmdbAPI } from "../src/libs/api/tmdb";
@@ -70,6 +71,202 @@ test("search_trakt registers parent show from episode hits", async () => {
       assert.equal(registry.has("tmdb:tv:99"), true);
     } finally {
       mock.restoreAll();
+    }
+  });
+});
+
+test("get_tmdb_credits returns trimmed names for a registered candidate", async () => {
+  await withTestContext(async () => {
+    try {
+      mock.method(TmdbAPI.prototype, "search", async () => ({
+        results: [{ id: 27205, title: "Inception", original_title: "Inception" }],
+        total_results: 1,
+      }));
+      mock.method(TmdbAPI.prototype, "getCredits", async () => ({
+        directors: ["甲", "乙", "丙", "丁"],
+        actors: ["A", "B", "C", "D", "E", "F"],
+      }));
+      const registry = new CandidateRegistry();
+      const tools = createAgentMatchTools(registry);
+      const search = tools.find((tool) => tool.name === "search_tmdb");
+      const credits = tools.find((tool) => tool.name === "get_tmdb_credits");
+      assert.ok(search);
+      assert.ok(credits);
+      await search.execute({ type: "movie", query: "Inception" });
+      assert.deepEqual(await credits.execute({ candidateId: "missing" }), { error: "unknown_candidate" });
+      assert.deepEqual(await credits.execute({ candidateId: "tmdb:movie:27205" }), {
+        candidateId: "tmdb:movie:27205",
+        directors: ["甲", "乙", "丙"],
+        actors: ["A", "B", "C", "D", "E"],
+      });
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("TmdbAPI getCredits keeps directors and billing-order actors", async () => {
+  await withTestContext(async (env) => {
+    env.TMDB_API_KEY = "eyJhbGciOiJIUzI1NiJ9.e30.sig";
+    const previousCaches = globalThis.caches;
+    globalThis.caches = {
+      default: { match: async () => undefined, put: async () => {} },
+    } as unknown as CacheStorage;
+    const api = new TmdbAPI();
+    const seen: Array<{ url?: string; language?: string }> = [];
+    api.axios.defaults.adapter = async (config) => {
+      const params = config.params as { language?: string } | undefined;
+      seen.push({ url: config.url, language: params?.language });
+      const tv = String(config.url).includes("aggregate_credits");
+      const data = tv
+        ? {
+            cast: [{ name: " 演员A " }, { name: "演员A" }, { name: "演员B" }, { name: " " }],
+            crew: [
+              { name: "客串导演", jobs: [{ job: "Director", episode_count: 1 }] },
+              {
+                name: "导演",
+                jobs: [
+                  { job: "Director", episode_count: 12 },
+                  { job: "Writer", episode_count: 1 },
+                ],
+              },
+              { name: "制片", jobs: [{ job: "Producer", episode_count: 12 }] },
+            ],
+          }
+        : {
+            cast: [{ name: "Actor" }, { name: "" }, { name: "Actor" }],
+            crew: [
+              { name: "Director", job: "Director" },
+              { name: "Writer", job: "Writer" },
+            ],
+          };
+      return { data, status: 200, statusText: "OK", headers: {}, config };
+    };
+    assert.deepEqual(await api.getCredits("movie", 1), { directors: ["Director"], actors: ["Actor"] });
+    assert.deepEqual(await api.getCredits("tv", 2), {
+      directors: ["导演", "客串导演"],
+      actors: ["演员A", "演员B"],
+    });
+    assert.deepEqual(
+      seen.map((item) => ({
+        path: item.url?.replace(/^https:\/\/api\.themoviedb\.org\/3/, ""),
+        language: item.language,
+      })),
+      [
+        { path: "/movie/1/credits", language: "zh-CN" },
+        { path: "/tv/2/aggregate_credits", language: "zh-CN" },
+      ],
+    );
+    globalThis.caches = previousCaches;
+  });
+});
+
+test("get_douban_subject attaches an allowlisted cover image", async () => {
+  await withTestContext(async () => {
+    try {
+      const cover = "https://img1.doubanio.com/view/photo/s_ratio_poster/public/p1.jpg";
+      mock.method(api.doubanAPI, "getSubjectDetail", async () => ({
+        id: 41,
+        type: "movie",
+        title: "封面",
+        pic: { normal: cover },
+      }));
+      mock.method(
+        globalThis,
+        "fetch",
+        async () =>
+          new Response(Uint8Array.from([1, 2, 3]), {
+            headers: { "content-type": "image/jpeg" },
+          }),
+      );
+      const tool = createAgentMatchTools(new CandidateRegistry(), { doubanId: 41 }).find(
+        (item) => item.name === "get_douban_subject",
+      );
+      assert.ok(tool);
+      const out = await tool.execute({ doubanId: 41 });
+      assert.equal(out.cover, cover);
+      assert.deepEqual(out.images, [{ data: Buffer.from([1, 2, 3]).toString("base64"), mimeType: "image/jpeg" }]);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("get_tmdb_poster fetches the registered candidate poster", async () => {
+  await withTestContext(async () => {
+    try {
+      const poster = "https://image.tmdb.org/t/p/w342/abc.jpg";
+      mock.method(TmdbAPI.prototype, "search", async () => ({
+        results: [{ id: 27205, title: "Inception", original_title: "Inception" }],
+        total_results: 1,
+      }));
+      mock.method(TmdbAPI.prototype, "getPoster", async () => poster);
+      mock.method(globalThis, "fetch", async (input: RequestInfo | URL) => {
+        assert.equal(String(input), poster);
+        return new Response(Uint8Array.from([4]), { headers: { "content-type": "image/jpeg" } });
+      });
+      const tools = createAgentMatchTools(new CandidateRegistry());
+      const search = tools.find((tool) => tool.name === "search_tmdb");
+      const posters = tools.find((tool) => tool.name === "get_tmdb_poster");
+      assert.ok(search);
+      assert.ok(posters);
+      await search.execute({ type: "movie", query: "Inception" });
+      assert.deepEqual(await posters.execute({ candidateId: "missing" }), { error: "unknown_candidate" });
+      assert.deepEqual(await posters.execute({ candidateId: "tmdb:movie:27205" }), {
+        candidateId: "tmdb:movie:27205",
+        poster,
+        images: [{ data: Buffer.from([4]).toString("base64"), mimeType: "image/jpeg" }],
+      });
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("fetchMatchImage keeps small allowlisted images and drops the rest", async () => {
+  await withTestContext(async () => {
+    try {
+      assert.equal(await fetchMatchImage("https://example.com/a.jpg"), null);
+      mock.method(globalThis, "fetch", async (input: RequestInfo | URL) => {
+        if (String(input).endsWith("big.jpg")) {
+          return new Response(new Uint8Array(512 * 1024 + 1), { headers: { "content-type": "image/png" } });
+        }
+        return new Response(Uint8Array.from([9]), { headers: { "content-type": "image/webp; charset=binary" } });
+      });
+      assert.equal(await fetchMatchImage("https://image.tmdb.org/t/p/w342/big.jpg"), null);
+      assert.deepEqual(await fetchMatchImage("https://image.tmdb.org/t/p/w342/ok.webp"), {
+        data: Buffer.from([9]).toString("base64"),
+        mimeType: "image/webp",
+      });
+    } finally {
+      mock.restoreAll();
+    }
+  });
+});
+
+test("TmdbAPI getPoster uses the zh-CN w342 poster", async () => {
+  await withTestContext(async (env) => {
+    env.TMDB_API_KEY = "eyJhbGciOiJIUzI1NiJ9.e30.sig";
+    const previousCaches = globalThis.caches;
+    globalThis.caches = { default: { match: async () => undefined, put: async () => {} } } as unknown as CacheStorage;
+    try {
+      const api = new TmdbAPI();
+      api.axios.defaults.adapter = async (config) => {
+        assert.equal(config.params?.language, "zh-CN");
+        assert.equal(config.url, "/movie/1");
+        return { data: { poster_path: "/abc.jpg" }, status: 200, statusText: "OK", headers: {}, config };
+      };
+      assert.equal(await api.getPoster("movie", 1), "https://image.tmdb.org/t/p/w342/abc.jpg");
+      api.axios.defaults.adapter = async (config) => ({
+        data: { poster_path: null },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config,
+      });
+      assert.equal(await api.getPoster("tv", 2), null);
+    } finally {
+      globalThis.caches = previousCaches;
     }
   });
 });
