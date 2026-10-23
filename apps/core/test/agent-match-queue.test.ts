@@ -751,6 +751,25 @@ test("seedGetDoubanSubjectMessages starts the transcript with the subject tool r
   );
 });
 
+test("seedGetDoubanSubjectMessages passes the cover through as an image", () => {
+  const messages = runner.seedGetDoubanSubjectMessages({
+    doubanId: 1,
+    model: "grok-4.6",
+    subject: {
+      doubanId: 1,
+      title: "封面",
+      cover: "https://img1.doubanio.com/a.jpg",
+      images: [{ data: "AQID", mimeType: "image/jpeg" }],
+    },
+  });
+  assert.equal(
+    messages[2]?.content?.[0]?.text,
+    JSON.stringify({ doubanId: 1, title: "封面", cover: "https://img1.doubanio.com/a.jpg" }),
+  );
+  assert.deepEqual(messages[2]?.content?.[1], { type: "image", data: "AQID", mimeType: "image/jpeg" });
+  assert.equal("images" in (messages[2]?.details ?? {}), false);
+});
+
 test("queue consumer seeds get_douban_subject before prompting", async () => {
   await withTestContext(async (env) => {
     try {

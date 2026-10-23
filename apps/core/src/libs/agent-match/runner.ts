@@ -6,6 +6,7 @@ import { getContext } from "@/libs/middleware";
 import { parseAgent, serializeAgent } from "./blob";
 import { CandidateRegistry } from "./candidates";
 import { AGENT_LEASE_MS, AGENT_MATCH_MAX_TURNS } from "./constants";
+import { matchImageContent } from "./images";
 import { AGENT_MATCH_SYSTEM_PROMPT } from "./prompt";
 import { addPiMessageUsage, type PiUsageBucket, reportPiUsage } from "./tokens-report";
 import { type AgentTool, createAgentMatchTools } from "./tools";
@@ -193,6 +194,7 @@ export function seedGetDoubanSubjectMessages(input: {
 }): SeedTranscript {
   const toolCallId = "get-douban-subject";
   const timestamp = Date.now();
+  const rendered = matchImageContent(input.subject);
   return [
     {
       role: "user" as const,
@@ -220,8 +222,8 @@ export function seedGetDoubanSubjectMessages(input: {
       role: "toolResult" as const,
       toolCallId,
       toolName: "get_douban_subject",
-      content: [{ type: "text" as const, text: JSON.stringify(input.subject) }],
-      details: input.subject,
+      content: rendered.content,
+      details: rendered.details,
       isError: false,
       timestamp,
     },
@@ -306,7 +308,7 @@ export const agentMatchRuntime = {
             provider: "agent-match",
             baseUrl,
             reasoning: false,
-            input: ["text"],
+            input: ["text", "image"],
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
             contextWindow: 128000,
             maxTokens: 4096,
@@ -361,10 +363,10 @@ export const agentMatchRuntime = {
             description: tool.description,
             parameters: Type.Object(objectProperties),
             async execute(_toolCallId: string, params: Record<string, unknown>) {
-              const details = await tool.execute(params);
+              const rendered = matchImageContent(await tool.execute(params));
               return {
-                content: [{ type: "text" as const, text: JSON.stringify(details) }],
-                details,
+                content: rendered.content,
+                details: rendered.details,
                 terminate: tool.name === "conclude_match",
               };
             },
@@ -448,7 +450,9 @@ export async function runAgentMatchJob(job: AgentMatchJob): Promise<"written" | 
       logAgentMatch(job.doubanId, "tool_start", { tool: tool.name, args: compact(args) });
       try {
         const result = await tool.execute(args);
-        logAgentMatch(job.doubanId, "tool_end", { tool: tool.name, result: compact(result) });
+        const logged = { ...result };
+        if (Array.isArray(logged.images)) logged.images = logged.images.length;
+        logAgentMatch(job.doubanId, "tool_end", { tool: tool.name, result: compact(logged) });
         return result;
       } catch (error) {
         if (tool.name !== "conclude_match") providerError = error instanceof Error ? error : new Error(String(error));
