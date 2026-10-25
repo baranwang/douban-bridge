@@ -18,66 +18,12 @@ export type AgentTool = {
 
 const MAX_SEARCH_RESULTS = 8;
 const EXA_CACHE_TTL_SECONDS = 10 * 60;
-const EXA_MCP_URL = "https://mcp.exa.ai/mcp";
 
-async function callExaMcp(name: string, args: Record<string, unknown>): Promise<string> {
-  const response = await fetch(EXA_MCP_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      accept: "application/json, text/event-stream",
-      "user-agent": "douban-bridge",
-    },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
-  });
-  if (!response.ok) throw new Error(`Exa MCP ${response.status}`);
-  const raw = await response.text();
-  const payload = raw.trimStart().startsWith("{")
-    ? raw
-    : raw
-        .split("\n")
-        .filter((line) => line.startsWith("data: "))
-        .at(-1)
-        ?.slice("data: ".length);
-  if (!payload) throw new Error("Exa MCP empty response");
-  const data = JSON.parse(payload) as {
-    error?: { message?: string };
-    result?: { isError?: boolean; content?: Array<{ text?: string }> };
-  };
-  if (data.error) throw new Error(data.error.message || "Exa MCP error");
-  const text = (data.result?.content ?? []).map((item) => item.text ?? "").join("\n");
-  if (data.result?.isError) throw new Error(text || "Exa MCP tool error");
-  return text;
-}
-
-// shortcut: hosted MCP returns prose, not JSON. Switch when tools/call adds structuredContent.
-function parseExaSearch(text: string) {
-  return text
-    .split(/\n---\n/)
-    .flatMap((block) => {
-      const title = block.match(/^Title: (.*)$/m)?.[1]?.trim();
-      const url = block.match(/^URL: (\S+)$/m)?.[1];
-      const published = block.match(/^Published: (.*)$/m)?.[1]?.trim();
-      if (!url) return [];
-      return [
-        {
-          title: title && title !== "N/A" ? title : null,
-          url,
-          publishedDate: published && published !== "N/A" ? published : null,
-        },
-      ];
-    })
-    .slice(0, 5);
-}
-
-function parseExaPages(text: string) {
-  const matches = [...text.matchAll(/(?:^|\n\n)# ([^\n]+)\nURL: (\S+)\n\n/g)];
-  return matches.map((match, index) => {
-    const start = (match.index ?? 0) + match[0].length;
-    const end = index + 1 < matches.length ? (matches[index + 1]?.index ?? text.length) : text.length;
-    const page = text.slice(start, end).trim();
-    return { title: match[1] ?? null, url: match[2], text: page ? page.slice(0, 1500) : null };
-  });
+async function exaClient() {
+  const { default: Exa } = await import("exa-js");
+  const apiKey = getContext().env.EXA_API_KEY;
+  if (!apiKey) throw new Error("EXA_API_KEY is required");
+  return new Exa(apiKey);
 }
 
 function yearFromTmdbItem(item: {
@@ -399,9 +345,16 @@ export function createAgentMatchTools(
       async execute(args) {
         const query = String(args.query ?? "").trim();
         if (!query) return { results: [] };
+        const exa = await exaClient();
         return cachedExa("search", query, async () => {
-          const text = await callExaMcp("web_search_exa", { query, objective: query, numResults: 5 });
-          return { results: parseExaSearch(text) };
+          const resp = await exa.search(query, { numResults: 5, contents: false });
+          return {
+            results: (resp.results ?? []).slice(0, 5).map((item) => ({
+              title: item.title ?? null,
+              url: item.url,
+              publishedDate: item.publishedDate ?? null,
+            })),
+          };
         });
       },
     },
@@ -422,9 +375,16 @@ export function createAgentMatchTools(
           .filter(Boolean)
           .slice(0, 3);
         if (urls.length === 0) return { results: [] };
+        const exa = await exaClient();
         return cachedExa("contents", urls, async () => {
-          const text = await callExaMcp("web_fetch_exa", { urls, maxCharacters: 1500 });
-          return { results: parseExaPages(text) };
+          const resp = await exa.getContents(urls, { text: { maxCharacters: 1500 } });
+          return {
+            results: (resp.results ?? []).map((item) => ({
+              title: item.title ?? null,
+              url: item.url,
+              text: item.text?.slice(0, 1500) ?? null,
+            })),
+          };
         });
       },
     },

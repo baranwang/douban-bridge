@@ -10,6 +10,7 @@ declare module "hono" {
 
 declare global {
   interface CloudflareBindings {
+    EXA_API_KEY?: string;
     TOKENS_API_TOKEN?: string;
   }
 

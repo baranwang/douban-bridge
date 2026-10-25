@@ -1,4 +1,10 @@
-import type { AssistantMessage, ToolResultMessage, UserMessage } from "@earendil-works/pi-ai";
+import type {
+  AssistantMessage,
+  AssistantMessageEventStream,
+  SimpleStreamOptions,
+  ToolResultMessage,
+  UserMessage,
+} from "@earendil-works/pi-ai";
 import { and, eq } from "drizzle-orm";
 import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
@@ -22,6 +28,65 @@ function compact(value: unknown): string {
   const text = typeof value === "string" ? value : JSON.stringify(value);
   if (!text) return "";
   return text.length <= LOG_MAX_CHARS ? text : `${text.slice(0, LOG_MAX_CHARS)}…`;
+}
+
+type HostedWebSearchCall = { type: "web_search_call"; id?: string };
+
+export function withHostedWebSearch(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object") return payload;
+  const params = payload as { tools?: Array<{ type?: string }> };
+  const tools = Array.isArray(params.tools) ? params.tools : [];
+  if (tools.some((tool) => tool?.type === "web_search")) return payload;
+  return { ...params, tools: [...tools, { type: "web_search" }] };
+}
+
+export async function readWebSearchCalls(body: ReadableStream<Uint8Array> | null): Promise<HostedWebSearchCall[]> {
+  if (!body) return [];
+  const found = new Map<string, HostedWebSearchCall>();
+  const take = (item: HostedWebSearchCall | undefined) => {
+    if (item?.type !== "web_search_call") return;
+    found.set(item.id ?? JSON.stringify(item), item);
+  };
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+    for (const part of parts) {
+      const data = part
+        .split("\n")
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice("data:".length).trim())
+        .join("");
+      if (!data || data === "[DONE]") continue;
+      try {
+        const event = JSON.parse(data) as {
+          type?: string;
+          item?: HostedWebSearchCall;
+          response?: { output?: HostedWebSearchCall[] };
+        };
+        if (event.type === "response.output_item.done") take(event.item);
+        if (event.type === "response.completed") {
+          for (const item of event.response?.output ?? []) take(item);
+        }
+      } catch {
+        // Ignore keepalive frames.
+      }
+    }
+  }
+  return [...found.values()];
+}
+
+export function attachWebSearchCalls(message: AssistantMessage, items: HostedWebSearchCall[]) {
+  if (items.length === 0) return;
+  // shortcut: appended after pi's blocks, not interleaved with reasoning. Move if the next turn is rejected.
+  for (const item of items) {
+    message.content.push({ type: "thinking", thinking: "", thinkingSignature: JSON.stringify(item) });
+  }
 }
 
 export function withAgentMatchStreamOptions<T extends { sessionId?: string; headers?: Record<string, unknown> }>(
@@ -334,12 +399,49 @@ export const agentMatchRuntime = {
         logAgentMatch(doubanId, "turn_limit", { turns });
         return true;
       },
-      streamFn: (model, context, options) =>
-        models.streamSimple(
+      streamFn: (model, context, options) => {
+        const calls: HostedWebSearchCall[] = [];
+        let parsed = Promise.resolve();
+        const hostedOptions: SimpleStreamOptions = {
+          ...options,
+          fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+            const response = await aiFetch(input, init);
+            if (!response.body) return response;
+            const [forSdk, forUs] = response.body.tee();
+            parsed = readWebSearchCalls(forUs)
+              .then((items) => {
+                calls.push(...items);
+              })
+              .catch(() => undefined);
+            return new Response(forSdk, {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+            });
+          },
+          onPayload: async (payload, payloadModel) => {
+            const next = (await options?.onPayload?.(payload, payloadModel)) ?? payload;
+            return withHostedWebSearch(next);
+          },
+        };
+        const stream = models.streamSimple(
           model,
           context,
-          withAgentMatchStreamOptions({ ...options, fetch: aiFetch }, input.sessionId, streamHeaders),
-        ),
+          withAgentMatchStreamOptions(hostedOptions, input.sessionId, streamHeaders),
+        );
+        return {
+          async *[Symbol.asyncIterator]() {
+            for await (const event of stream) {
+              if (event.type === "done" || event.type === "error") {
+                await parsed;
+                attachWebSearchCalls(event.type === "done" ? event.message : event.error, calls);
+              }
+              yield event;
+            }
+          },
+          result: () => stream.result(),
+        } as unknown as AssistantMessageEventStream;
+      },
       sessionId: input.sessionId,
       initialState: {
         systemPrompt: input.system,
