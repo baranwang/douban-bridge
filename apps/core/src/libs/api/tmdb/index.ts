@@ -1,7 +1,12 @@
 import { resolveTmdbAccessToken, TMDB_IMAGE_LANGUAGE } from "@douban-bridge/contracts/image-providers";
 import { SECONDS_PER_WEEK } from "@/libs/constants";
 import { BaseAPI, CacheType } from "../base";
-import { tmdbFindResultSchema, tmdbSearchResultSchema, tmdbSubjectImagesSchema } from "./schema";
+import {
+  tmdbFindResultSchema,
+  tmdbSearchResultItemSchema,
+  tmdbSearchResultSchema,
+  tmdbSubjectImagesSchema,
+} from "./schema";
 
 type TmdbCreditJob = { job?: string | null; episode_count?: number | null };
 
@@ -48,12 +53,17 @@ export class TmdbAPI extends BaseAPI {
     });
   }
 
-  async search(type: "movie" | "tv", params: { query: string; year?: string }) {
+  async search(type: "movie" | "tv", params: { query: string; year?: string; language?: string }) {
     const resp = await this.request({
       url: `/search/${type}`,
       params,
     });
     return tmdbSearchResultSchema.parse(resp);
+  }
+
+  async getDetail(type: "movie" | "tv", id: number) {
+    const data = await this.request({ url: `/${type}/${id}`, params: { language: "zh-CN" } });
+    return tmdbSearchResultItemSchema.parse(data);
   }
 
   async findById(

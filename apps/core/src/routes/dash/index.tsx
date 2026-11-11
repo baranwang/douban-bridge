@@ -1,9 +1,13 @@
 import { reactRenderer } from "@hono/react-renderer";
 import { zValidator } from "@hono/zod-validator";
+import { desc } from "drizzle-orm";
 import { type Env, Hono } from "hono";
 import { basicAuth } from "hono/basic-auth";
 import { Link, ViteClient } from "vite-ssr-components/react";
 import { z } from "zod/v4";
+import { MappingFeedbackList } from "@/components/mapping-feedback-list";
+import { mappingFeedback } from "@/db";
+import { api } from "@/libs/api";
 import { fetchDoubanImage } from "@/libs/douban-image";
 import { tidyUpRoute } from "./tidy-up";
 
@@ -54,3 +58,18 @@ dashRoute.use(
 );
 
 dashRoute.route("/tidy-up", tidyUpRoute);
+dashRoute.get("/feedback", async (c) => {
+  c.header("Cache-Control", "private, no-store");
+  const rows = await api.db.query.mappingFeedback.findMany({
+    orderBy: desc(mappingFeedback.createdAt),
+    limit: 100,
+  });
+  return c.render(
+    <main className="page-container px-4 py-8">
+      <a href="/dash/tidy-up" className="text-sm underline underline-offset-4">
+        返回映射管理
+      </a>
+      <MappingFeedbackList rows={rows} admin />
+    </main>,
+  );
+});

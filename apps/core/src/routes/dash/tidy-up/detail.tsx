@@ -535,7 +535,7 @@ tidyUpDetailRoute.get("/:doubanId", async (c) => {
                       className="h-4 w-4 rounded border-gray-300"
                     />
                     <label htmlFor="calibrated" className="text-muted-foreground text-sm">
-                      已校准（已校准的记录不会被自动覆盖）
+                      已校准（普通自动匹配不会覆盖，反馈评审通过后可更新）
                     </label>
                   </div>
                 </CardContent>

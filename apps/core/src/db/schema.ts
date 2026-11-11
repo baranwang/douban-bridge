@@ -1,4 +1,5 @@
-import { int, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { index, int, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { z } from "zod/v4";
 
@@ -28,6 +29,32 @@ export const doubanMappingSchema = z.object({
 });
 
 export type DoubanIdMapping = z.output<typeof doubanMappingSchema>;
+
+export type FeedbackSnapshot = Pick<
+  typeof doubanMapping.$inferSelect,
+  "tmdbId" | "imdbId" | "traktId" | "calibrated" | "agent"
+>;
+
+export const mappingFeedback = sqliteTable(
+  "mapping_feedback",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    doubanId: int("douban_id").notNull(),
+    candidateId: text("candidate_id").notNull(),
+    reason: text("reason").notNull(),
+    snapshot: text("snapshot", { mode: "json" }).$type<FeedbackSnapshot>().notNull(),
+    status: text("status", { enum: ["pending", "accepted", "suggested", "rejected", "failed", "stale"] })
+      .notNull()
+      .default("pending"),
+    result: text("result"),
+    createdAt: int("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("mapping_feedback_pending_douban").on(table.doubanId).where(sql`${table.status} = 'pending'`),
+    index("mapping_feedback_user_created").on(table.userId, table.createdAt),
+  ],
+);
 
 // 用户表 - 存储 GitHub 登录用户信息
 export const users = sqliteTable("users", {

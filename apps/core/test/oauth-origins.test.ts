@@ -158,14 +158,15 @@ describe("oauth origins", { concurrency: false }, () => {
 });
 
 describe("install origin and internal stremio isolation", { concurrency: false }, () => {
-  test("configure GET/POST emit STREMIO_ORIGIN on the Stremio host", async () => {
+  test("configure keeps install URLs on Stremio and links feedback to core", async () => {
     await withTestContext(async (env, ctx) => {
       const limited = withOrigins(env);
       const html = await app.fetch(new Request(`${STREMIO}/configure`), limited, ctx);
       assert.equal(html.status, 200);
       const body = await html.text();
       assert.match(body, new RegExp(`${STREMIO.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/`));
-      assert.equal(body.includes(`${DASH}/`), false);
+      assert.match(body, new RegExp(`href="${DASH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/feedback"`));
+      assert.equal(body.replaceAll(`${DASH}/feedback`, "").includes(`${DASH}/`), false);
       assert.match(body, /src="https:\/\/u\.baran\.wang\/script\.js"/);
       assert.match(body, /data-website-id="c82dc2bf-07ef-42fc-aa80-d84d94a5305a"/);
 

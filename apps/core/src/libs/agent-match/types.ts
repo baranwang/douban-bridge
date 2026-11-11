@@ -29,4 +29,5 @@ export type AgentBlob = {
 export type AgentMatchJob = {
   doubanId: number;
   agentToken: string;
+  feedbackId?: string;
 };

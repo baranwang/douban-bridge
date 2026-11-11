@@ -3,7 +3,7 @@ import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
 import { TmdbAPI } from "@/libs/api/tmdb";
 import { getContext } from "@/libs/middleware";
-import { type CandidateRegistry, makeCandidateId } from "./candidates";
+import { type CandidateRegistry, makeCandidateId, parseCandidateId } from "./candidates";
 import { fetchMatchImage } from "./images";
 import type { CanonicalCandidate } from "./types";
 
@@ -169,6 +169,24 @@ export function createAgentMatchTools(
   }
 
   return [
+    {
+      name: "get_tmdb",
+      description: "Fetch a TMDB movie/show by candidateId and register it from verified provider metadata.",
+      parameters: {
+        type: "object",
+        properties: { candidateId: { type: "string" } },
+        required: ["candidateId"],
+      },
+      async execute(args) {
+        const parsed = parseCandidateId(String(args.candidateId ?? ""));
+        if (!parsed || !Number.isSafeInteger(parsed.tmdbId) || parsed.tmdbId <= 0) {
+          return { error: "invalid_candidate" };
+        }
+        const detail = await tmdbAPI.getDetail(parsed.type, parsed.tmdbId);
+        if (detail.id !== parsed.tmdbId) throw new Error("TMDB returned a different subject");
+        return { results: registerTmdbItems(registry, parsed.type, [detail]) };
+      },
+    },
     {
       name: "get_douban_subject",
       description: "Fetch trimmed Douban subject metadata for the current job.",

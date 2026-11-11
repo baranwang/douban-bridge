@@ -2,6 +2,7 @@ import { and, eq, isNull, ne, or } from "drizzle-orm";
 import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
 import { parseAgent, serializeAgent } from "./blob";
+import { applyFeedbackVerdict, failMappingFeedback } from "./feedback";
 import { truncateReason, type verifyConcludeMatch } from "./verifier";
 
 type AgentVerdict = ReturnType<typeof verifyConcludeMatch>;
@@ -9,11 +10,13 @@ type AgentVerdict = ReturnType<typeof verifyConcludeMatch>;
 export async function applyAgentVerdict(input: {
   doubanId: number;
   agentToken: string;
+  feedbackId?: string;
   verdict: AgentVerdict;
   confidence: number;
   reason: string;
   now?: number;
 }): Promise<"written" | "suggested" | "no_match" | "stale"> {
+  if (input.feedbackId) return applyFeedbackVerdict(input);
   const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, input.doubanId) });
   if (!row || row.deletedAt) return "stale";
   const blob = parseAgent(row.agent);
@@ -77,8 +80,10 @@ export async function applyAgentVerdict(input: {
 export async function markAgentFailed(input: {
   doubanId: number;
   agentToken: string;
+  feedbackId?: string;
   error: string;
 }): Promise<boolean> {
+  if (input.feedbackId) return failMappingFeedback(input, "评审服务执行失败，请稍后重新提交");
   const row = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, input.doubanId) });
   if (!row || row.deletedAt || row.calibrated === true || row.tmdbId != null) return false;
   if (parseAgent(row.agent)?.token !== input.agentToken) return false;

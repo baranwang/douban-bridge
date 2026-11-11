@@ -8,6 +8,7 @@ import { BaseAPI, CacheType } from "../base";
 import {
   type DoubanSubjectCollectionCategory,
   doubanModulesSchema,
+  doubanSearchSchema,
   doubanSubjectCollectionCategorySchema,
   doubanSubjectCollectionInfoSchema,
   doubanSubjectCollectionSchema,
@@ -42,6 +43,15 @@ export class DoubanAPI extends BaseAPI {
 
   private get apiKey() {
     return this.context.env.DOUBAN_API_KEY || process.env.DOUBAN_API_KEY;
+  }
+
+  async search(query: string) {
+    const resp = await this.request({
+      url: "/search/weixin",
+      params: { q: query, start: 0, count: 12 },
+      cache: { type: CacheType.LOCAL, key: `feedback:douban-search:${encodeURIComponent(query)}`, ttl: 300 },
+    });
+    return doubanSearchSchema.parse(resp).items;
   }
 
   async getSubjectCollection(collectionId: string) {

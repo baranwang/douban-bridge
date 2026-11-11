@@ -119,6 +119,9 @@ configureRoute.get("/", async (c) => {
 
         <footer className="shrink-0 px-4 py-2">
           <div className="flex items-center justify-center gap-4 text-muted-foreground text-xs">
+            <a href={new URL("/feedback", c.env.DASH_ORIGIN).toString()} className="hover:text-foreground">
+              映射反馈
+            </a>
             <a
               href="https://github.com/baranwang/douban-bridge"
               target="_blank"

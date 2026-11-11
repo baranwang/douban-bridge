@@ -139,6 +139,11 @@ tidyUpRoute.get("/", async (c) => {
               <p className="mt-2 text-muted-foreground">{VIEW_COPY[view].description}</p>
             </div>
             <div className="flex items-center gap-3">
+              <a href="/dash/feedback">
+                <Button variant="outline" size="sm">
+                  用户反馈
+                </Button>
+              </a>
               <a href="/dash/tidy-up?view=unmatched">
                 <Button variant={view === "unmatched" ? "default" : "outline"} size="sm">
                   未匹配

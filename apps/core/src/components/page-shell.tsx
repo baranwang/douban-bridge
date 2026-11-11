@@ -17,6 +17,14 @@ export const PageShell: React.FC<PageShellProps> = ({ title, description, action
           {actions ? <div className="shrink-0">{actions}</div> : null}
         </header>
         {children}
+        <footer className="mt-8">
+          <a
+            href="/feedback"
+            className="text-muted-foreground text-sm underline underline-offset-4 hover:text-foreground"
+          >
+            映射有误？提交反馈
+          </a>
+        </footer>
       </div>
     </div>
   );

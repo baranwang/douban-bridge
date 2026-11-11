@@ -77,6 +77,14 @@ rtk proxy pnpm --filter @douban-bridge/core exec wrangler d1 migrations apply st
 
 ### 3. 首次部署 core（禁用 cron）
 
+映射反馈功能需要先应用 `apps/core/drizzle/0007_needy_zaran.sql`，创建独立的 `mapping_feedback` 表；然后更新 core，继续使用已有 `AGENT_MATCH_QUEUE` 和 agent 的模型配置，不需要增加 binding。Stremio 配置页的反馈入口链接到 core 的 `/feedback`，不必扩展适配器的路由白名单。
+
+反馈提交需要 GitHub 网页登录，无需 Star，并校验同源请求。每个用户每小时最多提交 5 条，同一豆瓣条目同时只允许一条待评审反馈。用户提供豆瓣链接或 ID、TMDB movie/tv 链接和修改理由；提交后原映射保持不变，评审任务会从 TMDB 重新获取建议条目的元数据，用户文本仅作为不可信线索。Agent 认可同一建议且置信度达到现有自动写入门槛（当前 0.9）后，才更新正式映射，包括原先已校准的条目；更新后的 `calibrated` 为 false。缺少的新 IMDb/Trakt ID 会置空，不沿用可能属于旧作品的 ID。数据库批次同时提交评审状态和映射，写入前核对提交时的映射快照，期间映射有变化则标记过期。低置信度、未采纳、执行失败均不改变正式映射。
+
+用户在 `/feedback` 查看自己的最近 20 条反馈，刷新页面获取最新结论。管理员在 `/dash/feedback` 查看最近 100 条及 Agent 理由，通过原有映射编辑页人工处理建议。该列表保留 Agent 原始结论，人工编辑不会回写反馈状态。入队失败及队列最终重试失败会记录失败，用户可以重新提交；待评审超过一小时后再次提交，会先将旧任务标记为失败，解除条目占用，旧队列消息无法再写入。回滚代码时保留 `mapping_feedback` 表，勿删除用户反馈；上线前仍需验证真实模型评审及播放器缓存过期后的映射表现。
+
+反馈表单默认搜索选择作品，选中豆瓣条目后会自动带入片名和电影/剧集类型搜索 TMDB；选择结果展示海报、原名和年份，链接或 ID 输入保留在折叠区域。`/feedback/search` 仅允许已登录用户访问，使用现有 `DOUBAN_API_KEY` / `TMDB_API_KEY`，不要求 Star；浏览器不会收到上游密钥。豆瓣海报通过同样需要登录、限制为 `.doubanio.com` 的 `/feedback/image` 读取。搜索和取图有用户限流，不写入映射或发起 Agent 任务；提交选定的两个条目后才进入原有评审流程。搜索失败时显示错误，允许改关键词、重试或粘贴链接。
+
 为 core 配置现有 D1 / KV / rate limits / ASSETS / 现有 secrets / 两个 origin。把 dash 基本认证写入 KV 键 `DASH_USER` 与 `DASH_PASS`（不要把值写入仓库或本文）。`verifyUser` 在二者任一缺失时 **fail-open**（返回 true，本地空 KV 仍能打开 dash）；生产必须两键都在，否则 dash 无密码可进。在**现有** GitHub OAuth App 上增加 callback `https://douban-bridge.baran.wang/auth/github/callback`（保留旧 Stremio callback），两个公开域名共用 `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`。首次部署验证：无 Bearer 的 `/v1` 为 401 且 `Cache-Control: private, no-store`；cookie 不能代替 `sk`。
 
 首次 core 部署先把 `apps/core/wrangler.jsonc` 的 `triggers.crons` 设为空（或不部署该字段），**保留旧 Worker 的唯一 cron**，避免两个写入者重叠。上传 core 后验证：默认入口拒绝 `/v1/*` 与 `/stremio/manifest`；dash HTTPS、OAuth、`/icon.png` 与 `/assets/*` 正常；KV 中 `DASH_USER` 与 `DASH_PASS` 均已配置，未配置时 dash 会 fail-open。

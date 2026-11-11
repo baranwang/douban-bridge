@@ -7,6 +7,7 @@ import { apiKeysRoute } from "./routes/api-keys";
 import { authRoute } from "./routes/auth";
 import { configureRoute } from "./routes/configure";
 import { dashRoute } from "./routes/dash";
+import { feedbackRoute } from "./routes/feedback";
 import { imageProxyRoute } from "./routes/image-proxy";
 import { internalApi } from "./routes/internal-api";
 import { portalRoute } from "./routes/portal";
@@ -27,6 +28,7 @@ app.route("/", portalRoute);
 app.route("/api-keys", apiKeysRoute);
 app.route("/auth", authRoute);
 app.route("/rex", rexRoute);
+app.route("/feedback", feedbackRoute);
 
 app.route("/configure", configureRoute);
 app.route("/:config/configure", configureRoute);
