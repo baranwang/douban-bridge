@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "lib": ["ES2021"],
+    "types": ["node"],
     "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "strict": true,
-    "resolveJsonModule": true,
-    "lib": ["ESNext"],
     "noEmit": true,
-    "types": []
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "bundler",
+    "useDefineForClassFields": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["src"]
+  "include": ["src", "test", "scripts"]
 }

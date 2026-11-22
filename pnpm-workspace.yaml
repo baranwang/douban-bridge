@@ -13,10 +13,10 @@ patchedDependencies:
   "@jsr/trakt__api@0.5.4": patches/@jsr__trakt__api@0.5.4.patch
 
 minimumReleaseAgeExclude:
-  - "@rexnow/libs@3.1.3"
-  - "@rexnow/rslib-plugin@3.1.3"
-  - "@rslib/core@1.0.1"
-  - "rsbuild-plugin-dts@1.0.1"
+  - "@rexnow/libs"
+  - "@rexnow/rslib-plugin"
+  - "@rslib/core"
+  - "rsbuild-plugin-dts"
 
 allowBuilds:
   esbuild: true

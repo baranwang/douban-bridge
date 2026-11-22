@@ -18,6 +18,7 @@
       "!!**/.wrangler",
       "!!worker-configuration.d.ts",
       "!!**/worker-configuration.d.ts",
+      "!!**/rex-widget-env.d.ts",
       "!!drizzle/meta",
       "!!**/drizzle/meta"
     ]
