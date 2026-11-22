@@ -2,8 +2,10 @@ import { type CatalogQuery, catalogQuerySchema } from "@douban-bridge/contracts"
 import { getLatestYearlyRanking } from "@douban-bridge/contracts/collections";
 import {
   type DoubanSubjectCollectionItem,
+  doubanModulesSchema,
   doubanRecommendSchema,
   doubanSearchSchema,
+  doubanSubjectCollectionInfoSchema,
   doubanSubjectCollectionSchema,
 } from "@douban-bridge/contracts/douban";
 import { z } from "zod/v4";
@@ -103,11 +105,7 @@ export async function toVideoItem(item: DoubanSubjectCollectionItem): Promise<Vi
   };
 }
 
-async function frodo<T>(
-  path: string,
-  params: Record<string, string | number>,
-  schema: { parse: (value: unknown) => T },
-) {
+async function frodo<T extends z.ZodType>(path: string, params: Record<string, string | number>, schema: T) {
   const response = await rexFetch
     .get(`${DOUBAN_BASE}${path}`, {
       params: { ...params, apiKey: FRODO_KEY },
@@ -118,7 +116,7 @@ async function frodo<T>(
     .catch(() => {
       throw new Error("Douban request failed");
     });
-  if (!response.data) throw new Error("Douban request failed");
+  if (response.data == null) throw new Error("Douban request failed");
   return response.data;
 }
 
@@ -149,4 +147,16 @@ export async function fetchRecommendItems(
 ): Promise<DoubanSubjectCollectionItem[]> {
   const { items } = await frodo(`/${type}/recommend`, { tags, start: skip, count: 20, sort }, doubanRecommendSchema);
   return items;
+}
+
+export async function fetchSubjectCollectionInfo(collectionId: string) {
+  return frodo(
+    `/subject_collection/${encodeURIComponent(collectionId)}`,
+    { for_mobile: 1 },
+    doubanSubjectCollectionInfoSchema,
+  );
+}
+
+export async function fetchDoubanModules(type: "movie" | "tv") {
+  return frodo(`/${type}/modules`, {}, doubanModulesSchema);
 }
