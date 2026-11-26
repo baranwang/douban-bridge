@@ -1,8 +1,6 @@
 import type { StremioDetailItem } from "@douban-bridge/contracts/stremio";
 import axios from "axios";
-import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
-import { doubanMapping } from "@/db";
 import { api } from "@/libs/api";
 import { ImageUrlGenerator } from "@/libs/images";
 import type { ImageContext } from "./catalog";
@@ -29,15 +27,11 @@ async function loadMeta(doubanId: number, images: ImageContext, enrich: boolean)
   let tmdbId: number | null = null;
   let imdbId: string | null = null;
 
-  if (enrich) {
-    const mapping = (await api.fetchIdMapping([{ doubanId, type: data.type, title: data.title }])).get(doubanId);
-    tmdbId = mapping?.tmdbId ?? null;
-    imdbId = mapping?.imdbId ?? null;
-  } else {
-    const dbData = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, doubanId) });
-    tmdbId = dbData?.tmdbId ?? null;
-    imdbId = dbData?.imdbId ?? null;
-  }
+  const mapping = (
+    await api.fetchIdMapping([{ doubanId, type: data.type, title: data.title }], { discover: enrich })
+  ).get(doubanId);
+  tmdbId = mapping?.tmdbId ?? null;
+  imdbId = mapping?.imdbId ?? null;
 
   const generator = new ImageUrlGenerator(images.providers, {
     origin: images.origin,

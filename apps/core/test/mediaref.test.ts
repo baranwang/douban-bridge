@@ -232,6 +232,60 @@ describe("MediaRef id mapping", { concurrency: false }, () => {
     });
   });
 
+  test("lookups with upstream errors are used but not cached", async () => {
+    await withMediaRef(async (env, flush) => {
+      mockMediaRef({ batch: batchResponse({}) });
+      mock.method(api, "findExternalId", async ({ doubanId }: { doubanId: number }) => ({
+        doubanId,
+        tmdbId: null,
+        imdbId: "tt1",
+        traktId: null,
+        failed: true,
+      }));
+      const result = await api.fetchIdMapping([{ doubanId: 1, type: "movie" }]);
+      await flush();
+      assert.equal(result.get(1)?.imdbId, "tt1");
+      assert.equal(await env.KV.get("mediaref:lead:1"), null);
+    });
+  });
+
+  test("a failing lead cache read is treated as a miss", async () => {
+    await withMediaRef(async (env) => {
+      mockMediaRef({ batch: batchResponse({}) });
+      const kv = env.KV;
+      env.KV = {
+        get: async () => {
+          throw new Error("kv down");
+        },
+        put: (...args: Parameters<KVNamespace["put"]>) => kv.put(...args),
+      } as unknown as KVNamespace;
+      const requested = trackFindExternalId({ tmdbId: 7 });
+      const result = await api.fetchIdMapping([{ doubanId: 1, type: "tv" }]);
+      assert.deepEqual(requested, [1]);
+      assert.equal(result.get(1)?.tmdbId, 7);
+    });
+  });
+
+  test("discover: false reads MediaRef and the lead cache without looking up", async () => {
+    await withMediaRef(async (env) => {
+      await env.KV.put("mediaref:lead:2", JSON.stringify({ tmdbId: 202, imdbId: null, traktId: null }));
+      mockMediaRef({ batch: batchResponse({ 1: [mediaItem(1, "movie:278")] }) });
+      const requested = trackFindExternalId({ tmdbId: 5 });
+      const result = await api.fetchIdMapping(
+        [
+          { doubanId: 1, type: "movie" },
+          { doubanId: 2, type: "movie" },
+          { doubanId: 3, type: "movie" },
+        ],
+        { discover: false },
+      );
+      assert.deepEqual(requested, []);
+      assert.equal(result.get(1)?.tmdbId, 278);
+      assert.equal(result.get(2)?.tmdbId, 202);
+      assert.equal(result.get(3)?.tmdbId, null);
+    });
+  });
+
   test("without MEDIAREF_API_KEY nothing is sent to MediaRef", async () => {
     await withMediaRef(async (env, flush) => {
       delete env.MEDIAREF_API_KEY;
