@@ -4,19 +4,15 @@
 interface __BaseEnv_CloudflareBindings {
 	KV: KVNamespace;
 	STREMIO_ADDON_DOUBAN: D1Database;
-	AGENT_MATCH_QUEUE: Queue;
 	PUBLIC_RATE_LIMIT: RateLimit;
 	USER_RATE_LIMIT: RateLimit;
 	IMAGE_RATE_LIMIT: RateLimit;
-	AI: Ai;
 	ASSETS: Fetcher;
 	DOUBAN_API_KEY: "0ac44ae016490db2204ce0a042db2916";
 	TRAKT_CLIENT_ID: "95pidRr4d15bGI__HJQtIsSRzv_GfTnznlFotZrFsew";
 	GITHUB_CLIENT_ID: "Ov23liAcIeCqxTwANWoZ";
 	STREMIO_ORIGIN: "https://stremio-addon-douban.baran.wang";
 	DASH_ORIGIN: "https://douban-bridge.baran.wang";
-	AGENT_MATCH_GATEWAY_ID: "gateway";
-	AGENT_MATCH_GATEWAY_PROVIDER: "carpool";
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -29,7 +25,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "DOUBAN_API_KEY" | "TRAKT_CLIENT_ID" | "GITHUB_CLIENT_ID" | "STREMIO_ORIGIN" | "DASH_ORIGIN" | "AGENT_MATCH_GATEWAY_ID" | "AGENT_MATCH_GATEWAY_PROVIDER">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "DOUBAN_API_KEY" | "TRAKT_CLIENT_ID" | "GITHUB_CLIENT_ID" | "STREMIO_ORIGIN" | "DASH_ORIGIN">> {}
 }
 
 // Begin runtime types

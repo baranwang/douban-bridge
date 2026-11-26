@@ -1,7 +1,5 @@
 import { match } from "path-to-regexp";
 
-const POSITIVE_INT = /^[1-9]\d*$/;
-
 function isSafeAsset(pathname: string): boolean {
   if (!match("/assets/*asset")(pathname)) return false;
   let decoded: string;
@@ -11,12 +9,6 @@ function isSafeAsset(pathname: string): boolean {
     return false;
   }
   return !decoded.includes("..") && !decoded.includes("\\");
-}
-
-function isTidyUpItem(pathname: string): boolean {
-  const result = match("/dash/tidy-up/:doubanId")(pathname);
-  if (!result) return false;
-  return POSITIVE_INT.test(String((result.params as { doubanId: string }).doubanId));
 }
 
 function isConfigConfigure(pathname: string): boolean {
@@ -36,14 +28,11 @@ export function isWebCompatibilityRoute(method: string, pathname: string): boole
       pathname === "/auth/github" ||
       pathname === "/auth/github/callback" ||
       pathname === "/auth/me" ||
-      pathname === "/auth/check-star" ||
-      pathname === "/dash/tidy-up" ||
-      pathname === "/dash/tidy-up/"
+      pathname === "/auth/check-star"
     ) {
       return true;
     }
-    if (isTidyUpItem(pathname)) return true;
   }
-  if (verb === "POST" && (pathname === "/auth/logout" || isTidyUpItem(pathname))) return true;
+  if (verb === "POST" && pathname === "/auth/logout") return true;
   return false;
 }

@@ -37,7 +37,3 @@ export async function fetchDoubanImage(url: string): Promise<Response> {
   }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
-
-export function dashDoubanImageSrc(url: string): string {
-  return `/dash/image-proxy?url=${encodeURIComponent(url)}`;
-}

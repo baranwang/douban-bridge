@@ -1,8 +1,8 @@
-import { and, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { z } from "zod/v4";
-import { type DoubanIdMapping, doubanMapping, doubanMappingSchema } from "@/db";
+import { and, inArray, isNull } from "drizzle-orm";
+import { type DoubanIdMapping, doubanMapping } from "@/db";
 import { BaseAPI } from "./base";
 import { DoubanAPI } from "./douban";
+import { lookupDoubanIds, type MediaRefMapping, submitDoubanLead } from "./mediaref";
 import { TraktAPI } from "./trakt";
 
 interface FindIdParams {
@@ -10,6 +10,13 @@ interface FindIdParams {
   doubanId: number;
   title?: string;
 }
+
+export type IdMapping = Pick<DoubanIdMapping, "tmdbId" | "imdbId" | "traktId">;
+
+const LEAD_TTL_SECONDS = 7 * 24 * 3600;
+const MISS_TTL_SECONDS = 24 * 3600;
+const MAX_LEADS_PER_REQUEST = 5;
+const leadCacheKey = (doubanId: number) => `mediaref:lead:${doubanId}`;
 
 export * from "./douban/schema";
 export { DoubanAPI };
@@ -19,70 +26,102 @@ class API extends BaseAPI {
 
   traktAPI = new TraktAPI();
 
-  async fetchIdMapping(doubanIds: number[]) {
-    const rows = await this.db
-      .select()
-      .from(doubanMapping)
-      .where(and(inArray(doubanMapping.doubanId, doubanIds), isNull(doubanMapping.deletedAt)));
-    const mappingCache = new Map<number, Partial<DoubanIdMapping>>();
-    const mappedIds = new Set<number>();
-    for (const { doubanId, imdbId, tmdbId, traktId, calibrated, agent } of rows) {
-      mappingCache.set(doubanId, { imdbId, tmdbId, traktId, calibrated });
-      if (imdbId || tmdbId || traktId || calibrated || (agent != null && agent !== "")) {
-        mappedIds.add(doubanId);
+  /**
+   * 豆瓣编号 → 外部编号。来源优先级：MediaRef 已确认 > MediaRef 未确认 > 本地 douban_mapping（只读备用）
+   * > KV 线索缓存 > findExternalId 现查。现查到的电影作为线索提交给 MediaRef。
+   */
+  async fetchIdMapping(items: FindIdParams[]): Promise<Map<number, IdMapping>> {
+    const { env, ctx } = this.context;
+    const doubanIds = items.map((item) => item.doubanId);
+    const stats = {
+      total: items.length,
+      mediarefConfirmed: 0,
+      mediarefUnconfirmed: 0,
+      local: 0,
+      lead: 0,
+      found: 0,
+      miss: 0,
+      conflict: 0,
+      mediarefError: 0,
+    };
+
+    const [remote, rows] = await Promise.all([
+      lookupDoubanIds(doubanIds).catch((error) => {
+        if (env.MEDIAREF_API_KEY) console.warn("⚠️ MediaRef lookup failed", error);
+        stats.mediarefError = 1;
+        return new Map<number, MediaRefMapping>();
+      }),
+      this.db
+        .select()
+        .from(doubanMapping)
+        .where(and(inArray(doubanMapping.doubanId, doubanIds), isNull(doubanMapping.deletedAt))),
+    ]);
+    const local = new Map(rows.map((row) => [row.doubanId, row]));
+
+    const result = new Map<number, IdMapping>();
+    const pending: FindIdParams[] = [];
+    for (const item of items) {
+      const hit = remote.get(item.doubanId);
+      const row = local.get(item.doubanId);
+      if (hit) {
+        stats[hit.confirmed ? "mediarefConfirmed" : "mediarefUnconfirmed"] += 1;
+        if (row?.tmdbId != null && row.tmdbId !== hit.tmdbId) stats.conflict += 1;
+        result.set(item.doubanId, { tmdbId: hit.tmdbId, imdbId: hit.imdbId, traktId: hit.traktId });
+      } else if (row && (row.tmdbId || row.imdbId || row.traktId || row.calibrated)) {
+        // calibrated 且无编号 = 人工确认过“没有对应”，不再现查。
+        stats.local += 1;
+        result.set(item.doubanId, { tmdbId: row.tmdbId, imdbId: row.imdbId, traktId: row.traktId });
+      } else {
+        pending.push(item);
       }
     }
-    if (mappedIds.size > 0) {
-      console.info("🔍 Found", mappedIds.size, "mapped ids in database");
-    }
-    const missingIds = doubanIds.filter((id) => !mappedIds.has(id));
-    return { mappingCache, missingIds };
-  }
 
-  async persistIdMapping(mappings: (DoubanIdMapping | null)[], skipNil = true) {
-    const hasValidId = (item: DoubanIdMapping) => !!(item.imdbId || item.tmdbId || item.traktId);
-
-    const data = mappings.flatMap((item) => {
-      const result = doubanMappingSchema.safeParse(item);
-      if (!result.success) {
-        console.warn("❌ Invalid douban id mapping", z.prettifyError(result.error));
-        return [];
-      }
-      if (skipNil && !hasValidId(result.data)) {
-        return [];
-      }
-      const { doubanId, imdbId, tmdbId, traktId } = result.data;
-      return [{ doubanId, imdbId, tmdbId, traktId }];
+    const cached = await Promise.all(pending.map((item) => env.KV.get<IdMapping>(leadCacheKey(item.doubanId), "json")));
+    const toFind = pending.filter((item, index) => {
+      const lead = cached[index];
+      if (!lead) return true;
+      stats.lead += 1;
+      result.set(item.doubanId, lead);
+      return false;
     });
-    if (data.length === 0) return;
 
-    console.log("🗄️ Updating douban id mapping, count:", data.length);
-    await this.db
-      .insert(doubanMapping)
-      .values(data)
-      .onConflictDoUpdate({
-        target: doubanMapping.doubanId,
-        set: {
-          tmdbId: sql`CASE
-            WHEN ${doubanMapping.tmdbId} IS NULL THEN excluded.tmdb_id
-            ELSE ${doubanMapping.tmdbId}
-          END`,
-          imdbId: sql`CASE
-            WHEN ${doubanMapping.tmdbId} IS NULL AND excluded.tmdb_id IS NOT NULL THEN excluded.imdb_id
-            WHEN ${doubanMapping.tmdbId} IS NULL THEN COALESCE(excluded.imdb_id, ${doubanMapping.imdbId})
-            ELSE ${doubanMapping.imdbId}
-          END`,
-          traktId: sql`CASE
-            WHEN ${doubanMapping.tmdbId} IS NULL AND excluded.tmdb_id IS NOT NULL THEN excluded.trakt_id
-            WHEN ${doubanMapping.tmdbId} IS NULL THEN COALESCE(excluded.trakt_id, ${doubanMapping.traktId})
-            ELSE ${doubanMapping.traktId}
-          END`,
-        },
-        setWhere: and(
-          isNull(doubanMapping.deletedAt),
-          or(ne(doubanMapping.calibrated, true), isNull(doubanMapping.calibrated)),
-        ),
-      });
+    let submitted = 0;
+    await Promise.all(
+      toFind.map(async (item) => {
+        const found = await this.findExternalId(item).catch(() => null);
+        if (!found) {
+          // 现查本身出错（上游故障）不缓存，下次请求再试。
+          stats.miss += 1;
+          result.set(item.doubanId, { tmdbId: null, imdbId: null, traktId: null });
+          return;
+        }
+        const mapping = {
+          tmdbId: found.tmdbId ?? null,
+          imdbId: found.imdbId ?? null,
+          traktId: found.traktId ?? null,
+        };
+        const hasId = !!(mapping.tmdbId || mapping.imdbId || mapping.traktId);
+        stats[hasId ? "found" : "miss"] += 1;
+        result.set(item.doubanId, mapping);
+        ctx.waitUntil(
+          env.KV.put(leadCacheKey(item.doubanId), JSON.stringify(mapping), {
+            expirationTtl: hasId ? LEAD_TTL_SECONDS : MISS_TTL_SECONDS,
+          }),
+        );
+        // shortcut: 电视剧不知道对应 TMDB 第几季，整部提交会和其他季冲突，等 MediaRef 支持“季待定”再放开。
+        if (item.type === "movie" && mapping.tmdbId && env.MEDIAREF_API_KEY && submitted < MAX_LEADS_PER_REQUEST) {
+          submitted += 1;
+          ctx.waitUntil(
+            submitDoubanLead(item.doubanId, mapping.tmdbId).catch((error) =>
+              console.warn("⚠️ MediaRef lead submit failed", item.doubanId, error),
+            ),
+          );
+        }
+      }),
+    );
+
+    console.info("📊 id mapping sources", JSON.stringify(stats));
+    return result;
   }
 
   async findExternalId(params: FindIdParams) {

@@ -3,10 +3,8 @@ import axios from "axios";
 import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { doubanMapping } from "@/db";
-import { persistAndEnqueueUnmatched } from "@/libs/agent-match/pool";
 import { api } from "@/libs/api";
 import { ImageUrlGenerator } from "@/libs/images";
-import { getContext } from "@/libs/middleware";
 import type { ImageContext } from "./catalog";
 
 function mapSourceError(error: unknown): never {
@@ -32,28 +30,11 @@ async function loadMeta(doubanId: number, images: ImageContext, enrich: boolean)
   let imdbId: string | null = null;
 
   if (enrich) {
-    const { mappingCache, missingIds } = await api.fetchIdMapping([doubanId]);
-    const newMappings = await Promise.all(
-      missingIds.map(async (id) => {
-        try {
-          return await api.findExternalId({ doubanId: id, type: data.type, title: data.title });
-        } catch {
-          return { doubanId: id, tmdbId: null, imdbId: null, traktId: null };
-        }
-      }),
-    );
-    for (const mapping of newMappings) mappingCache.set(mapping.doubanId, mapping);
-    if (newMappings.length > 0) {
-      getContext().ctx.waitUntil(persistAndEnqueueUnmatched(newMappings));
-    }
-    const mapping = mappingCache.get(doubanId);
+    const mapping = (await api.fetchIdMapping([{ doubanId, type: data.type, title: data.title }])).get(doubanId);
     tmdbId = mapping?.tmdbId ?? null;
     imdbId = mapping?.imdbId ?? null;
   } else {
     const dbData = await api.db.query.doubanMapping.findFirst({ where: eq(doubanMapping.doubanId, doubanId) });
-    if (!dbData) {
-      getContext().ctx.waitUntil(api.db.insert(doubanMapping).values({ doubanId }));
-    }
     tmdbId = dbData?.tmdbId ?? null;
     imdbId = dbData?.imdbId ?? null;
   }
