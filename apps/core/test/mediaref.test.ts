@@ -314,6 +314,30 @@ describe("MediaRef id mapping", { concurrency: false }, () => {
     });
   });
 
+  test("uses the MEDIAREF service binding instead of public fetch when bound", async () => {
+    await withMediaRef(async (env) => {
+      const calls = mockMediaRef({});
+      const bound: string[] = [];
+      env.MEDIAREF = {
+        fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+          const request = new Request(input, init);
+          bound.push(request.url);
+          assert.equal(request.headers.get("X-API-Key"), "mr-test-key");
+          return batchResponse({ 1: [mediaItem(1, "movie:278")] })({
+            url: request.url,
+            headers: request.headers,
+            body: await request.json(),
+          });
+        },
+      } as unknown as Fetcher;
+      trackFindExternalId();
+      const result = await api.fetchIdMapping([{ doubanId: 1, type: "movie" }]);
+      assert.equal(result.get(1)?.tmdbId, 278);
+      assert.deepEqual(bound, [BATCH]);
+      assert.equal(calls.length, 0);
+    });
+  });
+
   test("without MEDIAREF_API_KEY nothing is sent to MediaRef", async () => {
     await withMediaRef(async (env, flush) => {
       delete env.MEDIAREF_API_KEY;

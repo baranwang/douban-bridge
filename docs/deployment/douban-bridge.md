@@ -26,6 +26,7 @@ core 保持原 `JWT_SECRET`，使旧 cookie 仍能校验。不从部署日志恢
 
 映射改以 MediaRef（`https://api.mediaref.org`）为主要来源，设计见 `docs/design/mediaref-integration.md`。agent-match、cron、queue `douban-agent-match`、Workers AI binding、tidy-up 后台都已移除；`/feedback` 302 到 `https://mediaref.org/`。
 
+- core 通过 Service Binding `MEDIAREF` → Worker `media-ref-api`（同账号）调用，不走公网；没有这个绑定时退回 `https://api.mediaref.org`。`media-ref-api` 必须先存在，否则 core 部署会失败。
 - 在 MediaRef 签发一个带 SUBMIT scope 的 API key（账号需先验证邮箱），写入 core：`rtk proxy pnpm --filter @douban-bridge/core exec wrangler secret put MEDIAREF_API_KEY`。没配时 core 退回本地 `douban_mapping` + KV，不提交线索。
 - 部署后可删除不再使用的 secret `EXA_API_KEY`、KV 键 `AGENT_MATCH_MODEL`，以及 Cloudflare 上的 queue `douban-agent-match`。
 - 不做 migration：`douban_mapping.agent`、`mapping_feedback`、`pi_token_usage` 暂留，迁移第 3 步再删。下文关于 agent 队列、`/dash`、映射反馈和 cron 的说明仅作历史记录。
