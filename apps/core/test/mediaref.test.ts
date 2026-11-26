@@ -117,6 +117,34 @@ describe("MediaRef id mapping", { concurrency: false }, () => {
     });
   });
 
+  test("malformed MediaRef fields are dropped without discarding other hits", async () => {
+    await withMediaRef(async () => {
+      mockMediaRef({
+        batch: () =>
+          Response.json({
+            results: [
+              {
+                ref: { douban: "1" },
+                success: { items: [mediaItem(1, "movie:278", { imdb: 123 as unknown as string })] },
+              },
+              {
+                ref: { douban: "2" },
+                success: { items: [{ document: { externalIds: "oops" } }, mediaItem(2, "movie:9")] },
+              },
+              { ref: 42, success: { items: [mediaItem(3, "movie:3")] } },
+            ],
+          }),
+      });
+      trackFindExternalId();
+      const result = await api.fetchIdMapping([
+        { doubanId: 1, type: "movie" },
+        { doubanId: 2, type: "movie" },
+      ]);
+      assert.deepEqual(result.get(1), { tmdbId: 278, imdbId: null, traktId: 77 });
+      assert.equal(result.get(2)?.tmdbId, 9);
+    });
+  });
+
   test("MediaRef miss falls back to local mapping, then KV lead cache", async () => {
     await withMediaRef(async (env) => {
       await api.db.insert(doubanMapping).values({ doubanId: 1, tmdbId: 101, imdbId: "tt101" });

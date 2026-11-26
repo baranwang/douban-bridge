@@ -1,3 +1,4 @@
+import { z } from "zod/v4";
 import { getContext } from "../middleware";
 
 // Connect JSON 协议，接口定义见 media-ref 仓库 proto/mediaref/v1/*.proto；@media-ref/client 未发布，直接调 HTTP。
@@ -12,23 +13,36 @@ export interface MediaRefMapping {
   confirmed: boolean;
 }
 
-interface ExternalId {
-  namespace: string;
-  nativeId: string;
-}
-interface Association extends ExternalId {
-  id: string;
-  unconfirmed?: boolean;
-}
-interface MediaQueryItem {
-  document?: { externalIds?: ExternalId[]; associations?: Association[] };
-  matchedAssociationId?: string;
-}
-interface BatchGetMediaResponse {
-  results?: { ref?: { douban?: string }; success?: { items?: MediaQueryItem[] } }[];
-}
+// 宽松 schema：单个字段或条目不合法就丢掉它，不影响同批其他命中。
+const optionalString = z.string().optional().catch(undefined);
+const externalIdSchema = z.object({ namespace: z.string(), nativeId: z.string() });
+const associationSchema = z.object({ id: z.string(), unconfirmed: z.boolean().optional().catch(undefined) });
+const tolerantArray = <T extends z.ZodType>(item: T) =>
+  z
+    .array(item.nullable().catch(null))
+    .catch([])
+    .transform((items) => items.filter((entry): entry is NonNullable<z.output<T>> => entry != null));
+const mediaQueryItemSchema = z.object({
+  document: z
+    .object({ externalIds: tolerantArray(externalIdSchema), associations: tolerantArray(associationSchema) })
+    .optional()
+    .catch(undefined),
+  matchedAssociationId: optionalString,
+});
+type MediaQueryItem = z.output<typeof mediaQueryItemSchema>;
+const batchGetMediaResponseSchema = z.object({
+  results: tolerantArray(
+    z.object({
+      ref: z.object({ douban: z.string() }),
+      success: z
+        .object({ items: tolerantArray(mediaQueryItemSchema) })
+        .optional()
+        .catch(undefined),
+    }),
+  ),
+});
 
-async function call<T>(method: string, body: unknown): Promise<T> {
+async function call(method: string, body: unknown): Promise<unknown> {
   const apiKey = getContext().env.MEDIAREF_API_KEY;
   if (!apiKey) throw new Error("MEDIAREF_API_KEY is not configured");
   const response = await fetch(`${MEDIAREF_API}/mediaref.v1.${method}`, {
@@ -38,7 +52,7 @@ async function call<T>(method: string, body: unknown): Promise<T> {
     signal: AbortSignal.timeout(MEDIAREF_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`MediaRef ${method} responded ${response.status}`);
-  return response.json() as Promise<T>;
+  return response.json();
 }
 
 // tmdb/trakt 的 nativeId 形如 "movie:278"，取最后一段数字。
@@ -67,16 +81,17 @@ export async function lookupDoubanIds(doubanIds: number[]): Promise<Map<number, 
   for (let i = 0; i < doubanIds.length; i += MAX_BATCH) chunks.push(doubanIds.slice(i, i + MAX_BATCH));
   const responses = await Promise.all(
     chunks.map((chunk) =>
-      call<BatchGetMediaResponse>("MediaService/BatchGetMedia", {
+      call("MediaService/BatchGetMedia", {
         refs: chunk.map((id) => ({ douban: String(id) })),
         includeUnconfirmed: true,
-      }),
+      }).then((json) => batchGetMediaResponseSchema.parse(json)),
     ),
   );
   const result = new Map<number, MediaRefMapping>();
-  for (const { results = [] } of responses) {
+  for (const { results } of responses) {
     for (const entry of results) {
-      const doubanId = Number(entry.ref?.douban);
+      const doubanId = Number(entry.ref.douban);
+      if (!Number.isSafeInteger(doubanId)) continue;
       const mappings = (entry.success?.items ?? []).map(toMapping).filter((m) => m !== null);
       const best = mappings.find((m) => m.confirmed) ?? mappings[0];
       if (best) result.set(doubanId, best);
