@@ -93,10 +93,10 @@ describe("web compatibility allowlist", () => {
     assert.equal(isWebCompatibilityRoute("DELETE", "/api-keys"), false);
     assert.equal(isWebCompatibilityRoute("GET", `/image-proxy/${USER}`), true);
     assert.equal(isWebCompatibilityRoute("HEAD", `/image-proxy/${USER}`), true);
-    assert.equal(isWebCompatibilityRoute("GET", "/dash/tidy-up"), true);
-    assert.equal(isWebCompatibilityRoute("GET", "/dash/tidy-up/"), true);
-    assert.equal(isWebCompatibilityRoute("GET", "/dash/tidy-up/1291546"), true);
-    assert.equal(isWebCompatibilityRoute("POST", "/dash/tidy-up/1291546"), true);
+    assert.equal(isWebCompatibilityRoute("GET", "/dash/tidy-up"), false);
+    assert.equal(isWebCompatibilityRoute("GET", "/dash/tidy-up/"), false);
+    assert.equal(isWebCompatibilityRoute("GET", "/dash/tidy-up/1291546"), false);
+    assert.equal(isWebCompatibilityRoute("POST", "/dash/tidy-up/1291546"), false);
     assert.equal(isWebCompatibilityRoute("GET", "/icon.png"), true);
     assert.equal(isWebCompatibilityRoute("HEAD", "/icon.png"), true);
     assert.equal(isWebCompatibilityRoute("GET", "/stremio-logo.png"), true);
@@ -122,7 +122,7 @@ describe("web compatibility allowlist", () => {
 
   test("forwards the original request to CORE_WEB including Basic auth and cookies", async () => {
     const { bindings, hits } = env({});
-    const request = new Request(`${ORIGIN}/dash/tidy-up/1291546`, {
+    const request = new Request(`${ORIGIN}/auth/me`, {
       headers: {
         Authorization: "Basic dXNlcjpwYXNz",
         Cookie: "token=keep",

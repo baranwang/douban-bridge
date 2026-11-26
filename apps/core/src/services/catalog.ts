@@ -3,12 +3,10 @@ import type { DoubanSubjectCollectionItem } from "@douban-bridge/contracts/douba
 import type { StremioCatalogItem } from "@douban-bridge/contracts/stremio";
 import axios from "axios";
 import { HTTPException } from "hono/http-exception";
-import { persistAndEnqueueUnmatched } from "@/libs/agent-match/pool";
 import { api } from "@/libs/api";
 import { getLatestYearlyRanking, isYearlyRankingId } from "@/libs/collections";
 import type { Config } from "@/libs/config";
 import { ImageUrlGenerator } from "@/libs/images";
-import { getContext } from "@/libs/middleware";
 
 export type ImageContext = {
   providers: Config["imageProviders"];
@@ -62,20 +60,9 @@ export async function enrichCatalogItems(
 ): Promise<StremioCatalogItem[]> {
   if (items.length === 0) return [];
 
-  const sourceById = new Map(items.map((item) => [item.id, item]));
-  const { mappingCache, missingIds } = await api.fetchIdMapping([...sourceById.keys()]);
-  const newMappings = await Promise.all(
-    missingIds.map(async (doubanId) => {
-      const source = sourceById.get(doubanId)!;
-      try {
-        return await api.findExternalId({ doubanId, type: source.type, title: source.title });
-      } catch {
-        return { doubanId, tmdbId: null, imdbId: null, traktId: null };
-      }
-    }),
+  const mappingCache = await api.fetchIdMapping(
+    items.map((item) => ({ doubanId: item.id, type: item.type, title: item.title })),
   );
-  for (const mapping of newMappings) mappingCache.set(mapping.doubanId, mapping);
-  getContext().ctx.waitUntil(persistAndEnqueueUnmatched(newMappings));
 
   const generator = new ImageUrlGenerator(images.providers, {
     origin: images.origin,

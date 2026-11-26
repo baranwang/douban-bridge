@@ -6,7 +6,6 @@ import { authMiddleware } from "./libs/session";
 import { apiKeysRoute } from "./routes/api-keys";
 import { authRoute } from "./routes/auth";
 import { configureRoute } from "./routes/configure";
-import { dashRoute } from "./routes/dash";
 import { feedbackRoute } from "./routes/feedback";
 import { imageProxyRoute } from "./routes/image-proxy";
 import { internalApi } from "./routes/internal-api";
@@ -35,8 +34,6 @@ app.route("/:config/configure", configureRoute);
 
 app.use("/image-proxy/*", imageRateLimit);
 app.route("/image-proxy", imageProxyRoute);
-
-app.route("/dash", dashRoute);
 
 app.get("/icon.png", (c) => c.env.ASSETS.fetch(c.req.raw));
 app.get("/assets/*", (c) => {

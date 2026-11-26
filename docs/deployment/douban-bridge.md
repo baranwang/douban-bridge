@@ -8,10 +8,10 @@
 
 | Worker | 资源与凭据 |
 | --- | --- |
-| core（Worker `douban-bridge-core`，域名 `douban-bridge.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件；dash basic auth 读取 KV 键 `DASH_USER` / `DASH_PASS`）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、cron `0 * * * *`、queue `douban-agent-match`（binding `AGENT_MATCH_QUEUE`）。公开 `/v1` 只认 Bearer `sk` |
+| core（Worker `douban-bridge-core`，域名 `douban-bridge.baran.wang`） | 原 D1 `STREMIO_ADDON_DOUBAN`（`database_name` `stremio-addon-douban`，`database_id` 见 `apps/core/wrangler.jsonc`）、原 KV `KV`（id 见同文件）、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、`ASSETS`、`DOUBAN_API_KEY` / `TRAKT_CLIENT_ID` / `TMDB_API_KEY` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `JWT_SECRET`、两个 public origin（`STREMIO_ORIGIN` / `DASH_ORIGIN`）、secret `MEDIAREF_API_KEY`。公开 `/v1` 只认 Bearer `sk` |
 | stremio（`stremio-addon-douban`，旧 custom domain `stremio-addon-douban.baran.wang`） | `CORE_STREMIO` → `StremioEntrypoint`、`CORE_WEB` → 默认入口、`PUBLIC_RATE_LIMIT` / `USER_RATE_LIMIT`、旧 custom domain。无 D1 / KV / cron / 上游凭据 |
 
-当前 `apps/core/wrangler.jsonc` 的 **vars**（明文配置，不是 secret）：`DOUBAN_API_KEY`、`TRAKT_CLIENT_ID`、`GITHUB_CLIENT_ID`、`STREMIO_ORIGIN`、`DASH_ORIGIN`、`AGENT_MATCH_GATEWAY_ID`、`AGENT_MATCH_GATEWAY_PROVIDER`。core 还有 Workers AI binding `AI`（走 AI Gateway 自定义 provider，不需要 `AGENT_MATCH_API_KEY`）。模型 id 存在 KV `AGENT_MATCH_MODEL`，改这个不用重新部署。代码还读取以下名称，它们应作为 **secrets**（或尚未配置）：`JWT_SECRET`、`GITHUB_CLIENT_SECRET`、`TMDB_API_KEY`、`EXA_API_KEY`；可选 `FANART_API_KEY` / `TRAKT_CLIENT_SECRET`。获得授权后用下面命令核对实际存在的名称，**不要把值写入仓库或本文**：
+当前 `apps/core/wrangler.jsonc` 的 **vars**（明文配置，不是 secret）：`DOUBAN_API_KEY`、`TRAKT_CLIENT_ID`、`GITHUB_CLIENT_ID`、`STREMIO_ORIGIN`、`DASH_ORIGIN`。代码还读取以下名称，它们应作为 **secrets**（或尚未配置）：`JWT_SECRET`、`GITHUB_CLIENT_SECRET`、`TMDB_API_KEY`、`MEDIAREF_API_KEY`（见下节）；可选 `FANART_API_KEY` / `TRAKT_CLIENT_SECRET`。获得授权后用下面命令核对实际存在的名称，**不要把值写入仓库或本文**：
 
 ```bash
 rtk proxy pnpm --filter @douban-bridge/core exec wrangler secret list
@@ -21,6 +21,14 @@ rtk proxy pnpm --filter @douban-bridge/stremio exec wrangler secret list
 core 保持原 `JWT_SECRET`，使旧 cookie 仍能校验。不从部署日志恢复秘密。旧 Worker 切换完成后清除残留 secrets，确认 stremio **最终不再持有**上游 credentials。
 
 授权后核对 vars / secrets 时，以命令输出的名称为准；上表中部分上游 key 可能属于 vars。
+
+## MediaRef 接入
+
+映射改以 MediaRef（`https://api.mediaref.org`）为主要来源，设计见 `docs/design/mediaref-integration.md`。agent-match、cron、queue `douban-agent-match`、Workers AI binding、tidy-up 后台都已移除；`/feedback` 302 到 `https://mediaref.org/`。
+
+- 在 MediaRef 签发一个带 SUBMIT scope 的 API key（账号需先验证邮箱），写入 core：`rtk proxy pnpm --filter @douban-bridge/core exec wrangler secret put MEDIAREF_API_KEY`。没配时 core 退回本地 `douban_mapping` + KV，不提交线索。
+- 部署后可删除不再使用的 secret `EXA_API_KEY`、KV 键 `AGENT_MATCH_MODEL`，以及 Cloudflare 上的 queue `douban-agent-match`。
+- 不做 migration：`douban_mapping.agent`、`mapping_feedback`、`pi_token_usage` 暂留，迁移第 3 步再删。下文关于 agent 队列、`/dash`、映射反馈和 cron 的说明仅作历史记录。
 
 ## 本地联调（非生产）
 
