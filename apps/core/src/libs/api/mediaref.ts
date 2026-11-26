@@ -43,9 +43,12 @@ const batchGetMediaResponseSchema = z.object({
 });
 
 async function call(method: string, body: unknown): Promise<unknown> {
-  const apiKey = getContext().env.MEDIAREF_API_KEY;
+  const { env } = getContext();
+  const apiKey = env.MEDIAREF_API_KEY;
   if (!apiKey) throw new Error("MEDIAREF_API_KEY is not configured");
-  const response = await fetch(`${MEDIAREF_API}/mediaref.v1.${method}`, {
+  // 同账号 Service Binding 直连 media-ref-api，不走公网；没绑定（本地/测试）时走公网域名。
+  const send = env.MEDIAREF ? env.MEDIAREF.fetch.bind(env.MEDIAREF) : fetch;
+  const response = await send(`${MEDIAREF_API}/mediaref.v1.${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
     body: JSON.stringify(body),

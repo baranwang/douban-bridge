@@ -3,6 +3,7 @@
 // Runtime types generated with workerd@1.20260911.1 2025-11-28 nodejs_compat
 interface __BaseEnv_CloudflareBindings {
 	KV: KVNamespace;
+	MEDIAREF: Fetcher;
 	STREMIO_ADDON_DOUBAN: D1Database;
 	PUBLIC_RATE_LIMIT: RateLimit;
 	USER_RATE_LIMIT: RateLimit;
